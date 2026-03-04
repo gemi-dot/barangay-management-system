@@ -4,6 +4,37 @@ from django.utils import timezone
 
 # Create your models here.
 
+class Precinct(models.Model):
+    """Model to manage voting precincts in the barangay"""
+    precinct_number = models.CharField(max_length=20, unique=True)
+    precinct_name = models.CharField(max_length=100, blank=True)
+    location = models.TextField(blank=True, help_text="Physical location/address of the precinct")
+    capacity = models.PositiveIntegerField(default=0, help_text="Maximum number of registered voters")
+    
+    # Officials
+    precinct_chairman = models.CharField(max_length=150, blank=True)
+    poll_clerk = models.CharField(max_length=150, blank=True)
+    
+    # Contact info
+    contact_number = models.CharField(max_length=15, blank=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['precinct_number']
+        verbose_name = 'Precinct'
+        verbose_name_plural = 'Precincts'
+    
+    def __str__(self):
+        return f"Precinct {self.precinct_number}"
+    
+    @property
+    def registered_voters_count(self):
+        return self.residents.filter(voters_id__isnull=False, is_active=True).count()
+
+
 class Resident(models.Model):
     CIVIL_STATUS_CHOICES = [
         ('single', 'Single'),
@@ -85,7 +116,8 @@ class Resident(models.Model):
     sss_gsis_number = models.CharField(max_length=20, blank=True)
     tin_number = models.CharField(max_length=20, blank=True)
     voters_id = models.CharField(max_length=20, blank=True)
-    precinct_number = models.CharField(max_length=20, blank=True)  # new field
+    precinct = models.ForeignKey(Precinct, on_delete=models.SET_NULL, null=True, blank=True, related_name='residents')
+    precinct_number = models.CharField(max_length=20, blank=True)  # Keep for backward compatibility
     
     # Health and Special Categories
     is_pwd = models.BooleanField(default=False, verbose_name="Person with Disability")

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Resident, Household
+from .models import Resident, Household, Precinct
 
 # Register your models here.
 
@@ -27,7 +27,7 @@ class ResidentAdmin(admin.ModelAdmin):
             'fields': ('father_name', 'mother_name', 'spouse_name', 'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship')
         }),
         ('Government IDs', {
-            'fields': ('philhealth_number', 'sss_gsis_number', 'tin_number', 'voters_id')
+            'fields': ('philhealth_number', 'sss_gsis_number', 'tin_number', 'voters_id', 'precinct', 'precinct_number')
         }),
         ('Special Categories', {
             'fields': ('is_pwd', 'pwd_type', 'is_senior_citizen', 'is_solo_parent', 'is_indigenous', 'is_4ps_beneficiary')
@@ -53,3 +53,30 @@ class HouseholdAdmin(admin.ModelAdmin):
     search_fields = ['household_number', 'household_head__first_name', 'household_head__last_name']
     
     filter_horizontal = ['members']
+
+
+@admin.register(Precinct)
+class PrecinctAdmin(admin.ModelAdmin):
+    list_display = ['precinct_number', 'precinct_name', 'location', 'capacity', 'registered_voters_count', 'precinct_chairman', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['precinct_number', 'precinct_name', 'location', 'precinct_chairman']
+    list_editable = ['is_active']
+    
+    fieldsets = (
+        ('Precinct Information', {
+            'fields': ('precinct_number', 'precinct_name', 'location', 'capacity')
+        }),
+        ('Officials', {
+            'fields': ('precinct_chairman', 'poll_clerk')
+        }),
+        ('Contact Information', {
+            'fields': ('contact_number',)
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        })
+    )
+    
+    def registered_voters_count(self, obj):
+        return obj.registered_voters_count
+    registered_voters_count.short_description = 'Registered Voters'
