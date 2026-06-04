@@ -177,9 +177,9 @@
     <div class="certificate">
         <div class="header">
             <div class="small">Republic of the Philippines</div>
-            <div class="small">Province of Southern Leyte</div>
-            <div class="small">City of Maasin</div>
-            <div class="main">BARANGAY ABGAO</div>
+            <div class="small">Province of {{ province|title }}</div>
+            <div class="small">{{ city_municipality|title }}</div>
+            <div class="main">BARANGAY {{ barangay|upper }}</div>
             <div class="small">Office of the Punong Barangay</div>
         </div>
 
@@ -217,8 +217,8 @@
 
             <p>
                 Issued this <span class="field">{{ issued_date|date:'jS' }}</span> day of
-                <span class="field">{{ issued_date|date:'F Y' }}</span> at Barangay Abgao,
-                Maasin City, Southern Leyte.
+                <span class="field">{{ issued_date|date:'F Y' }}</span> at Barangay {{ barangay|title }},
+                {{ city_municipality|title }}, {{ province|title }}.
             </p>
         </div>
 

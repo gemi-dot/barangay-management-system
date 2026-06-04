@@ -36,7 +36,7 @@ class DocumentRequestForm(forms.ModelForm):
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Juan Dela Cruz'}),
             'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'name@example.com'}),
-            'address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'House No., Street, Zone, Barangay'}),
+            'address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'House No., Street, Purok, Barangay'}),
             'document_type': forms.Select(attrs={'class': 'form-select'}),
             'purpose': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'State why you need this document'}),
             'preferred_release_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),

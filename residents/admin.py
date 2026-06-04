@@ -100,7 +100,16 @@ class DocumentRequestAdmin(admin.ModelAdmin):
 
 @admin.register(BarangayOfficeProfile)
 class BarangayOfficeProfileAdmin(admin.ModelAdmin):
-    list_display = ['office_name', 'captain_name', 'default_or_number', 'default_control_number', 'updated_at']
+    list_display = [
+        'office_name',
+        'barangay',
+        'city_municipality',
+        'province',
+        'captain_name',
+        'default_or_number',
+        'default_control_number',
+        'updated_at',
+    ]
 
     def has_add_permission(self, request):
         # Keep only one profile record for system-wide certificate defaults.

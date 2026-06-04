@@ -67,6 +67,16 @@ class Resident(models.Model):
         ('self_employed', 'Self Employed'),
         ('ofw', 'OFW'),
     ]
+
+    ZONE_CHOICES = [
+        ('Purok Talisay', 'Purok Talisay'),
+        ('Purok Malunggay', 'Purok Malunggay'),
+        ('Purok Mancinitas', 'Purok Mancinitas'),
+        ('Purok Narra', 'Purok Narra'),
+        ('Purok Kulo', 'Purok Kulo'),
+        ('Purok Ipil-ipil', 'Purok Ipil-ipil'),
+        ('Purok Tugas', 'Purok Tugas'),
+    ]
     
     # Personal Information
     first_name = models.CharField(max_length=50)
@@ -92,7 +102,7 @@ class Resident(models.Model):
     # Address Information
     house_number = models.CharField(max_length=20)
     street = models.CharField(max_length=100)
-    zone = models.CharField(max_length=50)
+    zone = models.CharField(max_length=50, choices=ZONE_CHOICES)
     barangay = models.CharField(max_length=100, default='ABGAO')
     city_municipality = models.CharField(max_length=100, default='MAASIN')
     province = models.CharField(max_length=100, default='SOUTHERN LEYTE')
@@ -160,7 +170,7 @@ class Resident(models.Model):
     
     @property
     def complete_address(self):
-        return f"{self.house_number} {self.street}, Zone {self.zone}, {self.barangay}, {self.city_municipality}, {self.province} {self.zip_code}"
+        return f"{self.house_number} {self.street}, Purok {self.zone}, {self.barangay}, {self.city_municipality}, {self.province} {self.zip_code}"
 
 
 class Household(models.Model):
@@ -243,6 +253,9 @@ class DocumentRequest(models.Model):
 
 class BarangayOfficeProfile(models.Model):
     office_name = models.CharField(max_length=150, default='Barangay Abgao')
+    barangay = models.CharField(max_length=100, default='ABGAO')
+    city_municipality = models.CharField(max_length=100, default='MAASIN')
+    province = models.CharField(max_length=100, default='SOUTHERN LEYTE')
     captain_name = models.CharField(max_length=150, default='HON. BARANGAY CAPTAIN')
     default_or_number = models.CharField(max_length=50, blank=True)
     default_control_number = models.CharField(max_length=50, blank=True)

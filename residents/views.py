@@ -17,6 +17,9 @@ def _get_certificate_meta(request, document_request):
     captain_name = request.GET.get('captain_name', '').strip() or profile.captain_name
     or_number = request.GET.get('or_number', '').strip() or profile.default_or_number
     control_number = request.GET.get('control_number', '').strip() or profile.default_control_number
+    barangay = request.GET.get('barangay', '').strip() or profile.barangay
+    city_municipality = request.GET.get('city_municipality', '').strip() or profile.city_municipality
+    province = request.GET.get('province', '').strip() or profile.province
 
     if not control_number and document_request:
         control_number = document_request.tracking_number
@@ -25,6 +28,9 @@ def _get_certificate_meta(request, document_request):
         'captain_name': captain_name,
         'or_number': or_number,
         'control_number': control_number,
+        'barangay': barangay,
+        'city_municipality': city_municipality,
+        'province': province,
     }
 
 
@@ -199,7 +205,7 @@ def certificate_of_residency_sample(request, request_id=None):
         document_request = get_object_or_404(DocumentRequest, id=request_id)
 
     resident_name = document_request.full_name if document_request else 'Juan Dela Cruz'
-    resident_address = document_request.address if document_request else 'Zone 1, Barangay Abgao, Maasin City'
+    resident_address = document_request.address if document_request else 'Purok Talisay, Barangay Abgao, Maasin City'
     purpose = document_request.purpose if document_request else 'Employment requirement'
 
     context = {
@@ -221,7 +227,7 @@ def certificate_of_indigency_sample(request, request_id=None):
         document_request = get_object_or_404(DocumentRequest, id=request_id)
 
     resident_name = document_request.full_name if document_request else 'Juan Dela Cruz'
-    resident_address = document_request.address if document_request else 'Zone 1, Barangay Abgao, Maasin City'
+    resident_address = document_request.address if document_request else 'Purok Talisay, Barangay Abgao, Maasin City'
     purpose = document_request.purpose if document_request else 'Financial assistance'
 
     context = {

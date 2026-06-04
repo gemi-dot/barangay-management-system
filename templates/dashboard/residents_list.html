@@ -23,12 +23,12 @@ so{% extends 'base.html' %}
                                value="{{ search_query|default:'' }}" placeholder="Enter name or contact number">
                     </div>
                     <div class="col-md-3">
-                        <label for="zone" class="form-label">Filter by Zone</label>
+                        <label for="zone" class="form-label">Filter by Purok</label>
                         <select class="form-select" id="zone" name="zone">
-                            <option value="">All Zones</option>
+                            <option value="">All Puroks</option>
                             {% for zone in zones %}
                                 <option value="{{ zone }}" {% if zone == zone_filter %}selected{% endif %}>
-                                    Zone {{ zone }}
+                                    {{ zone }}
                                 </option>
                             {% endfor %}
                         </select>
@@ -83,7 +83,7 @@ so{% extends 'base.html' %}
                                     <th>Name</th>
                                     <th>Age</th>
                                     <th>Gender</th>
-                                    <th>Zone</th>
+                                    <th>Purok</th>
                                     <th>Contact</th>
                                     <th>Special Categories</th>
                                     <th>Actions</th>
