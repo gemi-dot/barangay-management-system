@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 
 # Create your models here.
 
@@ -86,16 +87,16 @@ class Resident(models.Model):
     place_of_birth = models.CharField(max_length=100)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     civil_status = models.CharField(max_length=20, choices=CIVIL_STATUS_CHOICES)
-    citizenship = models.CharField(max_length=50, default='Filipino')
+    citizenship = models.CharField(max_length=50, default='FILIPINO')
     
     # Address Information
     house_number = models.CharField(max_length=20)
     street = models.CharField(max_length=100)
     zone = models.CharField(max_length=50)
-    barangay = models.CharField(max_length=100, default='Your Barangay Name')
-    city_municipality = models.CharField(max_length=100)
-    province = models.CharField(max_length=100)
-    zip_code = models.CharField(max_length=10)
+    barangay = models.CharField(max_length=100, default='ABGAO')
+    city_municipality = models.CharField(max_length=100, default='MAASIN')
+    province = models.CharField(max_length=100, default='SOUTHERN LEYTE')
+    zip_code = models.CharField(max_length=10, default='6600')
     
     # Educational and Employment Information
     educational_attainment = models.CharField(max_length=20, choices=EDUCATIONAL_ATTAINMENT_CHOICES)
@@ -185,3 +186,78 @@ class Household(models.Model):
     
     def __str__(self):
         return f"Household {self.household_number} - {self.household_head.full_name}"
+
+
+class DocumentRequest(models.Model):
+    DOCUMENT_TYPE_CHOICES = [
+        ('barangay_clearance', 'Barangay Clearance'),
+        ('certificate_of_residency', 'Certificate of Residency'),
+        ('certificate_of_indigency', 'Certificate of Indigency'),
+        ('business_clearance', 'Business Clearance'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('released', 'Released'),
+        ('rejected', 'Rejected'),
+    ]
+
+    tracking_number = models.CharField(max_length=20, unique=True, editable=False)
+    full_name = models.CharField(max_length=150)
+    contact_number = models.CharField(max_length=15)
+    email = models.EmailField(blank=True)
+    address = models.CharField(max_length=255)
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
+    purpose = models.TextField()
+    preferred_release_date = models.DateField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    remarks = models.TextField(blank=True)
+    processed_by = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_document_requests'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.tracking_number} - {self.full_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.tracking_number:
+            today = timezone.localdate()
+            prefix = f"DR-{today:%Y%m%d}"
+            count_today = DocumentRequest.objects.filter(
+                created_at__date=today
+            ).count() + 1
+            self.tracking_number = f"{prefix}-{count_today:03d}"
+        super().save(*args, **kwargs)
+
+
+class BarangayOfficeProfile(models.Model):
+    office_name = models.CharField(max_length=150, default='Barangay Abgao')
+    captain_name = models.CharField(max_length=150, default='HON. BARANGAY CAPTAIN')
+    default_or_number = models.CharField(max_length=50, blank=True)
+    default_control_number = models.CharField(max_length=50, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Barangay Office Profile'
+        verbose_name_plural = 'Barangay Office Profile'
+
+    def __str__(self):
+        return self.office_name
+
+    @classmethod
+    def get_solo(cls):
+        profile = cls.objects.order_by('id').first()
+        if profile:
+            return profile
+        return cls.objects.create()

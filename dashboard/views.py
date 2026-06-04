@@ -1,8 +1,10 @@
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import datetime, timedelta
-from residents.models import Resident, Household
+from collections import defaultdict
+from residents.models import Resident, Household, DocumentRequest
 from bhw_reports.models import (
     SeniorCitizenReport, SariSariStoreReport, 
     FourPsBeneficiaryReport, PregnancyReport, HealthReport
@@ -10,6 +12,7 @@ from bhw_reports.models import (
 
 # Create your views here.
 
+@login_required
 def dashboard_view(request):
     """Main dashboard with summary statistics"""
     
@@ -83,6 +86,23 @@ def dashboard_view(request):
     employment_distribution = Resident.objects.filter(is_active=True).values('employment_status').annotate(
         count=Count('id')
     ).order_by('employment_status')
+
+    # Document request quick metrics
+    ready_today_count = DocumentRequest.objects.filter(
+        status='ready_for_pickup',
+        updated_at__date=today,
+    ).count()
+    currently_ready_count = DocumentRequest.objects.filter(status='ready_for_pickup').count()
+    released_today_count = DocumentRequest.objects.filter(
+        status='released',
+        updated_at__date=today,
+    ).count()
+    pending_document_requests = DocumentRequest.objects.filter(
+        status__in=['pending', 'processing']
+    ).count()
+    latest_ready_requests = DocumentRequest.objects.filter(
+        status='ready_for_pickup'
+    ).order_by('-updated_at')[:5]
     
     context = {
         'total_residents': total_residents,
@@ -104,11 +124,17 @@ def dashboard_view(request):
         'zone_distribution': zone_distribution,
         'civil_status_distribution': civil_status_distribution,
         'employment_distribution': employment_distribution,
+        'ready_today_count': ready_today_count,
+        'currently_ready_count': currently_ready_count,
+        'released_today_count': released_today_count,
+        'pending_document_requests': pending_document_requests,
+        'latest_ready_requests': latest_ready_requests,
     }
     
     return render(request, 'dashboard/dashboard.html', context)
 
 
+@login_required
 def senior_citizens_report(request):
     """Senior Citizens Report View"""
     senior_citizens = Resident.objects.filter(is_senior_citizen=True, is_active=True)
@@ -130,6 +156,7 @@ def senior_citizens_report(request):
     return render(request, 'dashboard/senior_citizens_report.html', context)
 
 
+@login_required
 def businesses_report(request):
     """Sari-Sari Stores and Carenderias Report View"""
     businesses = SariSariStoreReport.objects.filter(is_active=True).select_related('owner')
@@ -156,6 +183,7 @@ def businesses_report(request):
     return render(request, 'dashboard/businesses_report.html', context)
 
 
+@login_required
 def fourps_report(request):
     """4Ps Beneficiaries Report View"""
     fourps_beneficiaries = FourPsBeneficiaryReport.objects.filter(is_active=True).select_related('beneficiary')
@@ -176,6 +204,7 @@ def fourps_report(request):
     return render(request, 'dashboard/fourps_report.html', context)
 
 
+@login_required
 def pregnancy_report(request):
     """Pregnancy Report View"""
     active_pregnancies = PregnancyReport.objects.filter(
@@ -226,6 +255,7 @@ def pregnancy_report(request):
     return render(request, 'dashboard/pregnancy_report.html', context)
 
 
+@login_required
 def residents_list(request):
     """Residents listing view with search and filter"""
     residents = Resident.objects.filter(is_active=True).order_by('last_name', 'first_name')
@@ -262,3 +292,32 @@ def residents_list(request):
     }
     
     return render(request, 'dashboard/residents_list.html', context)
+
+
+@login_required
+def household_report(request):
+    """Household report grouped by zone"""
+    households = Household.objects.select_related('household_head').prefetch_related('members').order_by('household_number')
+
+    grouped_households = defaultdict(list)
+    total_members = 0
+
+    for household in households:
+        zone = household.household_head.zone if household.household_head and household.household_head.zone else 'Unassigned'
+        member_count = household.members.count()
+        total_members += member_count
+
+        grouped_households[zone].append({
+            'household': household,
+            'member_count': member_count,
+        })
+
+    sorted_grouped_households = dict(sorted(grouped_households.items(), key=lambda item: item[0]))
+
+    context = {
+        'grouped_households': sorted_grouped_households,
+        'total_households': households.count(),
+        'total_members': total_members,
+    }
+
+    return render(request, 'dashboard/household_report.html', context)

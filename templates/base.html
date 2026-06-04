@@ -84,6 +84,13 @@
                             </h6>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'household_report' %}active{% endif %}" 
+                               href="{% url 'dashboard:household_report' %}">
+                                <i class="bi bi-house"></i>
+                                Household Report
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'senior_citizens_report' %}active{% endif %}" 
                                href="{% url 'dashboard:senior_citizens_report' %}">
                                 <i class="bi bi-person-wheelchair"></i>
@@ -118,13 +125,48 @@
                                 Admin Panel
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'admin:residents_barangayofficeprofile_changelist' %}">
+                                <i class="bi bi-building-gear"></i>
+                                Office Profile
+                            </a>
+                        </li>
                         
                         <li>
                             <a href="{% url 'residents:reports_home' %}">
                                 🗳️ Voters Reports
                             </a>
                         </li>
-                        
+
+                        <li class="nav-item mt-2">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'faq_chatbot' %}active{% endif %}"
+                               href="{% url 'assistant:faq_chatbot' %}">
+                                <i class="bi bi-chat-dots"></i>
+                                FAQ Chatbot
+                            </a>
+                        </li>
+
+                        <li class="nav-item mt-2">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'document_requests_queue' %}active{% endif %}"
+                               href="{% url 'residents:document_requests_queue' %}">
+                                <i class="bi bi-file-earmark-text"></i>
+                                Document Requests
+                            </a>
+                        </li>
+
+                        <li class="nav-item mt-3 border-top pt-2">
+                            {% if user.is_authenticated %}
+                            <span class="nav-link text-white-50 small">
+                                <i class="bi bi-person-circle"></i> {{ user.username }}
+                            </span>
+                            <form method="post" action="{% url 'logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link btn btn-link text-danger w-100 text-start ps-3">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </button>
+                            </form>
+                            {% endif %}
+                        </li>
 
                     </ul>
                 </div>

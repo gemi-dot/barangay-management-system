@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Submitted</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 text-center">
+                    <div class="card-body p-5">
+                        <h1 class="h3 text-success mb-3">Request Submitted</h1>
+                        <p class="mb-2">Your document request has been received by the barangay office.</p>
+                        {% if tracking_number %}
+                        <p class="mb-4">Tracking Number: <strong>{{ tracking_number }}</strong></p>
+                        {% endif %}
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'residents:request_document' %}" class="btn btn-primary">Submit Another Request</a>
+                            <a href="{% url 'residents:track_document_request' %}" class="btn btn-outline-primary">Track My Request</a>
+                            <a href="/" class="btn btn-outline-secondary">Go to Dashboard</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

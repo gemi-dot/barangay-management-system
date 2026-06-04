@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Document Requests Queue{% endblock %}
+{% block page_title %}Document Requests Queue{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form class="row g-2 align-items-end" method="get">
+            <div class="col-md-4">
+                <label for="status" class="form-label">Filter by Status</label>
+                <select class="form-select" id="status" name="status" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Tracking #</th>
+                        <th>Resident</th>
+                        <th>Document</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                        <th>Requested</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in document_requests %}
+                    <tr>
+                        <td><strong>{{ item.tracking_number }}</strong></td>
+                        <td>
+                            {{ item.full_name }}<br>
+                            <small class="text-muted">{{ item.contact_number }}</small>
+                        </td>
+                        <td>{{ item.get_document_type_display }}</td>
+                        <td>{{ item.purpose|truncatechars:55 }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+                        </td>
+                        <td>{{ item.created_at|date:'M d, Y h:i A' }}</td>
+                        <td>
+                            <form method="post" action="{% url 'residents:update_document_request_status' item.id %}">
+                                {% csrf_token %}
+                                <div class="d-flex gap-2">
+                                    <select class="form-select form-select-sm" name="status">
+                                        {% for value, label in status_choices %}
+                                        <option value="{{ value }}" {% if item.status == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="text" class="form-control form-control-sm" name="remarks" value="{{ item.remarks }}" placeholder="Remarks">
+                                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                                </div>
+                            </form>
+                            {% if item.document_type == 'certificate_of_residency' %}
+                            <div class="mt-2">
+                                <a href="{% url 'residents:certificate_of_residency_sample_for_request' item.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    Open Certificate Format
+                                </a>
+                            </div>
+                            {% endif %}
+                            {% if item.document_type == 'certificate_of_indigency' %}
+                            <div class="mt-2">
+                                <a href="{% url 'residents:certificate_of_indigency_sample_for_request' item.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    Open Indigency Format
+                                </a>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No document requests found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

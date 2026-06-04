@@ -52,6 +52,7 @@
             <tr>
                 <th>#</th>
                 <th>Full Name</th>
+                <th>Household</th>
                 <th>Gender</th>
                 <th>Age</th>
                 <th>Address</th>
@@ -63,6 +64,15 @@
             <tr>
                 <td>{{ forloop.counter }}</td>
                 <td>{{ voter.full_name }}</td>
+                <td>
+                    {% with household=voter.households.first %}
+                        {% if household %}
+                            {{ household.household_number }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    {% endwith %}
+                </td>
                 <td>{{ voter.get_gender_display }}</td>
                 <td>{{ voter.age }}</td>
                 <td>{{ voter.complete_address }}</td>
@@ -70,7 +80,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6">No voters in this precinct.</td>
+                <td colspan="7">No voters in this precinct.</td>
             </tr>
             {% endfor %}
         </tbody>

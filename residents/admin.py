@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Resident, Household, Precinct
+from .models import Resident, Household, Precinct, DocumentRequest, BarangayOfficeProfile
 
 # Register your models here.
 
@@ -80,3 +80,30 @@ class PrecinctAdmin(admin.ModelAdmin):
     def registered_voters_count(self, obj):
         return obj.registered_voters_count
     registered_voters_count.short_description = 'Registered Voters'
+
+
+@admin.register(DocumentRequest)
+class DocumentRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        'tracking_number',
+        'full_name',
+        'document_type',
+        'status',
+        'preferred_release_date',
+        'processed_by',
+        'created_at',
+    ]
+    list_filter = ['status', 'document_type', 'created_at']
+    search_fields = ['tracking_number', 'full_name', 'contact_number', 'email']
+    readonly_fields = ['tracking_number', 'created_at', 'updated_at']
+
+
+@admin.register(BarangayOfficeProfile)
+class BarangayOfficeProfileAdmin(admin.ModelAdmin):
+    list_display = ['office_name', 'captain_name', 'default_or_number', 'default_control_number', 'updated_at']
+
+    def has_add_permission(self, request):
+        # Keep only one profile record for system-wide certificate defaults.
+        if BarangayOfficeProfile.objects.exists():
+            return False
+        return super().has_add_permission(request)
