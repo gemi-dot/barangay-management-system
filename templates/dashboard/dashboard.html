@@ -74,6 +74,43 @@
     </div>
 </div>
 
+<!-- Admin Shortcuts -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-shield-lock"></i>
+                    Admin Shortcuts
+                </h5>
+                <small class="text-muted">Fast access to system controls</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{% url 'admin:index' %}" class="btn btn-outline-primary w-100 py-3">
+                            <div class="fw-semibold">Open Admin Panel</div>
+                            <small class="d-block">Manage users, residents, and system settings</small>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{% url 'admin:residents_documentrequest_changelist' %}" class="btn btn-outline-secondary w-100 py-3">
+                            <div class="fw-semibold">Document Requests</div>
+                            <small class="d-block">Review and process request records</small>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{% url 'admin:residents_documentrequest_unlinked_identity_report' %}" class="btn btn-outline-danger w-100 py-3">
+                            <div class="fw-semibold">Unlinked Identity Report</div>
+                            <small class="d-block">Review rows still missing stable portal links</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Ready Today Panel -->
 <div class="row mb-4">
     <div class="col-12">

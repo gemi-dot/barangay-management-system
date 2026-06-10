@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
@@ -144,6 +145,13 @@ class Resident(models.Model):
     medical_conditions = models.TextField(blank=True)
     
     # System Fields
+    portal_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resident_profile',
+    )
     date_registered = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -218,6 +226,13 @@ class DocumentRequest(models.Model):
     full_name = models.CharField(max_length=150)
     contact_number = models.CharField(max_length=15)
     email = models.EmailField(blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resident_document_requests',
+    )
     address = models.CharField(max_length=255)
     document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
     purpose = models.TextField()

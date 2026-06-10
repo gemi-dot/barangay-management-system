@@ -1,11 +1,14 @@
 from django.contrib import admin
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+
 from .models import Resident, Household, Precinct, DocumentRequest, BarangayOfficeProfile
 
 # Register your models here.
 
 @admin.register(Resident)
 class ResidentAdmin(admin.ModelAdmin):
-    list_display = ['voters_id', 'precinct_number', 'philhealth_number', 'sss_gsis_number', 'tin_number', 'last_name', 'first_name', 'middle_name', 'age', 'gender', 'zone', 'is_senior_citizen', 'is_4ps_beneficiary', 'is_active']
+    list_display = ['voters_id', 'precinct_number', 'portal_user', 'philhealth_number', 'sss_gsis_number', 'tin_number', 'last_name', 'first_name', 'middle_name', 'age', 'gender', 'zone', 'is_senior_citizen', 'is_4ps_beneficiary', 'is_active']
     list_filter = ['gender', 'civil_status', 'is_senior_citizen', 'is_4ps_beneficiary', 'is_pwd', 'zone', 'is_active']
     search_fields = ['first_name', 'last_name', 'middle_name', 'contact_number']
     list_editable = ['is_active']
@@ -84,9 +87,11 @@ class PrecinctAdmin(admin.ModelAdmin):
 
 @admin.register(DocumentRequest)
 class DocumentRequestAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/residents/documentrequest/change_list.html'
     list_display = [
         'tracking_number',
         'full_name',
+        'submitted_by',
         'document_type',
         'status',
         'preferred_release_date',
@@ -94,8 +99,33 @@ class DocumentRequestAdmin(admin.ModelAdmin):
         'created_at',
     ]
     list_filter = ['status', 'document_type', 'created_at']
-    search_fields = ['tracking_number', 'full_name', 'contact_number', 'email']
+    search_fields = ['tracking_number', 'full_name', 'contact_number', 'email', 'submitted_by__username', 'submitted_by__email']
     readonly_fields = ['tracking_number', 'created_at', 'updated_at']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'unlinked-identity-report/',
+                self.admin_site.admin_view(self.unlinked_identity_report),
+                name='residents_documentrequest_unlinked_identity_report',
+            ),
+        ]
+        return custom_urls + urls
+
+    def unlinked_identity_report(self, request):
+        unlinked_residents = Resident.objects.filter(portal_user__isnull=True).order_by('last_name', 'first_name')
+        unlinked_requests = DocumentRequest.objects.filter(submitted_by__isnull=True).order_by('-created_at')
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Unlinked Identity Report',
+            'unlinked_residents': unlinked_residents,
+            'unlinked_requests': unlinked_requests,
+            'resident_count': unlinked_residents.count(),
+            'request_count': unlinked_requests.count(),
+        }
+        return TemplateResponse(request, 'admin/residents/documentrequest/unlinked_identity_report.html', context)
 
 
 @admin.register(BarangayOfficeProfile)

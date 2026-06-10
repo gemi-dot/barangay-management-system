@@ -1,14 +1,16 @@
 
 # Create your views here.
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from datetime import timedelta
 from .models import Resident, DocumentRequest, BarangayOfficeProfile
-from .forms import DocumentRequestForm
+from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
 from collections import defaultdict
-from django.db.models import Count
+from django.db.models import Count, Q
 
 
 def _get_certificate_meta(request, document_request):
@@ -32,6 +34,239 @@ def _get_certificate_meta(request, document_request):
         'city_municipality': city_municipality,
         'province': province,
     }
+
+
+def _get_linked_resident(user):
+    if not user.is_authenticated:
+        return None
+
+    try:
+        resident = user.resident_profile
+    except Resident.DoesNotExist:
+        resident = None
+    if resident:
+        return resident
+
+    email = (user.email or '').strip()
+    if email:
+        resident = Resident.objects.filter(email__iexact=email, is_active=True).first()
+        if resident:
+            if resident.portal_user_id is None:
+                resident.portal_user = user
+                resident.save(update_fields=['portal_user'])
+            return resident
+
+    first_name = (user.first_name or '').strip()
+    last_name = (user.last_name or '').strip()
+    if first_name and last_name:
+        resident = Resident.objects.filter(
+            first_name__iexact=first_name,
+            last_name__iexact=last_name,
+            is_active=True,
+        ).first()
+        if resident and resident.portal_user_id is None:
+            resident.portal_user = user
+            resident.save(update_fields=['portal_user'])
+        return resident
+
+    return None
+
+
+def _ensure_portal_identity_links(user):
+    resident = _get_linked_resident(user)
+
+    if not user.is_authenticated:
+        return resident
+
+    filters = Q()
+    email = (user.email or '').strip()
+    if email:
+        filters |= Q(email__iexact=email)
+
+    full_name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
+    if full_name:
+        filters |= Q(full_name__iexact=full_name)
+
+    if filters:
+        matched_requests = DocumentRequest.objects.filter(filters, submitted_by__isnull=True)
+        if matched_requests.exists():
+            matched_requests.update(submitted_by=user)
+
+    if resident and resident.portal_user_id is None:
+        resident.portal_user = user
+        resident.save(update_fields=['portal_user'])
+
+    return resident
+
+
+def _get_resident_document_requests(user):
+    if not user.is_authenticated:
+        return DocumentRequest.objects.none()
+
+    linked_requests = DocumentRequest.objects.filter(submitted_by=user)
+    if linked_requests.exists():
+        return linked_requests.order_by('-created_at')
+
+    filters = Q()
+    email = (user.email or '').strip()
+    if email:
+        filters |= Q(email__iexact=email)
+
+    full_name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
+    if full_name:
+        filters |= Q(full_name__iexact=full_name)
+
+    if not filters:
+        return linked_requests.order_by('-created_at')
+
+    matched_requests = DocumentRequest.objects.filter(filters, submitted_by__isnull=True)
+    if matched_requests.exists():
+        matched_requests.update(submitted_by=user)
+        return DocumentRequest.objects.filter(submitted_by=user).order_by('-created_at')
+
+    return linked_requests.order_by('-created_at')
+
+
+def resident_login(request):
+    if request.user.is_authenticated:
+        return redirect('resident_portal:dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect(request.GET.get('next') or 'resident_portal:dashboard')
+        messages.error(request, 'Invalid username or password.')
+
+    return render(request, 'residents/portal/login.html')
+
+
+def resident_register(request):
+    if request.user.is_authenticated:
+        return redirect('resident_portal:dashboard')
+
+    if request.method == 'POST':
+        form = ResidentRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            _ensure_portal_identity_links(user)
+            messages.success(request, 'Registration successful. Welcome to the resident portal.')
+            return redirect('resident_portal:dashboard')
+    else:
+        form = ResidentRegistrationForm()
+
+    return render(request, 'residents/portal/register.html', {'form': form})
+
+
+def resident_logout(request):
+    if request.method == 'POST':
+        logout(request)
+    return redirect('resident_portal:login')
+
+
+@login_required(login_url='resident_portal:login')
+def resident_dashboard(request):
+    resident = _ensure_portal_identity_links(request.user)
+    my_requests = _get_resident_document_requests(request.user)
+
+    context = {
+        'resident': resident,
+        'total_requests': my_requests.count(),
+        'pending_requests': my_requests.filter(status__in=['pending', 'processing']).count(),
+        'ready_requests': my_requests.filter(status='ready_for_pickup').count(),
+        'recent_requests': my_requests[:5],
+    }
+    return render(request, 'residents/portal/dashboard.html', context)
+
+
+@login_required(login_url='resident_portal:login')
+def resident_profile(request):
+    resident = _ensure_portal_identity_links(request.user)
+
+    if request.method == 'POST':
+        form = ResidentProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('resident_portal:profile')
+    else:
+        form = ResidentProfileForm(instance=request.user)
+
+    return render(request, 'residents/portal/profile.html', {
+        'form': form,
+        'resident': resident,
+    })
+
+
+@login_required(login_url='resident_portal:login')
+def resident_requests(request):
+    resident = _ensure_portal_identity_links(request.user)
+    document_requests = _get_resident_document_requests(request.user)
+    return render(request, 'residents/portal/requests_list.html', {
+        'resident': resident,
+        'document_requests': document_requests,
+    })
+
+
+@login_required(login_url='resident_portal:login')
+def resident_request_new(request):
+    resident = _ensure_portal_identity_links(request.user)
+
+    if request.method == 'POST':
+        form = DocumentRequestForm(request.POST)
+        if form.is_valid():
+            document_request = form.save(commit=False)
+            document_request.submitted_by = request.user
+            if not document_request.email:
+                document_request.email = (request.user.email or '').strip()
+            if not document_request.full_name.strip():
+                document_request.full_name = request.user.get_full_name() or request.user.username
+            document_request.save()
+            messages.success(request, f'Request submitted. Tracking number: {document_request.tracking_number}')
+            return redirect('resident_portal:requests')
+    else:
+        full_name = request.user.get_full_name().strip() or request.user.username
+        initial = {
+            'full_name': full_name,
+            'email': (request.user.email or '').strip(),
+            'contact_number': resident.contact_number if resident else '',
+            'address': resident.complete_address if resident else '',
+        }
+        form = DocumentRequestForm(initial=initial)
+
+    return render(request, 'residents/portal/request_new.html', {
+        'form': form,
+        'resident': resident,
+    })
+
+
+@login_required(login_url='resident_portal:login')
+def resident_announcements(request):
+    today = timezone.localdate()
+    announcements = [
+        {
+            'title': 'Barangay Office Advisory',
+            'date': today,
+            'body': 'Office hours are Monday to Friday, 8:00 AM to 5:00 PM.',
+        },
+        {
+            'title': 'Document Processing Reminder',
+            'date': today - timedelta(days=2),
+            'body': 'Bring one valid ID when claiming your processed documents.',
+        },
+        {
+            'title': 'Community Clean-up Drive',
+            'date': today - timedelta(days=6),
+            'body': 'Residents are encouraged to join the clean-up drive this Saturday at 6:30 AM.',
+        },
+    ]
+
+    return render(request, 'residents/portal/announcements.html', {
+        'announcements': announcements,
+    })
 
 
 @login_required

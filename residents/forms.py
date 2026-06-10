@@ -1,5 +1,9 @@
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm
 from .models import Resident, DocumentRequest
+
+User = get_user_model()
 
 class ResidentForm(forms.ModelForm):
     class Meta:
@@ -41,3 +45,46 @@ class DocumentRequestForm(forms.ModelForm):
             'purpose': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'State why you need this document'}),
             'preferred_release_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
+
+
+class ResidentRegistrationForm(UserCreationForm):
+    first_name = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('This email is already registered.')
+        return email
+
+
+class ResidentProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.get('instance')
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        qs = User.objects.filter(email__iexact=email)
+        if self.user:
+            qs = qs.exclude(pk=self.user.pk)
+        if qs.exists():
+            raise forms.ValidationError('This email is already used by another account.')
+        return email
