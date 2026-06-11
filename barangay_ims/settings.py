@@ -28,6 +28,15 @@ DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
 
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        'DJANGO_CSRF_TRUSTED_ORIGINS',
+        'http://localhost,http://127.0.0.1,https://*.ngrok-free.dev,https://*.ngrok-free.app'
+    ).split(',')
+    if origin.strip()
+]
+
 
 # Application definition
 

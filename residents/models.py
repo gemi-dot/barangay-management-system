@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db import IntegrityError
 from django.core.validators import RegexValidator
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -101,8 +102,8 @@ class Resident(models.Model):
     citizenship = models.CharField(max_length=50, default='FILIPINO')
     
     # Address Information
-    house_number = models.CharField(max_length=20)
-    street = models.CharField(max_length=100)
+    house_number = models.CharField(max_length=20, blank=True, null=True)
+    street = models.CharField(max_length=100, blank=True, null=True)
     zone = models.CharField(max_length=50, choices=ZONE_CHOICES)
     barangay = models.CharField(max_length=100, default='ABGAO')
     city_municipality = models.CharField(max_length=100, default='MAASIN')
@@ -110,8 +111,8 @@ class Resident(models.Model):
     zip_code = models.CharField(max_length=10, default='6600')
     
     # Educational and Employment Information
-    educational_attainment = models.CharField(max_length=20, choices=EDUCATIONAL_ATTAINMENT_CHOICES)
-    employment_status = models.CharField(max_length=20, choices=EMPLOYMENT_STATUS_CHOICES)
+    educational_attainment = models.CharField(max_length=20, choices=EDUCATIONAL_ATTAINMENT_CHOICES, blank=True, null=True)
+    employment_status = models.CharField(max_length=20, choices=EMPLOYMENT_STATUS_CHOICES, blank=True, null=True)
     occupation = models.CharField(max_length=100, blank=True)
     monthly_income = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     
@@ -119,9 +120,9 @@ class Resident(models.Model):
     father_name = models.CharField(max_length=150, blank=True)
     mother_name = models.CharField(max_length=150, blank=True)
     spouse_name = models.CharField(max_length=150, blank=True)
-    emergency_contact_name = models.CharField(max_length=150)
-    emergency_contact_number = models.CharField(max_length=15)
-    emergency_contact_relationship = models.CharField(max_length=50)
+    emergency_contact_name = models.CharField(max_length=150, blank=True, null=True)
+    emergency_contact_number = models.CharField(max_length=15, blank=True, null=True)
+    emergency_contact_relationship = models.CharField(max_length=50, blank=True, null=True)
     
     # Government IDs and Numbers
     philhealth_number = models.CharField(max_length=20, blank=True)
@@ -255,15 +256,41 @@ class DocumentRequest(models.Model):
     def __str__(self):
         return f"{self.tracking_number} - {self.full_name}"
 
+    @classmethod
+    def _next_tracking_number(cls):
+        today = timezone.localdate()
+        prefix = f"DR-{today:%Y%m%d}"
+        latest_today = (
+            cls.objects.filter(tracking_number__startswith=f"{prefix}-")
+            .order_by('-tracking_number')
+            .values_list('tracking_number', flat=True)
+            .first()
+        )
+
+        if latest_today:
+            try:
+                next_sequence = int(latest_today.rsplit('-', 1)[-1]) + 1
+            except ValueError:
+                next_sequence = 1
+        else:
+            next_sequence = 1
+
+        return f"{prefix}-{next_sequence:03d}"
+
     def save(self, *args, **kwargs):
-        if not self.tracking_number:
-            today = timezone.localdate()
-            prefix = f"DR-{today:%Y%m%d}"
-            count_today = DocumentRequest.objects.filter(
-                created_at__date=today
-            ).count() + 1
-            self.tracking_number = f"{prefix}-{count_today:03d}"
-        super().save(*args, **kwargs)
+        if self.tracking_number:
+            return super().save(*args, **kwargs)
+
+        # Retry a few times in case two requests are saved at nearly the same time.
+        for _ in range(5):
+            self.tracking_number = self._next_tracking_number()
+            try:
+                return super().save(*args, **kwargs)
+            except IntegrityError as exc:
+                if 'tracking_number' not in str(exc):
+                    raise
+
+        raise IntegrityError('Unable to generate a unique tracking number after multiple attempts.')
 
 
 class BarangayOfficeProfile(models.Model):
