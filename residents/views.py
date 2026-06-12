@@ -1,16 +1,41 @@
 
 # Create your views here.
 from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.urls import reverse
 from datetime import timedelta
-from .models import Resident, DocumentRequest, BarangayOfficeProfile
+from urllib.parse import urlencode
+from .models import Resident, DocumentRequest, BarangayOfficeProfile, ResidentServiceLog
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
 from collections import defaultdict
 from django.db.models import Count, Q
+
+
+def _require_staff_or_respond(request):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
+
+    if request.user.is_staff:
+        return None
+
+    return render(request, 'residents/access_denied.html', status=403)
+
+
+def _normalize_qr_value(raw_value):
+    value = (raw_value or '').strip().upper()
+    if '/RESIDENTS/SCAN/' in value:
+        value = value.split('/RESIDENTS/SCAN/', 1)[1]
+        value = value.split('/', 1)[0]
+    if value.startswith('BRGY-RESIDENT:'):
+        value = value.split('BRGY-RESIDENT:', 1)[1].strip().upper()
+    if value in {'...', '…'}:
+        return ''
+    return ''.join(char for char in value if char.isalnum())
 
 
 def _get_certificate_meta(request, document_request):
@@ -40,72 +65,27 @@ def _get_linked_resident(user):
     if not user.is_authenticated:
         return None
 
-    try:
-        resident = user.resident_profile
-    except Resident.DoesNotExist:
-        resident = None
-    if resident:
-        return resident
-
     email = (user.email or '').strip()
     if email:
         resident = Resident.objects.filter(email__iexact=email, is_active=True).first()
         if resident:
-            if resident.portal_user_id is None:
-                resident.portal_user = user
-                resident.save(update_fields=['portal_user'])
             return resident
 
     first_name = (user.first_name or '').strip()
     last_name = (user.last_name or '').strip()
     if first_name and last_name:
-        resident = Resident.objects.filter(
+        return Resident.objects.filter(
             first_name__iexact=first_name,
             last_name__iexact=last_name,
             is_active=True,
         ).first()
-        if resident and resident.portal_user_id is None:
-            resident.portal_user = user
-            resident.save(update_fields=['portal_user'])
-        return resident
 
     return None
-
-
-def _ensure_portal_identity_links(user):
-    resident = _get_linked_resident(user)
-
-    if not user.is_authenticated:
-        return resident
-
-    filters = Q()
-    email = (user.email or '').strip()
-    if email:
-        filters |= Q(email__iexact=email)
-
-    full_name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
-    if full_name:
-        filters |= Q(full_name__iexact=full_name)
-
-    if filters:
-        matched_requests = DocumentRequest.objects.filter(filters, submitted_by__isnull=True)
-        if matched_requests.exists():
-            matched_requests.update(submitted_by=user)
-
-    if resident and resident.portal_user_id is None:
-        resident.portal_user = user
-        resident.save(update_fields=['portal_user'])
-
-    return resident
 
 
 def _get_resident_document_requests(user):
     if not user.is_authenticated:
         return DocumentRequest.objects.none()
-
-    linked_requests = DocumentRequest.objects.filter(submitted_by=user)
-    if linked_requests.exists():
-        return linked_requests.order_by('-created_at')
 
     filters = Q()
     email = (user.email or '').strip()
@@ -117,14 +97,9 @@ def _get_resident_document_requests(user):
         filters |= Q(full_name__iexact=full_name)
 
     if not filters:
-        return linked_requests.order_by('-created_at')
+        return DocumentRequest.objects.none()
 
-    matched_requests = DocumentRequest.objects.filter(filters, submitted_by__isnull=True)
-    if matched_requests.exists():
-        matched_requests.update(submitted_by=user)
-        return DocumentRequest.objects.filter(submitted_by=user).order_by('-created_at')
-
-    return linked_requests.order_by('-created_at')
+    return DocumentRequest.objects.filter(filters).order_by('-created_at')
 
 
 def resident_login(request):
@@ -152,7 +127,6 @@ def resident_register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            _ensure_portal_identity_links(user)
             messages.success(request, 'Registration successful. Welcome to the resident portal.')
             return redirect('resident_portal:dashboard')
     else:
@@ -169,7 +143,7 @@ def resident_logout(request):
 
 @login_required(login_url='resident_portal:login')
 def resident_dashboard(request):
-    resident = _ensure_portal_identity_links(request.user)
+    resident = _get_linked_resident(request.user)
     my_requests = _get_resident_document_requests(request.user)
 
     context = {
@@ -184,7 +158,7 @@ def resident_dashboard(request):
 
 @login_required(login_url='resident_portal:login')
 def resident_profile(request):
-    resident = _ensure_portal_identity_links(request.user)
+    resident = _get_linked_resident(request.user)
 
     if request.method == 'POST':
         form = ResidentProfileForm(request.POST, instance=request.user)
@@ -203,7 +177,7 @@ def resident_profile(request):
 
 @login_required(login_url='resident_portal:login')
 def resident_requests(request):
-    resident = _ensure_portal_identity_links(request.user)
+    resident = _get_linked_resident(request.user)
     document_requests = _get_resident_document_requests(request.user)
     return render(request, 'residents/portal/requests_list.html', {
         'resident': resident,
@@ -213,13 +187,12 @@ def resident_requests(request):
 
 @login_required(login_url='resident_portal:login')
 def resident_request_new(request):
-    resident = _ensure_portal_identity_links(request.user)
+    resident = _get_linked_resident(request.user)
 
     if request.method == 'POST':
         form = DocumentRequestForm(request.POST)
         if form.is_valid():
             document_request = form.save(commit=False)
-            document_request.submitted_by = request.user
             if not document_request.email:
                 document_request.email = (request.user.email or '').strip()
             if not document_request.full_name.strip():
@@ -272,6 +245,187 @@ def resident_announcements(request):
 @login_required
 def reports_home(request):
     return render(request, 'residents/reports_home.html')
+
+
+def scan_resident_qr(request, qr_value):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    code = _normalize_qr_value(qr_value)
+
+    if not code:
+        params = urlencode({
+            'raw': qr_value,
+            'code': code,
+            'reason': 'invalid',
+        })
+        return redirect(f"{reverse('residents:qr_diagnostic')}?{params}")
+
+    resident = Resident.objects.filter(qr_code=code).first()
+    if resident is None:
+        params = urlencode({
+            'raw': qr_value,
+            'code': code,
+            'reason': 'not_found',
+        })
+        return redirect(f"{reverse('residents:qr_diagnostic')}?{params}")
+
+    ResidentServiceLog.objects.create(
+        resident=resident,
+        logged_by=request.user,
+        action=ResidentServiceLog.ACTION_SCANNED_QR,
+        notes='QR scan resolved to resident quick view.',
+    )
+
+    messages.success(request, f'Resident loaded: {resident.full_name}')
+    return redirect('residents:resident_quick_view', resident_id=resident.pk)
+
+
+def qr_diagnostic(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    raw_value = (request.GET.get('raw') or '').strip()
+    code = _normalize_qr_value(request.GET.get('code') or raw_value)
+    reason = (request.GET.get('reason') or 'not_found').strip().lower()
+
+    context = {
+        'raw_value': raw_value or 'N/A',
+        'code': code or 'N/A',
+        'reason': reason,
+    }
+    return render(request, 'residents/qr_diagnostic.html', context)
+
+
+def scan_qr_input(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    if request.method != 'POST':
+        return redirect('residents:scan_test_page')
+
+    raw_value = (request.POST.get('qr_input') or '').strip()
+    code = _normalize_qr_value(raw_value)
+
+    if not code:
+        params = urlencode({
+            'raw': raw_value,
+            'code': code,
+            'reason': 'invalid',
+        })
+        return redirect(f"{reverse('residents:qr_diagnostic')}?{params}")
+
+    return redirect('residents:scan_resident_qr', qr_value=code)
+
+
+def scan_test_page(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    resident = Resident.objects.filter(is_active=True, qr_code__gt='').order_by('last_name', 'first_name').first()
+    base_url = getattr(settings, 'SITE_BASE_URL', '').rstrip('/')
+    sample_scan_url = ''
+
+    if resident and base_url:
+        sample_scan_url = f"{base_url}/residents/scan/{resident.qr_code}/"
+
+    context = {
+        'sample_scan_url': sample_scan_url,
+        'sample_qr_code': resident.qr_code if resident else 'N/A',
+        'site_base_url': base_url or 'N/A',
+    }
+    return render(request, 'residents/scan_test.html', context)
+
+
+def resident_quick_view(request, resident_id):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    resident = get_object_or_404(Resident, id=resident_id)
+    recent_logs = resident.service_logs.select_related('logged_by')[:8]
+    return render(request, 'residents/resident_quick_view.html', {
+        'resident': resident,
+        'recent_logs': recent_logs,
+    })
+
+
+def resident_service_log_action(request, resident_id):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    if request.method != 'POST':
+        return redirect('residents:resident_quick_view', resident_id=resident_id)
+
+    resident = get_object_or_404(Resident, id=resident_id)
+    action = (request.POST.get('action') or '').strip()
+
+    if action == ResidentServiceLog.ACTION_VISITED_TODAY:
+        ResidentServiceLog.objects.create(
+            resident=resident,
+            logged_by=request.user,
+            action=ResidentServiceLog.ACTION_VISITED_TODAY,
+            notes='Marked visited today from quick view.',
+        )
+        messages.success(request, f'Visit logged for {resident.full_name}.')
+    else:
+        messages.error(request, 'Invalid service log action.')
+
+    return redirect('residents:resident_quick_view', resident_id=resident.id)
+
+
+def quick_create_document_request(request, resident_id):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    if request.method != 'POST':
+        return redirect('residents:resident_quick_view', resident_id=resident_id)
+
+    resident = get_object_or_404(Resident, id=resident_id, is_active=True)
+    requested_type = (request.POST.get('document_type') or 'certificate_of_residency').strip()
+    valid_types = {value for value, _ in DocumentRequest.DOCUMENT_TYPE_CHOICES}
+    if requested_type not in valid_types:
+        messages.error(request, 'Invalid document type selected.')
+        return redirect('residents:resident_quick_view', resident_id=resident_id)
+
+    purpose_by_type = {
+        'certificate_of_residency': 'Barangay residency certificate issuance.',
+        'certificate_of_indigency': 'Barangay indigency certificate issuance.',
+        'barangay_clearance': 'Barangay clearance issuance.',
+        'business_clearance': 'Business clearance issuance.',
+    }
+
+    document_request = DocumentRequest.objects.create(
+        full_name=resident.full_name,
+        contact_number=(resident.contact_number or 'N/A').strip()[:15],
+        email=(resident.email or '').strip(),
+        address=resident.complete_address[:255],
+        document_type=requested_type,
+        purpose=purpose_by_type.get(requested_type, 'Barangay document issuance.'),
+        status='processing',
+    )
+
+    type_label = dict(DocumentRequest.DOCUMENT_TYPE_CHOICES).get(requested_type, 'Document')
+    messages.success(
+        request,
+        f'{type_label} request created ({document_request.tracking_number}) for {resident.full_name}.',
+    )
+
+    if requested_type == 'certificate_of_residency':
+        return redirect('residents:certificate_of_residency_sample_for_request', request_id=document_request.id)
+    if requested_type == 'certificate_of_indigency':
+        return redirect('residents:certificate_of_indigency_sample_for_request', request_id=document_request.id)
+    if requested_type == 'barangay_clearance':
+        return redirect('residents:barangay_clearance_sample_for_request', request_id=document_request.id)
+    if requested_type == 'business_clearance':
+        return redirect('residents:business_clearance_sample_for_request', request_id=document_request.id)
+    return redirect('residents:document_requests_queue')
 
 
 @login_required
@@ -474,3 +628,139 @@ def certificate_of_indigency_sample(request, request_id=None):
     }
     context.update(_get_certificate_meta(request, document_request))
     return render(request, 'residents/certificate_of_indigency_sample.html', context)
+
+
+@login_required
+def barangay_clearance_sample(request, request_id=None):
+    document_request = None
+
+    if request_id is not None:
+        document_request = get_object_or_404(DocumentRequest, id=request_id)
+
+    resident_name = document_request.full_name if document_request else 'Juan Dela Cruz'
+    resident_address = document_request.address if document_request else 'Purok Talisay, Barangay Abgao, Maasin City'
+    purpose = document_request.purpose if document_request else 'General legal requirement'
+
+    context = {
+        'document_request': document_request,
+        'resident_name': resident_name,
+        'resident_address': resident_address,
+        'purpose': purpose,
+        'issued_date': timezone.localdate(),
+    }
+    context.update(_get_certificate_meta(request, document_request))
+    return render(request, 'residents/barangay_clearance_sample.html', context)
+
+
+@login_required
+def business_clearance_sample(request, request_id=None):
+    document_request = None
+
+    if request_id is not None:
+        document_request = get_object_or_404(DocumentRequest, id=request_id)
+
+    resident_name = document_request.full_name if document_request else 'Juan Dela Cruz'
+    resident_address = document_request.address if document_request else 'Purok Talisay, Barangay Abgao, Maasin City'
+    purpose = document_request.purpose if document_request else 'Business permit processing'
+
+    context = {
+        'document_request': document_request,
+        'resident_name': resident_name,
+        'resident_address': resident_address,
+        'purpose': purpose,
+        'issued_date': timezone.localdate(),
+    }
+    context.update(_get_certificate_meta(request, document_request))
+    return render(request, 'residents/business_clearance_sample.html', context)
+
+
+@login_required
+def barangay_id_sample(request, resident_id=None):
+    resident = None
+    if resident_id is not None:
+        resident = get_object_or_404(Resident, id=resident_id)
+
+    refresh_qr = request.GET.get('refresh_qr') == '1'
+    if resident and refresh_qr:
+        if resident.qr_image:
+            resident.qr_image.delete(save=False)
+        resident.qr_image = None
+        resident.save(update_fields=['qr_image'])
+
+    profile = BarangayOfficeProfile.get_solo()
+    captain_name = request.GET.get('captain_name', '').strip() or profile.captain_name
+    barangay = request.GET.get('barangay', '').strip() or profile.barangay
+    city_municipality = request.GET.get('city_municipality', '').strip() or profile.city_municipality
+    province = request.GET.get('province', '').strip() or profile.province
+
+    issued_date = timezone.localdate()
+    valid_until = issued_date + timedelta(days=365)
+
+    context = {
+        'resident': resident,
+        'captain_name': captain_name,
+        'barangay': barangay,
+        'city_municipality': city_municipality,
+        'province': province,
+        'issued_date': issued_date,
+        'valid_until': valid_until,
+    }
+    return render(request, 'residents/barangay_id_sample.html', context)
+
+
+def barangay_id_bulk_print(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    if request.method != 'POST':
+        return redirect('dashboard:residents_list')
+
+    selected_ids = request.POST.getlist('resident_ids')
+    if not selected_ids:
+        messages.warning(request, 'Select at least one resident to print IDs.')
+        return redirect('dashboard:residents_list')
+
+    queryset = Resident.objects.filter(id__in=selected_ids, is_active=True)
+    residents_by_id = {str(resident.id): resident for resident in queryset}
+    residents = [residents_by_id[resident_id] for resident_id in selected_ids if resident_id in residents_by_id]
+
+    if not residents:
+        messages.warning(request, 'No valid resident records found for selected IDs.')
+        return redirect('dashboard:residents_list')
+
+    profile = BarangayOfficeProfile.get_solo()
+    captain_name = profile.captain_name
+    barangay = profile.barangay
+    city_municipality = profile.city_municipality
+    province = profile.province
+
+    issued_date = timezone.localdate()
+    valid_until = issued_date + timedelta(days=365)
+
+    context = {
+        'residents': residents,
+        'resident_count': len(residents),
+        'captain_name': captain_name,
+        'barangay': barangay,
+        'city_municipality': city_municipality,
+        'province': province,
+        'issued_date': issued_date,
+        'valid_until': valid_until,
+    }
+    return render(request, 'residents/barangay_id_bulk_print.html', context)
+
+
+@login_required
+def qr_frontdesk_sop_sheet(request):
+    profile = BarangayOfficeProfile.get_solo()
+
+    context = {
+        'office_name': profile.office_name,
+        'barangay': profile.barangay,
+        'city_municipality': profile.city_municipality,
+        'province': profile.province,
+        'captain_name': profile.captain_name,
+        'printed_date': timezone.localdate(),
+    }
+    return render(request, 'residents/qr_frontdesk_sop_sheet.html', context)

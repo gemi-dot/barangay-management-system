@@ -82,6 +82,20 @@
                                 </a>
                             </div>
                             {% endif %}
+                            {% if item.document_type == 'barangay_clearance' %}
+                            <div class="mt-2">
+                                <a href="{% url 'residents:barangay_clearance_sample_for_request' item.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    Open Barangay Clearance Format
+                                </a>
+                            </div>
+                            {% endif %}
+                            {% if item.document_type == 'business_clearance' %}
+                            <div class="mt-2">
+                                <a href="{% url 'residents:business_clearance_sample_for_request' item.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    Open Business Clearance Format
+                                </a>
+                            </div>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

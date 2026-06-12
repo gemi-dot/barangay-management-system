@@ -261,14 +261,20 @@ def residents_list(request):
     residents = Resident.objects.filter(is_active=True).order_by('last_name', 'first_name')
     
     # Search functionality
-    search_query = request.GET.get('search')
+    search_query = (request.GET.get('search') or '').strip()
     if search_query:
-        residents = residents.filter(
-            Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query) |
-            Q(middle_name__icontains=search_query) |
-            Q(contact_number__icontains=search_query)
-        )
+        # Tokenized search lets full names like "GEMI G IRONG" match naturally.
+        search_terms = [term for term in search_query.split() if term]
+        for term in search_terms:
+            residents = residents.filter(
+                Q(first_name__icontains=term) |
+                Q(last_name__icontains=term) |
+                Q(middle_name__icontains=term) |
+                Q(contact_number__icontains=term) |
+                Q(qr_code__icontains=term) |
+                Q(voters_id__icontains=term) |
+                Q(precinct_number__icontains=term)
+            )
     
     # Filter by zone
     zone_filter = request.GET.get('zone')

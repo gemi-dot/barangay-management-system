@@ -2,8 +2,14 @@ from django.conf import settings
 from django.db import models
 from django.db import IntegrityError
 from django.core.validators import RegexValidator
+from django.core.files.base import ContentFile
+from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from urllib.parse import urljoin
+from io import BytesIO
+import uuid
+import qrcode
 
 # Create your models here.
 
@@ -95,20 +101,20 @@ class Resident(models.Model):
     email = models.EmailField(blank=True)
     
     # Basic Information
-    date_of_birth = models.DateField()
-    place_of_birth = models.CharField(max_length=100)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    civil_status = models.CharField(max_length=20, choices=CIVIL_STATUS_CHOICES)
-    citizenship = models.CharField(max_length=50, default='FILIPINO')
+    date_of_birth = models.DateField(default='1900-01-01', blank=True)
+    place_of_birth = models.CharField(max_length=100, default='UNKNOWN', blank=True)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default='M', blank=True)
+    civil_status = models.CharField(max_length=20, choices=CIVIL_STATUS_CHOICES, default='single', blank=True)
+    citizenship = models.CharField(max_length=50, default='FILIPINO', blank=True)
     
     # Address Information
     house_number = models.CharField(max_length=20, blank=True, null=True)
     street = models.CharField(max_length=100, blank=True, null=True)
-    zone = models.CharField(max_length=50, choices=ZONE_CHOICES)
-    barangay = models.CharField(max_length=100, default='ABGAO')
-    city_municipality = models.CharField(max_length=100, default='MAASIN')
-    province = models.CharField(max_length=100, default='SOUTHERN LEYTE')
-    zip_code = models.CharField(max_length=10, default='6600')
+    zone = models.CharField(max_length=50, choices=ZONE_CHOICES, default='Purok Talisay', blank=True)
+    barangay = models.CharField(max_length=100, default='ABGAO', blank=True)
+    city_municipality = models.CharField(max_length=100, default='MAASIN', blank=True)
+    province = models.CharField(max_length=100, default='SOUTHERN LEYTE', blank=True)
+    zip_code = models.CharField(max_length=10, default='6600', blank=True)
     
     # Educational and Employment Information
     educational_attainment = models.CharField(max_length=20, choices=EDUCATIONAL_ATTAINMENT_CHOICES, blank=True, null=True)
@@ -120,9 +126,9 @@ class Resident(models.Model):
     father_name = models.CharField(max_length=150, blank=True)
     mother_name = models.CharField(max_length=150, blank=True)
     spouse_name = models.CharField(max_length=150, blank=True)
-    emergency_contact_name = models.CharField(max_length=150, blank=True, null=True)
-    emergency_contact_number = models.CharField(max_length=15, blank=True, null=True)
-    emergency_contact_relationship = models.CharField(max_length=50, blank=True, null=True)
+    emergency_contact_name = models.CharField(max_length=150, blank=True, null=True, default='N/A')
+    emergency_contact_number = models.CharField(max_length=15, blank=True, null=True, default='N/A')
+    emergency_contact_relationship = models.CharField(max_length=50, blank=True, null=True, default='N/A')
     
     # Government IDs and Numbers
     philhealth_number = models.CharField(max_length=20, blank=True)
@@ -153,6 +159,8 @@ class Resident(models.Model):
         blank=True,
         related_name='resident_profile',
     )
+    qr_code = models.CharField(max_length=16, unique=True, editable=False, blank=True)
+    qr_image = models.ImageField(upload_to='resident_qr_codes/', blank=True, null=True, editable=False)
     date_registered = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -165,6 +173,65 @@ class Resident(models.Model):
     
     def __str__(self):
         return f"{self.last_name}, {self.first_name} {self.middle_name}"
+
+    def save(self, *args, **kwargs):
+        # Keep emergency contact fields readable in admin/list views.
+        if not self.emergency_contact_name:
+            self.emergency_contact_name = 'N/A'
+        if not self.emergency_contact_number:
+            self.emergency_contact_number = 'N/A'
+        if not self.emergency_contact_relationship:
+            self.emergency_contact_relationship = 'N/A'
+
+        self._ensure_qr_code()
+
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'qr_code' not in update_fields:
+            kwargs['update_fields'] = list(set(update_fields) | {'qr_code'})
+
+        super().save(*args, **kwargs)
+
+        if not self.qr_image:
+            self._generate_qr_image()
+            type(self).objects.filter(pk=self.pk).update(qr_image=self.qr_image.name)
+
+    def _ensure_qr_code(self):
+        if self.qr_code:
+            return
+
+        for _ in range(10):
+            code = uuid.uuid4().hex[:16].upper()
+            if not type(self).objects.filter(qr_code=code).exists():
+                self.qr_code = code
+                return
+
+        raise IntegrityError('Could not generate a unique QR code for resident.')
+
+    def _qr_payload(self):
+        scan_path = reverse('residents:scan_resident_qr', args=[self.qr_code])
+        base_url = getattr(settings, 'SITE_BASE_URL', '').strip()
+
+        if base_url:
+            return urljoin(f"{base_url.rstrip('/')}/", scan_path.lstrip('/'))
+
+        return f"BRGY-RESIDENT:{self.qr_code}"
+
+    def _generate_qr_image(self):
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=8,
+            border=2,
+        )
+        qr.add_data(self._qr_payload())
+        qr.make(fit=True)
+
+        image = qr.make_image(fill_color='black', back_color='white')
+        image_io = BytesIO()
+        image.save(image_io, format='PNG')
+
+        filename = f"resident_{self.qr_code}.png"
+        self.qr_image.save(filename, ContentFile(image_io.getvalue()), save=False)
     
     @property
     def full_name(self):
@@ -205,6 +272,36 @@ class Household(models.Model):
     
     def __str__(self):
         return f"Household {self.household_number} - {self.household_head.full_name}"
+
+
+class ResidentServiceLog(models.Model):
+    ACTION_SCANNED_QR = 'scanned_qr'
+    ACTION_VISITED_TODAY = 'visited_today'
+
+    ACTION_CHOICES = [
+        (ACTION_SCANNED_QR, 'Scanned QR'),
+        (ACTION_VISITED_TODAY, 'Visited Today'),
+    ]
+
+    resident = models.ForeignKey(Resident, on_delete=models.CASCADE, related_name='service_logs')
+    logged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resident_service_logs',
+    )
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES, default=ACTION_VISITED_TODAY)
+    notes = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Resident Service Log'
+        verbose_name_plural = 'Resident Service Logs'
+
+    def __str__(self):
+        return f"{self.resident.full_name} - {self.get_action_display()} ({self.created_at:%Y-%m-%d %H:%M})"
 
 
 class DocumentRequest(models.Model):

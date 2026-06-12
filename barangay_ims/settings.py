@@ -12,9 +12,23 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import socket
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _detect_lan_ip():
+    """Best-effort LAN IP detection for local development defaults."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # No packets are sent, this only helps resolve the outbound interface.
+        sock.connect(('8.8.8.8', 80))
+        return sock.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        sock.close()
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,7 +40,12 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-$c+3xw0(ye1&@cy1xj^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+_default_allowed_hosts = ['localhost', '127.0.0.1']
+_detected_lan_ip = _detect_lan_ip()
+if _detected_lan_ip:
+    _default_allowed_hosts.append(_detected_lan_ip)
+
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', ','.join(_default_allowed_hosts)).split(',') if h.strip()]
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -165,3 +184,7 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@barangay.local')
 
 # Optional SMS webhook endpoint. Set this in production to enable SMS delivery.
 SMS_WEBHOOK_URL = os.getenv('SMS_WEBHOOK_URL', '')
+
+# Public base URL used when generating resident QR scan links.
+_default_site_base_url = f"http://{_detected_lan_ip}:8000" if _detected_lan_ip else 'http://127.0.0.1:8000'
+SITE_BASE_URL = os.getenv('SITE_BASE_URL', _default_site_base_url)

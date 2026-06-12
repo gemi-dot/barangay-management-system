@@ -8,7 +8,7 @@ DEFAULT_GENDER = 'M'
 
 
 class Command(BaseCommand):
-    help = 'Import residents from an Excel (.xlsx) file'
+    help = 'Import residents from an Excel (.xlsx) file with update-safe matching'
 
     def add_arguments(self, parser):
         parser.add_argument('excel_file', type=str, help='Path to the Excel file to import')
@@ -47,6 +47,7 @@ class Command(BaseCommand):
                 raise CommandError('No headers found in row 1')
             
             created_count = 0
+            updated_count = 0
             error_count = 0
             skipped_count = 0
             
@@ -139,9 +140,29 @@ class Command(BaseCommand):
                     if not data['last_name']:
                         raise ValueError('last_name is required')
                     
-                    # Create resident
-                    resident = Resident.objects.create(**data)
-                    created_count += 1
+                    # Update-safe matching priority:
+                    # 1) voters_id when present
+                    # 2) first_name + last_name + date_of_birth fallback
+                    existing = None
+                    voters_id = data.get('voters_id', '').strip()
+                    if voters_id:
+                        existing = Resident.objects.filter(voters_id__iexact=voters_id).first()
+
+                    if existing is None:
+                        existing = Resident.objects.filter(
+                            first_name__iexact=data['first_name'],
+                            last_name__iexact=data['last_name'],
+                            date_of_birth=data['date_of_birth'],
+                        ).first()
+
+                    if existing is not None:
+                        for field, value in data.items():
+                            setattr(existing, field, value)
+                        existing.save()
+                        updated_count += 1
+                    else:
+                        Resident.objects.create(**data)
+                        created_count += 1
                     
                 except Exception as e:
                     error_count += 1
@@ -154,7 +175,9 @@ class Command(BaseCommand):
                         raise CommandError(error_msg)
             
             # Print summary
-            self.stdout.write(self.style.SUCCESS(f'\n✓ Successfully imported {created_count} residents'))
+            self.stdout.write(self.style.SUCCESS(
+                f'\n✓ Import complete: created {created_count}, updated {updated_count}'
+            ))
             if skipped_count > 0:
                 self.stdout.write(self.style.WARNING(f'⚠ Skipped {skipped_count} rows due to errors'))
             if error_count > 0 and not skip_errors:

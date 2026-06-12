@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barangay ID Sample</title>
+    <style>
+        :root {
+            --brand-blue: #0f3b66;
+            --brand-blue-dark: #08243f;
+            --accent-gold: #f2c94c;
+            --paper: #ffffff;
+            --ink: #1a1a1a;
+            --muted: #6b7280;
+            --line: #d2d7de;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #eef3f9, #f8fafc);
+            color: var(--ink);
+        }
+
+        .toolbar {
+            max-width: 980px;
+            margin: 0 auto 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: 1px solid #35506d;
+            background: #fff;
+            color: #0d2f52;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .controls {
+            max-width: 980px;
+            margin: 0 auto 18px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            align-items: end;
+        }
+
+        .controls label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        .controls input {
+            width: 100%;
+            border: 1px solid #bfc8d3;
+            border-radius: 4px;
+            padding: 7px 8px;
+            font-size: 14px;
+        }
+
+        .sheet {
+            max-width: 980px;
+            margin: 0 auto;
+            background: var(--paper);
+            border: 1px solid #ccd4de;
+            border-radius: 10px;
+            padding: 18px;
+            box-shadow: 0 8px 20px rgba(15, 40, 70, 0.1);
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .id-card {
+            width: 100%;
+            min-height: 54mm;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #334e68;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            background: #fff;
+        }
+
+        .id-head {
+            background: linear-gradient(90deg, var(--brand-blue-dark), var(--brand-blue));
+            color: #fff;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .id-head .title {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            font-size: 13px;
+        }
+
+        .id-head .subtitle {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .chip {
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border-radius: 999px;
+            font-size: 10px;
+            padding: 3px 8px;
+        }
+
+        .front-body {
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 74px 1fr 88px;
+            gap: 10px;
+            align-items: start;
+        }
+
+        .photo {
+            width: 74px;
+            height: 90px;
+            border: 1px dashed #8ca2bb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: #436181;
+            background: #f4f8fc;
+        }
+
+        .field {
+            margin-bottom: 4px;
+        }
+
+        .label {
+            display: block;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.1;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .value {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #102a43;
+        }
+
+        .value.small {
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .qr-box {
+            text-align: center;
+        }
+
+        .qr {
+            width: 82px;
+            height: 82px;
+            border: 1px solid #c7d0da;
+            border-radius: 6px;
+            background: #fff;
+            object-fit: contain;
+            padding: 3px;
+        }
+
+        .qr-fallback {
+            width: 82px;
+            height: 82px;
+            border: 1px dashed #c7d0da;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--muted);
+            margin: 0 auto;
+            text-align: center;
+            padding: 6px;
+        }
+
+        .qr-caption {
+            margin-top: 4px;
+            font-size: 9px;
+            color: var(--muted);
+        }
+
+        .front-footer {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #d9e1ea;
+        }
+
+        .back-body {
+            padding: 10px 12px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .back-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .note-box {
+            border: 1px solid #dbe3ed;
+            border-left: 4px solid var(--accent-gold);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
+            color: #334155;
+            line-height: 1.35;
+            background: #fffcf1;
+        }
+
+        .sign {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 4px;
+        }
+
+        .sign-line {
+            width: 180px;
+            border-top: 1px solid #1f2937;
+            text-align: center;
+            padding-top: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #0f2740;
+        }
+
+        .id-number {
+            font-weight: 700;
+            color: #0f2740;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 14px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .toolbar,
+            .controls {
+                display: none;
+            }
+
+            .sheet {
+                box-shadow: none;
+                border: 0;
+                padding: 0;
+                max-width: none;
+            }
+
+            .cards {
+                gap: 8mm;
+            }
+
+            .id-card {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <a class="btn" href="{% url 'dashboard:residents_list' %}">Back to Residents</a>
+        <button class="btn" onclick="window.print()">Print Barangay ID Sample</button>
+    </div>
+
+    <form class="controls" method="get">
+        <div>
+            <label for="captain_name">Barangay Captain</label>
+            <input id="captain_name" name="captain_name" value="{{ captain_name }}" type="text">
+        </div>
+        <div>
+            <label for="barangay">Barangay</label>
+            <input id="barangay" name="barangay" value="{{ barangay }}" type="text">
+        </div>
+        <div>
+            <label for="city_municipality">City/Municipality</label>
+            <input id="city_municipality" name="city_municipality" value="{{ city_municipality }}" type="text">
+        </div>
+        <div>
+            <label for="province">Province</label>
+            <input id="province" name="province" value="{{ province }}" type="text">
+        </div>
+        <div>
+            <button class="btn" type="submit">Apply Header Details</button>
+        </div>
+    </form>
+
+    <div class="sheet">
+        {% if not resident %}
+        <div class="alert alert-warning" style="margin-bottom: 12px;">
+            <strong>No resident selected.</strong> Use the <strong>Print ID</strong> button in the residents list to print a specific resident QR code.
+        </div>
+        {% endif %}
+        <div class="cards">
+            <section class="id-card">
+                <div class="id-head">
+                    <div>
+                        <div class="title">BARANGAY RESIDENT ID</div>
+                        <div class="subtitle">{{ barangay|upper }}, {{ city_municipality|title }}</div>
+                    </div>
+                    <span class="chip">OFFICIAL</span>
+                </div>
+                <div class="front-body">
+                    <div class="photo">
+                        {% if resident %}
+                            {{ resident.first_name|slice:":1" }}{{ resident.last_name|slice:":1" }}
+                        {% else %}
+                            ID
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <div class="field">
+                            <span class="label">Resident Name</span>
+                            <span class="value">{% if resident %}{{ resident.full_name }}{% else %}Juan Dela Cruz{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Address</span>
+                            <span class="value small">{% if resident %}{{ resident.complete_address }}{% else %}Purok Talisay, Barangay Abgao, Maasin City{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Date of Birth</span>
+                            <span class="value">{% if resident %}{{ resident.date_of_birth|date:'M d, Y' }}{% else %}Jan 01, 1990{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Contact Number</span>
+                            <span class="value">{% if resident %}{{ resident.contact_number|default:'N/A' }}{% else %}N/A{% endif %}</span>
+                        </div>
+                    </div>
+
+                    <div class="qr-box">
+                        {% if resident and resident.qr_image %}
+                            <img class="qr" src="{{ resident.qr_image.url }}?v={{ resident.qr_code }}" alt="Resident QR code">
+                        {% else %}
+                            <div class="qr-fallback">QR code will appear when resident is selected.</div>
+                        {% endif %}
+                        <div class="fw-bold small mt-1" style="word-break: break-all;">QR: {% if resident %}{{ resident.qr_code }}{% else %}N/A{% endif %}</div>
+                        <div class="qr-caption">Scan to open resident profile</div>
+                    </div>
+
+                    <div class="front-footer">
+                        <div class="field">
+                            <span class="label">ID Number</span>
+                            <span class="value id-number">{% if resident %}{{ resident.qr_code }}{% else %}SAMPLE-QR-CODE{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Issued Date</span>
+                            <span class="value">{{ issued_date|date:'M d, Y' }}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Valid Until</span>
+                            <span class="value">{{ valid_until|date:'M d, Y' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="id-card">
+                <div class="id-head">
+                    <div>
+                        <div class="title">BARANGAY RESIDENT ID</div>
+                        <div class="subtitle">Emergency and verification details</div>
+                    </div>
+                    <span class="chip">BACK</span>
+                </div>
+                <div class="back-body">
+                    <div class="back-row">
+                        <div class="field">
+                            <span class="label">Emergency Contact Name</span>
+                            <span class="value">{% if resident %}{{ resident.emergency_contact_name|default:'N/A' }}{% else %}N/A{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Emergency Contact Number</span>
+                            <span class="value">{% if resident %}{{ resident.emergency_contact_number|default:'N/A' }}{% else %}N/A{% endif %}</span>
+                        </div>
+                    </div>
+
+                    <div class="back-row">
+                        <div class="field">
+                            <span class="label">Relationship</span>
+                            <span class="value">{% if resident %}{{ resident.emergency_contact_relationship|default:'N/A' }}{% else %}N/A{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Blood Type</span>
+                            <span class="value">{% if resident %}{{ resident.blood_type|default:'N/A' }}{% else %}N/A{% endif %}</span>
+                        </div>
+                    </div>
+
+                    <div class="note-box">
+                        This ID certifies that the holder is a registered resident of Barangay {{ barangay|title }}, {{ city_municipality|title }}, {{ province|title }}.
+                        Present this ID when requesting barangay services. If found, please return to the barangay office.
+                    </div>
+
+                    <div class="back-row">
+                        <div class="field">
+                            <span class="label">Civil Status</span>
+                            <span class="value">{% if resident %}{{ resident.get_civil_status_display|default:'N/A' }}{% else %}Single{% endif %}</span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Voter Details</span>
+                            <span class="value small">
+                                {% if resident and resident.voters_id %}
+                                    Voter ID: {{ resident.voters_id }}
+                                {% else %}
+                                    Voter ID: N/A
+                                {% endif %}
+                                <br>
+                                {% if resident and resident.precinct_number %}
+                                    Precinct: {{ resident.precinct_number }}
+                                {% else %}
+                                    Precinct: N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="sign">
+                        <div class="sign-line">{{ captain_name }}</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</body>
+</html>

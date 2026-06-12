@@ -1,4 +1,4 @@
-so{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Residents List - Barangay Information Management System{% endblock %}
 
@@ -63,9 +63,14 @@ so{% extends 'base.html' %}
                 <i class="bi bi-people"></i>
                 Total Residents: <span class="badge bg-primary">{{ residents.count }}</span>
             </h6>
-            <a href="{% url 'admin:residents_resident_add' %}" class="btn btn-success">
-                <i class="bi bi-person-plus"></i> Add New Resident
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{% url 'residents:scan_test_page' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-qr-code-scan me-1"></i> Scan QR Input
+                </a>
+                <a href="{% url 'admin:residents_resident_add' %}" class="btn btn-success">
+                    <i class="bi bi-person-plus"></i> Add New Resident
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -76,11 +81,27 @@ so{% extends 'base.html' %}
         <div class="card">
             <div class="card-body">
                 {% if residents %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
+                    <form method="post" action="{% url 'residents:barangay_id_bulk_print' %}" target="_blank" id="bulkPrintForm">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="selectAllResidents">
+                                <label class="form-check-label" for="selectAllResidents">
+                                    Select all visible residents
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-outline-success" id="bulkPrintButton" disabled>
+                                <i class="bi bi-printer me-1"></i>
+                                Print Selected IDs (<span id="selectedCount">0</span>)
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
                             <thead class="table-dark">
                                 <tr>
+                                    <th style="width: 40px;"></th>
                                     <th>Name</th>
+                                    <th>QR Code</th>
                                     <th>Age</th>
                                     <th>Gender</th>
                                     <th>Purok</th>
@@ -92,6 +113,15 @@ so{% extends 'base.html' %}
                             <tbody>
                                 {% for resident in residents %}
                                 <tr>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            class="form-check-input resident-select"
+                                            name="resident_ids"
+                                            value="{{ resident.id }}"
+                                            aria-label="Select {{ resident.full_name }}"
+                                        >
+                                    </td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="avatar me-2">
@@ -107,6 +137,12 @@ so{% extends 'base.html' %}
                                                 <small class="text-muted">{{ resident.complete_address }}</small>
                                             </div>
                                         </div>
+                                    </td>
+                                    <td>
+                                        <small class="fw-semibold d-block">{{ resident.qr_code }}</small>
+                                        {% if resident.qr_image %}
+                                            <a href="{{ resident.qr_image.url }}" target="_blank" class="small text-decoration-none">View QR</a>
+                                        {% endif %}
                                     </td>
                                     <td>{{ resident.age }}</td>
                                     <td>
@@ -142,13 +178,22 @@ so{% extends 'base.html' %}
                                                class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
+                                                          <a href="{% url 'residents:barangay_id_sample_for_resident' resident.id %}?refresh_qr=1"
+                                               class="btn btn-sm btn-outline-success"
+                                               title="Print Barangay ID"
+                                               target="_blank"
+                                               rel="noopener">
+                                                <i class="bi bi-printer me-1"></i>
+                                                Print ID
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
-                        </table>
-                    </div>
+                            </table>
+                        </div>
+                    </form>
                 {% else %}
                     <div class="text-center py-5">
                         <i class="bi bi-people fs-1 text-muted"></i>
@@ -171,4 +216,49 @@ so{% extends 'base.html' %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        const selectAll = document.getElementById('selectAllResidents');
+        const selectedCount = document.getElementById('selectedCount');
+        const bulkPrintButton = document.getElementById('bulkPrintButton');
+        const residentCheckboxes = Array.from(document.querySelectorAll('.resident-select'));
+
+        if (!selectAll || !selectedCount || !bulkPrintButton || residentCheckboxes.length === 0) {
+            return;
+        }
+
+        function updateSelectionUI() {
+            const checkedCount = residentCheckboxes.filter((checkbox) => checkbox.checked).length;
+            selectedCount.textContent = String(checkedCount);
+            bulkPrintButton.disabled = checkedCount === 0;
+
+            if (checkedCount === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            } else if (checkedCount === residentCheckboxes.length) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            }
+        }
+
+        selectAll.addEventListener('change', function () {
+            residentCheckboxes.forEach((checkbox) => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateSelectionUI();
+        });
+
+        residentCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', updateSelectionUI);
+        });
+
+        updateSelectionUI();
+    })();
+</script>
 {% endblock %}

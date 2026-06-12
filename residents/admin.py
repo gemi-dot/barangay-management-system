@@ -1,17 +1,19 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 
-from .models import Resident, Household, Precinct, DocumentRequest, BarangayOfficeProfile
+from .models import Resident, Household, Precinct, DocumentRequest, BarangayOfficeProfile, ResidentServiceLog
 
 # Register your models here.
 
 @admin.register(Resident)
 class ResidentAdmin(admin.ModelAdmin):
-    list_display = ['voters_id', 'precinct_number', 'portal_user', 'philhealth_number', 'sss_gsis_number', 'tin_number', 'last_name', 'first_name', 'middle_name', 'age', 'gender', 'zone', 'is_senior_citizen', 'is_4ps_beneficiary', 'is_active']
+    list_display = ['voters_id', 'precinct_number', 'qr_code', 'portal_user', 'philhealth_number', 'sss_gsis_number', 'tin_number', 'last_name', 'first_name', 'middle_name', 'age', 'gender', 'zone', 'is_senior_citizen', 'is_4ps_beneficiary', 'is_active']
     list_filter = ['gender', 'civil_status', 'is_senior_citizen', 'is_4ps_beneficiary', 'is_pwd', 'zone', 'is_active']
     search_fields = ['first_name', 'last_name', 'middle_name', 'contact_number']
     list_editable = ['is_active']
+    readonly_fields = ['qr_code', 'qr_preview']
     
     fieldsets = (
         ('Personal Information', {
@@ -39,7 +41,7 @@ class ResidentAdmin(admin.ModelAdmin):
             'fields': ('blood_type', 'allergies', 'medical_conditions')
         }),
         ('System Information', {
-            'fields': ('is_active', 'date_registered'),
+            'fields': ('is_active', 'date_registered', 'qr_code', 'qr_preview'),
             'classes': ('collapse',)
         })
     )
@@ -47,6 +49,16 @@ class ResidentAdmin(admin.ModelAdmin):
     def age(self, obj):
         return obj.age
     age.short_description = 'Age'
+
+    def qr_preview(self, obj):
+        if not obj.qr_image:
+            return 'No QR image available yet.'
+        return format_html(
+            '<img src="{}" alt="QR code for {}" style="width: 120px; height: 120px; border: 1px solid #ddd; padding: 4px; background: #fff;" />',
+            obj.qr_image.url,
+            obj.full_name,
+        )
+    qr_preview.short_description = 'QR Preview'
 
 
 @admin.register(Household)
@@ -146,3 +158,11 @@ class BarangayOfficeProfileAdmin(admin.ModelAdmin):
         if BarangayOfficeProfile.objects.exists():
             return False
         return super().has_add_permission(request)
+
+
+@admin.register(ResidentServiceLog)
+class ResidentServiceLogAdmin(admin.ModelAdmin):
+    list_display = ['resident', 'action', 'logged_by', 'created_at']
+    list_filter = ['action', 'created_at']
+    search_fields = ['resident__first_name', 'resident__last_name', 'resident__qr_code', 'logged_by__username', 'notes']
+    readonly_fields = ['created_at']
