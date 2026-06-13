@@ -65,7 +65,18 @@
                                             <td><strong>{{ item.household.household_number }}</strong></td>
                                             <td>{{ item.household.household_head.full_name }}</td>
                                             <td><small>{{ item.household.household_head.complete_address }}</small></td>
-                                            <td><span class="badge bg-info">{{ item.member_count }}</span></td>
+                                            <td>
+                                                <span class="badge bg-info mb-2">{{ item.member_count }}</span>
+                                                {% if item.members %}
+                                                    <div>
+                                                        {% for member in item.members %}
+                                                            <div><small>{{ member.full_name }}</small></div>
+                                                        {% endfor %}
+                                                    </div>
+                                                {% else %}
+                                                    <div><small class="text-muted">No members listed</small></div>
+                                                {% endif %}
+                                            </td>
                                             <td>{{ item.household.get_house_ownership_display }}</td>
                                             <td>
                                                 {% if item.household.total_monthly_income %}

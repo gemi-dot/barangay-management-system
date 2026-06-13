@@ -136,10 +136,12 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="border rounded p-3 h-100">
-                            <small class="text-muted d-block">Released Today</small>
-                            <h3 class="mb-0 text-info">{{ released_today_count }}</h3>
-                        </div>
+                        <a href="{% url 'dashboard:today_visitors_report' %}" class="text-decoration-none text-reset d-block h-100">
+                            <div class="border rounded p-3 h-100">
+                                <small class="text-muted d-block">Visitors Today</small>
+                                <h3 class="mb-0 text-info">{{ visitors_today_count }}</h3>
+                            </div>
+                        </a>
                     </div>
                     <div class="col-md-3">
                         <div class="border rounded p-3 h-100">
@@ -166,6 +168,12 @@
                         <a href="{% url 'residents:document_requests_queue' %}?status=pending" class="btn btn-outline-warning w-100">
                             <i class="bi bi-hourglass-split me-1"></i>
                             Pending Queue
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <a href="{% url 'dashboard:today_visitors_report' %}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-people me-1"></i>
+                            Today's Visitors
                         </a>
                     </div>
                     <div class="col-md-3 col-sm-6 mb-2">
