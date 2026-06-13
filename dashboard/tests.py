@@ -73,6 +73,38 @@ class HouseholdReportTests(TestCase):
 		)
 		self.household.members.add(self.member)
 
+		self.other_head = Resident.objects.create(
+			first_name='Liza',
+			middle_name='K',
+			last_name='Reyes',
+			suffix='',
+			gender='F',
+			date_of_birth='1970-01-01',
+			place_of_birth='Maasin City',
+			civil_status='married',
+			citizenship='FILIPINO',
+			house_number='9',
+			street='Burgos Street',
+			zone='Purok Malunggay',
+			barangay='ABGAO',
+			city_municipality='MAASIN',
+			province='SOUTHERN LEYTE',
+			zip_code='6600',
+			educational_attainment='college',
+			employment_status='employed',
+			occupation='Vendor',
+			monthly_income='8000.00',
+			emergency_contact_name='N/A',
+			emergency_contact_number='N/A',
+			emergency_contact_relationship='N/A',
+		)
+		self.other_household = Household.objects.create(
+			household_head=self.other_head,
+			household_number='HH-002',
+			house_ownership='owned',
+			total_monthly_income='8000.00',
+		)
+
 	def test_household_report_shows_members_under_household_head(self):
 		response = self.client.get(reverse('dashboard:household_report'))
 
@@ -83,6 +115,17 @@ class HouseholdReportTests(TestCase):
 		self.assertEqual(household_item['members'][0], self.member)
 		self.assertContains(response, self.head.full_name)
 		self.assertContains(response, self.member.full_name)
+
+	def test_household_report_filters_by_purok(self):
+		response = self.client.get(reverse('dashboard:household_report'), {'zone': 'Purok Talisay'})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context['zone_filter'], 'Purok Talisay')
+		self.assertEqual(response.context['total_households'], 1)
+		self.assertIn('Purok Talisay', response.context['grouped_households'])
+		self.assertNotIn('Purok Malunggay', response.context['grouped_households'])
+		self.assertContains(response, self.head.full_name)
+		self.assertNotContains(response, self.other_head.full_name)
 
 
 class DashboardViewTests(TestCase):

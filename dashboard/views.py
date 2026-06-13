@@ -341,12 +341,18 @@ def residents_list(request):
 @login_required
 def household_report(request):
     """Household report grouped by zone"""
+    zone_filter = request.GET.get('zone')
     households = Household.objects.select_related('household_head').prefetch_related(
         Prefetch(
             'members',
             queryset=Resident.objects.order_by('last_name', 'first_name', 'middle_name'),
         )
     ).order_by('household_number')
+
+    if zone_filter:
+        households = households.filter(household_head__zone=zone_filter)
+
+    zones = Resident.objects.filter(is_active=True).values_list('zone', flat=True).distinct().order_by('zone')
 
     grouped_households = defaultdict(list)
     total_members = 0
@@ -369,6 +375,8 @@ def household_report(request):
         'grouped_households': sorted_grouped_households,
         'total_households': households.count(),
         'total_members': total_members,
+        'zones': zones,
+        'zone_filter': zone_filter,
     }
 
     return render(request, 'dashboard/household_report.html', context)

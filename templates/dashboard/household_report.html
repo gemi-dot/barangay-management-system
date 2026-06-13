@@ -30,13 +30,33 @@
     </div>
 </div>
 
+<div class="row mb-3">
+    <div class="col-lg-4 col-md-6">
+        <form method="get" class="card card-body shadow-sm border-0">
+            <label for="zone" class="form-label mb-2">Filter by Purok</label>
+            <div class="input-group">
+                <select name="zone" id="zone" class="form-select">
+                    <option value="">All Puroks</option>
+                    {% for zone in zones %}
+                        <option value="{{ zone }}" {% if zone_filter == zone %}selected{% endif %}>{{ zone }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary">Apply</button>
+                {% if zone_filter %}
+                    <a href="{% url 'dashboard:household_report' %}" class="btn btn-outline-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <i class="bi bi-diagram-3"></i>
-                    Household Groupings by Purok
+                    Household Groupings by Purok{% if zone_filter %} - {{ zone_filter }}{% endif %}
                 </h5>
             </div>
             <div class="card-body">
