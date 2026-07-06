@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventory - Barangay Information Management System{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inventory-hero {
+        background: linear-gradient(120deg, #0f4c81 0%, #1f6d8f 45%, #2f8c7d 100%);
+        border: 0;
+        border-radius: 16px;
+        color: #f8fcff;
+        box-shadow: 0 10px 24px rgba(15, 76, 129, 0.2);
+    }
+    .inventory-hero .lead {
+        color: rgba(248, 252, 255, 0.9);
+    }
+    .inventory-feature-card {
+        border: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+        border-top: 4px solid var(--feature-color, #0f4c81);
+    }
+    .inventory-feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 26px rgba(16, 24, 40, 0.16);
+    }
+    .inventory-feature-card .card-title {
+        color: #13344d;
+        font-weight: 700;
+    }
+    .inventory-feature-card .card-title i {
+        color: var(--feature-color, #0f4c81);
+        margin-right: 0.35rem;
+    }
+    .inventory-feature-card .feature-tag {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--feature-color, #0f4c81);
+        background: color-mix(in srgb, var(--feature-color, #0f4c81) 12%, #ffffff);
+        border: 1px solid color-mix(in srgb, var(--feature-color, #0f4c81) 22%, #ffffff);
+        border-radius: 999px;
+        padding: 0.25rem 0.58rem;
+        margin-bottom: 0.65rem;
+    }
+    .feature-tone-registry { --feature-color: #0f4c81; }
+    .feature-tone-office { --feature-color: #0f766e; }
+    .feature-tone-category { --feature-color: #1d4ed8; }
+    .feature-tone-damaged { --feature-color: #b45309; }
+    .feature-tone-missing { --feature-color: #9f1239; }
+    .feature-tone-annual { --feature-color: #166534; }
+    .feature-tone-staff-tools { --feature-color: #6d28d9; }
+    .feature-tone-audit { --feature-color: #9333ea; }
+
+    @media (min-width: 992px) and (max-height: 900px) {
+        .content-area > .d-flex.justify-content-between {
+            padding-top: 0.35rem !important;
+            padding-bottom: 0.32rem !important;
+            margin-bottom: 0.42rem !important;
+        }
+
+        .content-area > .d-flex.justify-content-between .h2 {
+            font-size: 1.3rem;
+            margin-bottom: 0;
+        }
+
+        .content-area > .d-flex.justify-content-between .btn {
+            font-size: 0.72rem;
+            padding: 0.22rem 0.46rem;
+        }
+
+        .inventory-fit-wrap {
+            --inventory-fit-scale: 0.84;
+            transform: scale(var(--inventory-fit-scale));
+            transform-origin: top left;
+            width: calc(100% / var(--inventory-fit-scale));
+            margin-bottom: -16vh;
+        }
+
+        .inventory-fit-wrap .mb-3 {
+            margin-bottom: 0.52rem !important;
+        }
+
+        .inventory-fit-wrap .g-3,
+        .inventory-fit-wrap .gy-3 {
+            --bs-gutter-y: 0.58rem;
+        }
+
+        .inventory-fit-wrap .inventory-hero .card-body {
+            padding: 0.8rem 0.9rem !important;
+        }
+
+        .inventory-fit-wrap .inventory-hero h4 {
+            font-size: 1.2rem;
+            margin-bottom: 0.2rem !important;
+        }
+
+        .inventory-fit-wrap .inventory-hero .lead {
+            font-size: 0.88rem;
+            line-height: 1.25;
+        }
+
+        .inventory-fit-wrap .inventory-feature-card {
+            border-top-width: 3px;
+            border-radius: 11px;
+            box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+        }
+
+        .inventory-fit-wrap .inventory-feature-card .card-body {
+            padding: 0.72rem 0.76rem;
+        }
+
+        .inventory-fit-wrap .inventory-feature-card .feature-tag {
+            font-size: 0.63rem;
+            margin-bottom: 0.42rem;
+            padding: 0.18rem 0.44rem;
+        }
+
+        .inventory-fit-wrap .inventory-feature-card .card-title {
+            font-size: 0.93rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .inventory-fit-wrap .inventory-feature-card p,
+        .inventory-fit-wrap .inventory-feature-card .btn {
+            font-size: 0.74rem;
+            line-height: 1.25;
+        }
+
+        .inventory-fit-wrap .inventory-feature-card .btn {
+            padding-top: 0.3rem;
+            padding-bottom: 0.3rem;
+        }
+
+        .inventory-fit-wrap .alert {
+            padding: 0.45rem 0.65rem;
+            font-size: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inventory-fit-wrap">
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="card inventory-hero mb-3">
+    <div class="card-body p-4">
+        <h4 class="mb-2">Inventory Operations Center</h4>
+        <p class="lead mb-0">Professional tracking for barangay assets, accountability reports, and compliance-ready audits.</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:item_list' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-registry">
+                <div class="card-body">
+                    <div class="feature-tag">Core</div>
+                    <h5 class="card-title"><i class="bi bi-box-seam"></i> Asset Registry</h5>
+                    <p class="text-muted mb-0">Browse all registered assets and open full records.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:report_assets_by_office' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-office">
+                <div class="card-body">
+                    <div class="feature-tag">Operations</div>
+                    <h5 class="card-title"><i class="bi bi-building"></i> Reports by Office</h5>
+                    <p class="text-muted mb-0">Count assets grouped by office/location.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:report_assets_by_category' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-category">
+                <div class="card-body">
+                    <div class="feature-tag">Operations</div>
+                    <h5 class="card-title"><i class="bi bi-tags"></i> Reports by Category</h5>
+                    <p class="text-muted mb-0">Review inventory distribution per category.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:report_damaged_items' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-damaged">
+                <div class="card-body">
+                    <div class="feature-tag">Condition</div>
+                    <h5 class="card-title"><i class="bi bi-exclamation-triangle"></i> Damaged Items</h5>
+                    <p class="text-muted mb-0">See all assets currently tagged as damaged.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:report_missing_items' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-missing">
+                <div class="card-body">
+                    <div class="feature-tag">Condition</div>
+                    <h5 class="card-title"><i class="bi bi-search"></i> Missing Items</h5>
+                    <p class="text-muted mb-0">Track assets tagged as missing.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:report_annual_physical_inventory' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-annual">
+                <div class="card-body">
+                    <div class="feature-tag">Compliance</div>
+                    <h5 class="card-title"><i class="bi bi-calendar-check"></i> Annual Physical Inventory</h5>
+                    <p class="text-muted mb-0">View counted vs not counted assets per year.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% if user.is_staff %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 inventory-feature-card feature-tone-staff-tools">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <div class="feature-tag">Staff Tool</div>
+                    <h5 class="card-title"><i class="bi bi-database-add"></i> Load Sample Entries</h5>
+                    <p class="text-muted mb-3">Populate demo inventory assets without opening a terminal.</p>
+                </div>
+                <form method="post" action="{% url 'inventory:load_sample_entries' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100">Load Sample Entries</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:legacy_values_audit' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-audit">
+                <div class="card-body">
+                    <div class="feature-tag">Staff Tool</div>
+                    <h5 class="card-title"><i class="bi bi-clipboard-data"></i> Legacy Values Audit</h5>
+                    <p class="text-muted mb-0">Run one-click audit for unmatched category, location, and condition values.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

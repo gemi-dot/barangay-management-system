@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Asset Registry - Inventory{% endblock %}
+{% block page_title %}Asset Registry{% endblock %}
+
+{% block extra_css %}
+<style>
+    .registry-shell {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 28px rgba(16, 24, 40, 0.1);
+        border: 0;
+    }
+    .registry-header {
+        background: linear-gradient(120deg, #0f4c81 0%, #1f6d8f 45%, #2f8c7d 100%);
+        color: #f8fcff;
+        border: 0;
+        padding-top: 0.9rem;
+        padding-bottom: 0.9rem;
+    }
+    .registry-header h5 {
+        color: #f8fcff;
+        font-weight: 700;
+    }
+    .registry-table thead th {
+        background: #e9f3fa;
+        color: #154568;
+        text-transform: uppercase;
+        font-size: 0.76rem;
+        letter-spacing: 0.04em;
+        border-bottom: 0;
+    }
+    .registry-table tbody tr:hover {
+        background-color: #f2f9ff;
+    }
+    .registry-chip {
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 0.2rem 0.58rem;
+        border: 1px solid transparent;
+    }
+    .registry-chip--condition {
+        background: #f0f7ff;
+        color: #144970;
+        border-color: #b8daef;
+    }
+    .registry-chip--location {
+        background: #eefaf6;
+        color: #16604e;
+        border-color: #bfe5d8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card registry-shell">
+    <div class="card-header registry-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Registered Assets</h5>
+        <a class="btn btn-sm btn-light" href="{% url 'inventory:index' %}">Back to Inventory</a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle registry-table">
+                <thead>
+                    <tr>
+                        <th>Property #</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Condition</th>
+                        <th>Location</th>
+                        <th>Responsible Person</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in assets %}
+                    <tr>
+                        <td><strong>{{ asset.property_number }}</strong></td>
+                        <td>{{ asset.description|truncatechars:70 }}</td>
+                        <td>{{ asset.category.get_name_display }}</td>
+                        <td><span class="registry-chip registry-chip--condition">{{ asset.get_condition_display }}</span></td>
+                        <td><span class="registry-chip registry-chip--location">{{ asset.location }}</span></td>
+                        <td>{{ asset.responsible_person|default:'N/A' }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                {% if asset.condition != asset.ConditionChoices.UNSERVICEABLE %}
+                                <form method="post" action="{% url 'inventory:asset_mark_damaged' asset.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button class="btn btn-sm btn-warning" type="submit">Mark as Damaged</button>
+                                </form>
+                                {% endif %}
+                                {% if asset.status != asset.StatusChoices.LOST %}
+                                <form method="post" action="{% url 'inventory:asset_mark_missing' asset.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button class="btn btn-sm btn-danger" type="submit">Mark as Missing</button>
+                                </form>
+                                {% endif %}
+                                <a class="btn btn-sm btn-outline-primary" href="{% url 'inventory:asset_detail' asset.id %}">
+                                    View Record
+                                </a>
+                                <a class="btn btn-sm btn-outline-secondary" href="{% url 'inventory:asset_edit' asset.id %}?next={{ request.get_full_path|urlencode }}">
+                                    Edit
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No assets found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

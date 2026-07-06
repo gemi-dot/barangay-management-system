@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'bhw_reports',
     'dashboard',
     'accounts',
+    'inventory',
     
     'assistant',
 

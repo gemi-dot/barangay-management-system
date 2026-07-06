@@ -13,7 +13,9 @@ from .models import Resident, DocumentRequest, BarangayOfficeProfile, ResidentSe
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
 from collections import defaultdict
+from django.db import transaction
 from django.db.models import Count, Q
+from django.utils.dateparse import parse_date
 
 
 def _require_staff_or_respond(request):
@@ -242,6 +244,17 @@ def resident_announcements(request):
     })
 
 
+def blotter_placeholder(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response:
+        return denied_response
+
+    return render(request, 'residents/blotter_placeholder.html', {
+        'module_name': 'Blotter',
+        'status_message': 'This section is reserved for blotter case intake, incident logging, and case tracking.',
+    })
+
+
 @login_required
 def reports_home(request):
     return render(request, 'residents/reports_home.html')
@@ -339,6 +352,160 @@ def scan_test_page(request):
         'site_base_url': base_url or 'N/A',
     }
     return render(request, 'residents/scan_test.html', context)
+
+
+@login_required
+def quick_gender_correction(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    zone_filter = (
+        request.GET.get('zone')
+        or request.POST.get('zone')
+        or 'Purok Ipil-ipil'
+    ).strip()
+
+    base_queryset = Resident.objects.filter(is_active=True)
+    residents_queryset = base_queryset
+    if zone_filter and zone_filter != 'ALL':
+        residents_queryset = residents_queryset.filter(zone=zone_filter)
+
+    residents_queryset = residents_queryset.order_by('last_name', 'first_name', 'middle_name', 'id')
+
+    if request.method == 'POST':
+        gender_updates = []
+        birthday_updates = []
+        invalid_birthday_rows = 0
+        for resident in residents_queryset:
+            selected_gender = (request.POST.get(f'gender_{resident.id}') or resident.gender).strip().upper()
+            if selected_gender not in {'M', 'F'}:
+                selected_gender = resident.gender
+
+            raw_dob = (request.POST.get(f'dob_{resident.id}') or '').strip()
+            if raw_dob:
+                parsed_dob = parse_date(raw_dob)
+                if parsed_dob is None:
+                    invalid_birthday_rows += 1
+                    parsed_dob = resident.date_of_birth
+            else:
+                parsed_dob = resident.date_of_birth
+
+            if selected_gender != resident.gender:
+                gender_updates.append((resident.id, selected_gender))
+
+            if parsed_dob and parsed_dob != resident.date_of_birth:
+                birthday_updates.append((resident.id, parsed_dob))
+
+        if gender_updates or birthday_updates:
+            with transaction.atomic():
+                for resident_id, selected_gender in gender_updates:
+                    Resident.objects.filter(id=resident_id).update(gender=selected_gender)
+                for resident_id, parsed_dob in birthday_updates:
+                    Resident.objects.filter(id=resident_id).update(date_of_birth=parsed_dob)
+
+            messages.success(
+                request,
+                f'Updated {len(gender_updates)} gender record(s) and {len(birthday_updates)} birthday record(s).'
+            )
+        else:
+            messages.info(request, 'No gender or birthday changes detected.')
+
+        if invalid_birthday_rows:
+            messages.warning(
+                request,
+                f'{invalid_birthday_rows} birthday value(s) were invalid and skipped. Use YYYY-MM-DD format.'
+            )
+
+        query = urlencode({'zone': zone_filter}) if zone_filter else ''
+        target_url = reverse('residents:quick_gender_correction')
+        if query:
+            target_url = f'{target_url}?{query}'
+        return redirect(target_url)
+
+    residents = list(residents_queryset)
+    zone_options = list(
+        base_queryset.values_list('zone', flat=True).distinct().order_by('zone')
+    )
+
+    context = {
+        'residents': residents,
+        'zone_filter': zone_filter,
+        'zone_options': zone_options,
+        'total_count': len(residents),
+        'male_count': sum(1 for resident in residents if resident.gender == 'M'),
+        'female_count': sum(1 for resident in residents if resident.gender == 'F'),
+    }
+    return render(request, 'residents/quick_gender_correction.html', context)
+
+
+@login_required
+def quick_birthday_correction(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
+    zone_filter = (
+        request.GET.get('zone')
+        or request.POST.get('zone')
+        or 'Purok Ipil-ipil'
+    ).strip()
+
+    base_queryset = Resident.objects.filter(is_active=True)
+    residents_queryset = base_queryset
+    if zone_filter and zone_filter != 'ALL':
+        residents_queryset = residents_queryset.filter(zone=zone_filter)
+
+    residents_queryset = residents_queryset.order_by('last_name', 'first_name', 'middle_name', 'id')
+
+    if request.method == 'POST':
+        updates = []
+        invalid_birthday_rows = 0
+        for resident in residents_queryset:
+            raw_value = (request.POST.get(f'dob_{resident.id}') or '').strip()
+            if raw_value:
+                parsed_date = parse_date(raw_value)
+                if parsed_date is None:
+                    invalid_birthday_rows += 1
+                    parsed_date = resident.date_of_birth
+            else:
+                parsed_date = resident.date_of_birth
+            if parsed_date and parsed_date != resident.date_of_birth:
+                updates.append((resident.id, parsed_date))
+
+        if updates:
+            with transaction.atomic():
+                for resident_id, parsed_date in updates:
+                    Resident.objects.filter(id=resident_id).update(date_of_birth=parsed_date)
+            messages.success(request, f'Updated {len(updates)} resident birthday record(s).')
+        else:
+            messages.info(request, 'No birthday changes detected.')
+
+        if invalid_birthday_rows:
+            messages.warning(
+                request,
+                f'{invalid_birthday_rows} birthday value(s) were invalid and skipped. Use YYYY-MM-DD format.'
+            )
+
+        query = urlencode({'zone': zone_filter}) if zone_filter else ''
+        target_url = reverse('residents:quick_birthday_correction')
+        if query:
+            target_url = f'{target_url}?{query}'
+        return redirect(target_url)
+
+    residents = list(residents_queryset)
+    zone_options = list(
+        base_queryset.values_list('zone', flat=True).distinct().order_by('zone')
+    )
+
+    context = {
+        'residents': residents,
+        'zone_filter': zone_filter,
+        'zone_options': zone_options,
+        'total_count': len(residents),
+        'default_dob_count': sum(1 for resident in residents if str(resident.date_of_birth) == '1900-01-01'),
+    }
+    return render(request, 'residents/quick_birthday_correction.html', context)
 
 
 def resident_quick_view(request, resident_id):

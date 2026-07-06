@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from collections import defaultdict
 from residents.models import Resident, Household, DocumentRequest, ResidentServiceLog
 from bhw_reports.models import (
@@ -14,9 +14,13 @@ from bhw_reports.models import (
 
 
 def _get_todays_visitor_logs(today):
+    day_start = timezone.make_aware(datetime.combine(today, time.min))
+    next_day_start = day_start + timedelta(days=1)
+
     logs = ResidentServiceLog.objects.filter(
         action=ResidentServiceLog.ACTION_VISITED_TODAY,
-        created_at__date=today,
+        created_at__gte=day_start,
+        created_at__lt=next_day_start,
     ).select_related('resident', 'logged_by').order_by('-created_at', '-id')
 
     distinct_logs = []
@@ -42,7 +46,7 @@ def dashboard_view(request):
     female_residents = Resident.objects.filter(gender='F', is_active=True).count()
     
     # Age groups
-    today = timezone.now().date()
+    today = timezone.localdate()
     children = Resident.objects.filter(
         date_of_birth__gt=today - timedelta(days=18*365), 
         is_active=True
@@ -151,7 +155,7 @@ def dashboard_view(request):
 @login_required
 def today_visitors_report(request):
     """Today's visitors report based on resident service logs"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     visitor_logs = _get_todays_visitor_logs(today)
 
     context = {

@@ -4,8 +4,41 @@ from django.utils import timezone
 from residents.models import Resident
 
 
+DEFAULT_DATE_OF_BIRTH = '1900-01-01'
+DEFAULT_GENDER = 'M'
+
+
 class Command(BaseCommand):
     help = 'Import residents from a CSV file'
+
+    @staticmethod
+    def _normalize_header(header):
+        """Normalize CSV headers from Excel/Desktop exports (BOM and mojibake)."""
+        if header is None:
+            return ''
+        cleaned = str(header).strip().replace('\ufeff', '')
+        if cleaned.startswith('ï»¿'):
+            cleaned = cleaned[3:]
+        return cleaned
+
+    @staticmethod
+    def _is_template_metadata_row(row):
+        """Skip template guide rows like "Text" and "*Required"."""
+        first_name = (row.get('first_name') or '').strip()
+        last_name = (row.get('last_name') or '').strip()
+        date_of_birth = (row.get('date_of_birth') or '').strip()
+
+        if first_name in {'Text', '*Required'}:
+            return True
+        if first_name in {'Text', '*Required'} and last_name in {'Text', '*Required'}:
+            return True
+        if date_of_birth in {'Date (YYYY-MM-DD)', '*Required'}:
+            return True
+        return False
+
+    @staticmethod
+    def _is_empty_row(row):
+        return all((value is None) or (str(value).strip() == '') for value in row.values())
 
     def add_arguments(self, parser):
         parser.add_argument('csv_file', type=str, help='Path to the CSV file to import')
@@ -20,11 +53,15 @@ class Command(BaseCommand):
         skip_errors = options['skip_errors']
         
         try:
-            with open(csv_file, 'r', encoding='utf-8') as file:
+            # utf-8-sig removes a true UTF-8 BOM when present.
+            with open(csv_file, 'r', encoding='utf-8-sig', newline='') as file:
                 reader = csv.DictReader(file)
                 
                 if not reader.fieldnames:
                     raise CommandError('CSV file is empty')
+
+                # Some desktop exports keep BOM artifacts in header names (e.g. ï»¿first_name).
+                reader.fieldnames = [self._normalize_header(name) for name in reader.fieldnames]
                 
                 created_count = 0
                 error_count = 0
@@ -32,14 +69,26 @@ class Command(BaseCommand):
                 
                 for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
                     try:
+                        if self._is_empty_row(row):
+                            continue
+
+                        if self._is_template_metadata_row(row):
+                            continue
+
                         # Prepare data with proper type conversions
+                        normalized_gender = row.get('gender', DEFAULT_GENDER).strip().upper()
+                        if normalized_gender not in {'M', 'F'}:
+                            normalized_gender = DEFAULT_GENDER
+
+                        normalized_dob = row.get('date_of_birth', '').strip() or DEFAULT_DATE_OF_BIRTH
+
                         data = {
                             'first_name': row.get('first_name', '').strip(),
                             'middle_name': row.get('middle_name', '').strip() or '',
                             'last_name': row.get('last_name', '').strip(),
                             'suffix': row.get('suffix', '').strip() or '',
-                            'gender': row.get('gender', 'M').strip(),
-                            'date_of_birth': row.get('date_of_birth', '').strip(),
+                            'gender': normalized_gender,
+                            'date_of_birth': normalized_dob,
                             'place_of_birth': row.get('place_of_birth', '').strip(),
                             'contact_number': row.get('contact_number', '').strip() or '',
                             'email': row.get('email', '').strip() or '',
@@ -89,10 +138,6 @@ class Command(BaseCommand):
                             raise ValueError('first_name is required')
                         if not data['last_name']:
                             raise ValueError('last_name is required')
-                        if not data['date_of_birth']:
-                            raise ValueError('date_of_birth is required')
-                        if not data['gender']:
-                            raise ValueError('gender is required')
                         
                         # Create resident
                         resident = Resident.objects.create(**data)

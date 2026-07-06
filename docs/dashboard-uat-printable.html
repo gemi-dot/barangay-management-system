@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Module UAT Form</title>
+    <style>
+        :root {
+            --ink: #1f2933;
+            --muted: #52606d;
+            --line: #bcccdc;
+            --panel: #f5f3ff;
+            --accent: #4338ca;
+            --accent-soft: #e9e7ff;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            color: var(--ink);
+            background: #eef3f7;
+        }
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 12mm;
+            background: #ffffff;
+        }
+        .header {
+            border: 2px solid var(--accent);
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fcfbff 0%, var(--accent-soft) 100%);
+        }
+        .header h1 { margin: 0; font-size: 24px; color: var(--accent); }
+        .header h2 { margin: 4px 0 0; font-size: 15px; font-weight: 600; color: var(--muted); }
+        .intro { margin-bottom: 10px; font-size: 13px; line-height: 1.4; }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 16px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .meta-item { border-bottom: 1px solid var(--line); padding-bottom: 4px; min-height: 24px; }
+        .meta-label { font-weight: 700; color: var(--muted); margin-right: 6px; }
+        .section-title {
+            margin: 12px 0 8px;
+            padding: 6px 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            background: var(--panel);
+            border-left: 4px solid var(--accent);
+        }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+        th, td { border: 1px solid var(--line); padding: 6px 7px; vertical-align: top; }
+        th {
+            background: #f0edff;
+            text-align: left;
+            color: var(--accent);
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .col-no { width: 6%; text-align: center; }
+        .col-scenario { width: 53%; }
+        .col-pass, .col-fail { width: 8%; text-align: center; }
+        .col-comments { width: 25%; }
+        .check-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #7b8794; margin-top: 2px; }
+        .issue-line, .sign-line { border-bottom: 1px solid var(--line); min-height: 20px; margin-top: 6px; padding-bottom: 2px; }
+        .signoff-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 18px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .legend { margin-top: 8px; font-size: 11px; color: var(--muted); }
+        @page { size: A4 portrait; margin: 10mm; }
+        @media print {
+            body { background: #ffffff; }
+            .page { width: auto; min-height: auto; margin: 0; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <h1>Dashboard Module UAT Form</h1>
+            <h2>Barangay Abgao IMS</h2>
+        </div>
+
+        <div class="intro">
+            Use this form during barangay pilot testing to verify that dashboard totals, quick links, and daily monitoring panels present reliable information to staff.
+        </div>
+
+        <div class="meta-grid">
+            <div class="meta-item"><span class="meta-label">Tester Name:</span></div>
+            <div class="meta-item"><span class="meta-label">Office / Role:</span></div>
+            <div class="meta-item"><span class="meta-label">Test Date:</span></div>
+            <div class="meta-item"><span class="meta-label">Device Used:</span></div>
+        </div>
+
+        <div class="section-title">User Acceptance Checklist</div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-no">No.</th>
+                    <th class="col-scenario">Test Scenario</th>
+                    <th class="col-pass">Pass</th>
+                    <th class="col-fail">Fail</th>
+                    <th class="col-comments">Comments</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="col-no">1</td><td>Open the Dashboard and confirm the page loads without errors.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">2</td><td>Verify the main summary totals such as total residents and households are displayed.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">3</td><td>Confirm demographic panels such as male, female, children, adults, and seniors show reasonable values.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">4</td><td>Open the Today&apos;s Visitors quick link and confirm the visitor count matches the visitor report.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">5</td><td>Open the quick link for ready-for-pickup document requests and confirm it opens the correct filtered queue.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">6</td><td>Open pending and processing document-request quick links and confirm the counts and queue contents are consistent.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">7</td><td>Confirm the zone distribution and other summary sections display without layout or data errors.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">8</td><td>Use the dashboard shortcut to Residents and confirm the linked page opens correctly.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">9</td><td>Return to the dashboard from a linked report and confirm there is no broken navigation.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+                <tr><td class="col-no">10</td><td>Refresh the dashboard and confirm the panels and quick links continue to load correctly.</td><td class="col-pass"><span class="check-box"></span></td><td class="col-fail"><span class="check-box"></span></td><td></td></tr>
+            </tbody>
+        </table>
+
+        <div class="legend">Mark one box only for each scenario. Record any issue, mismatched count, or navigation problem in the Comments column.</div>
+
+        <div class="section-title">Issues Found</div>
+        <div class="issue-line">1.</div>
+        <div class="issue-line">2.</div>
+        <div class="issue-line">3.</div>
+
+        <div class="section-title">Overall Result</div>
+        <div class="signoff-grid">
+            <div><div><strong>Overall UAT Result:</strong> PASS / FAIL</div><div class="sign-line"></div></div>
+            <div><div><strong>Recommended for Barangay Pilot Run:</strong> YES / NO</div><div class="sign-line"></div></div>
+            <div><div><strong>Tester Signature:</strong></div><div class="sign-line"></div></div>
+            <div><div><strong>Reviewed By:</strong></div><div class="sign-line"></div></div>
+        </div>
+    </div>
+</body>
+</html>

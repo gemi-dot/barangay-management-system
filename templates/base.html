@@ -44,6 +44,233 @@
         .content-area {
             min-height: 100vh;
             background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+        .phase-block {
+            margin: 0.5rem 0.6rem 0;
+            padding: 0.9rem 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            background: rgba(12, 18, 38, 0.28);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+        .phase-title {
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin: 0 0 0.8rem;
+            padding: 0 0.4rem 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        .phase-subheading {
+            color: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin: 0.95rem 0 0.35rem;
+            padding: 0.36rem 0.62rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+            display: inline-block;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.16) inset;
+        }
+        .phase-subheading:first-of-type {
+            margin-top: 0;
+            padding-top: 0.36rem;
+            border-top: none;
+        }
+        .phase-subheading--operations {
+            background: rgba(13, 110, 253, 0.72);
+        }
+        .phase-subheading--compliance {
+            background: rgba(253, 126, 20, 0.72);
+        }
+        .phase-subheading--administration {
+            background: rgba(25, 135, 84, 0.72);
+        }
+        .phase-link {
+            margin: 0.22rem 0;
+            border-left: 2px solid transparent;
+            padding: 0.42rem 0.62rem 0.42rem 0.8rem;
+        }
+        .phase-link.active {
+            border-left-color: #ffffff;
+        }
+        .app-footer {
+            margin-top: auto;
+            padding: 0.9rem 0 1.1rem;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.86rem;
+            border-top: 1px solid #e2e8ef;
+        }
+
+        @media (min-width: 992px) and (max-height: 900px) {
+            .sidebar {
+                overflow: hidden;
+            }
+
+            .sidebar .position-sticky {
+                --sidebar-fit-scale: 0.84;
+                transform: scale(var(--sidebar-fit-scale));
+                transform-origin: top left;
+                width: calc(100% / var(--sidebar-fit-scale));
+                padding-top: 0.55rem !important;
+            }
+
+            .sidebar .text-center.mb-4 {
+                margin-bottom: 0.7rem !important;
+            }
+
+            .sidebar .text-center h4 {
+                font-size: 1.12rem;
+            }
+
+            .sidebar .text-center small {
+                font-size: 0.7rem;
+            }
+
+            .phase-block {
+                margin: 0.25rem 0.4rem 0 !important;
+                padding: 0.52rem 0.5rem !important;
+                border-radius: 10px;
+            }
+
+            .phase-title {
+                font-size: 0.67rem;
+                margin-bottom: 0.45rem;
+                padding: 0 0.2rem 0.3rem;
+            }
+
+            .phase-subheading {
+                font-size: 0.64rem;
+                letter-spacing: 0.05em;
+                margin: 0.55rem 0 0.2rem;
+                padding: 0.22rem 0.42rem;
+            }
+
+            .phase-link {
+                margin: 0.08rem 0;
+                padding: 0.24rem 0.42rem 0.24rem 0.56rem;
+                font-size: 0.74rem;
+                line-height: 1.15;
+            }
+
+            .sidebar .nav-item.mt-3 {
+                margin-top: 0.45rem !important;
+            }
+
+            .sidebar .nav-item.mt-2 {
+                margin-top: 0.25rem !important;
+            }
+
+            .sidebar .nav-item.border-top.pt-2 {
+                margin-top: 0.55rem !important;
+                padding-top: 0.45rem !important;
+            }
+
+            .content-area {
+                font-size: 0.92rem;
+            }
+
+            .content-area > .d-flex.justify-content-between {
+                padding-top: 0.38rem !important;
+                padding-bottom: 0.34rem !important;
+                margin-bottom: 0.48rem !important;
+            }
+
+            .content-area > .d-flex.justify-content-between .h2 {
+                font-size: 1.3rem;
+                margin-bottom: 0;
+            }
+
+            .content-area > .d-flex.justify-content-between .btn {
+                font-size: 0.72rem;
+                padding: 0.22rem 0.46rem;
+            }
+
+            .content-area .row {
+                --bs-gutter-y: 0.55rem;
+            }
+
+            .content-area .mb-4 {
+                margin-bottom: 0.6rem !important;
+            }
+
+            .content-area .mb-3 {
+                margin-bottom: 0.5rem !important;
+            }
+
+            .content-area .mt-4 {
+                margin-top: 0.6rem !important;
+            }
+
+            .content-area .mt-3 {
+                margin-top: 0.48rem !important;
+            }
+
+            .content-area .card {
+                border-radius: 12px;
+            }
+
+            .content-area .card-header {
+                padding: 0.5rem 0.7rem;
+            }
+
+            .content-area .card-body {
+                padding: 0.65rem 0.72rem;
+            }
+
+            .content-area h3 {
+                font-size: 1.12rem;
+                margin-bottom: 0.08rem;
+            }
+
+            .content-area h4 {
+                font-size: 1.04rem;
+                margin-bottom: 0.1rem;
+            }
+
+            .content-area h5 {
+                font-size: 0.95rem;
+            }
+
+            .content-area h6 {
+                font-size: 0.84rem;
+            }
+
+            .content-area .btn,
+            .content-area .table,
+            .content-area .form-control,
+            .content-area .form-select,
+            .content-area .text-muted,
+            .content-area small {
+                font-size: 0.76rem;
+            }
+
+            .content-area .btn {
+                padding-top: 0.29rem;
+                padding-bottom: 0.29rem;
+            }
+
+            .content-area .table th,
+            .content-area .table td {
+                padding-top: 0.36rem;
+                padding-bottom: 0.36rem;
+            }
+
+            .content-area .alert {
+                padding: 0.42rem 0.65rem;
+                margin-bottom: 0.45rem;
+            }
+
+            .content-area .app-footer {
+                display: none;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -63,101 +290,110 @@
                     </div>
                     
                     <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
-                               href="{% url 'dashboard:dashboard' %}">
-                                <i class="bi bi-speedometer2"></i>
-                                Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'residents_list' %}active{% endif %}" 
-                               href="{% url 'dashboard:residents_list' %}">
-                                <i class="bi bi-people"></i>
-                                Residents
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item mt-3">
-                            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-white-50 text-uppercase">
-                                <span>BHW Reports</span>
-                            </h6>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'household_report' %}active{% endif %}" 
-                               href="{% url 'dashboard:household_report' %}">
-                                <i class="bi bi-house"></i>
-                                Household Report
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'senior_citizens_report' %}active{% endif %}" 
-                               href="{% url 'dashboard:senior_citizens_report' %}">
-                                <i class="bi bi-person-wheelchair"></i>
-                                Senior Citizens
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'businesses_report' %}active{% endif %}" 
-                               href="{% url 'dashboard:businesses_report' %}">
-                                <i class="bi bi-shop"></i>
-                                Sari-Sari Stores
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'fourps_report' %}active{% endif %}" 
-                               href="{% url 'dashboard:fourps_report' %}">
-                                <i class="bi bi-cash-stack"></i>
-                                4Ps Beneficiaries
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'pregnancy_report' %}active{% endif %}" 
-                               href="{% url 'dashboard:pregnancy_report' %}">
-                                <i class="bi bi-heart-pulse"></i>
-                                Pregnancy Reports
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item mt-3">
-                            <a class="nav-link" href="{% url 'admin:index' %}">
-                                <i class="bi bi-gear"></i>
-                                Admin Panel
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'admin:residents_barangayofficeprofile_changelist' %}">
-                                <i class="bi bi-building-gear"></i>
-                                Office Profile
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'admin:residents_documentrequest_unlinked_identity_report' %}">
-                                <i class="bi bi-link-45deg"></i>
-                                Unlinked Identity Report
-                            </a>
-                        </li>
-                        
-                        <li>
-                            <a href="{% url 'residents:reports_home' %}">
-                                🗳️ Voters Reports
-                            </a>
+                        <li class="nav-item mt-2">
+                            <div class="phase-block">
+                                <h6 class="phase-title">Phase 1 - Core Records</h6>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                                   href="{% url 'dashboard:dashboard' %}">
+                                    <i class="bi bi-speedometer2"></i>
+                                    Dashboard
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'residents_list' %}active{% endif %}"
+                                   href="{% url 'dashboard:residents_list' %}">
+                                    <i class="bi bi-people"></i>
+                                    Residents
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'household_report' %}active{% endif %}"
+                                   href="{% url 'dashboard:household_report' %}">
+                                    <i class="bi bi-house"></i>
+                                    Households
+                                </a>
+                            </div>
                         </li>
 
-                        <li class="nav-item mt-2">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'faq_chatbot' %}active{% endif %}"
-                               href="{% url 'assistant:faq_chatbot' %}">
-                                <i class="bi bi-chat-dots"></i>
-                                FAQ Chatbot
-                            </a>
+                        <li class="nav-item mt-3">
+                            <div class="phase-block">
+                                <h6 class="phase-title">Phase 2 - Services & Health</h6>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'document_requests_queue' %}active{% endif %}"
+                                   href="{% url 'residents:document_requests_queue' %}">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                    Certificates
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'blotter_placeholder' %}active{% endif %}"
+                                   href="{% url 'residents:blotter_placeholder' %}">
+                                    <i class="bi bi-journal-text"></i>
+                                    Blotter
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'senior_citizens_report' %}active{% endif %}"
+                                   href="{% url 'dashboard:senior_citizens_report' %}">
+                                    <i class="bi bi-person-wheelchair"></i>
+                                    Senior Citizens
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'businesses_report' %}active{% endif %}"
+                                   href="{% url 'dashboard:businesses_report' %}">
+                                    <i class="bi bi-shop"></i>
+                                    Sari-Sari Stores
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'fourps_report' %}active{% endif %}"
+                                   href="{% url 'dashboard:fourps_report' %}">
+                                    <i class="bi bi-cash-stack"></i>
+                                    4Ps Beneficiaries
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'pregnancy_report' %}active{% endif %}"
+                                   href="{% url 'dashboard:pregnancy_report' %}">
+                                    <i class="bi bi-heart-pulse"></i>
+                                    Pregnancy Reports
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'today_visitors_report' %}active{% endif %}"
+                                   href="{% url 'dashboard:today_visitors_report' %}">
+                                    <i class="bi bi-people"></i>
+                                    Today Visitors
+                                </a>
+                            </div>
                         </li>
 
-                        <li class="nav-item mt-2">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'document_requests_queue' %}active{% endif %}"
-                               href="{% url 'residents:document_requests_queue' %}">
-                                <i class="bi bi-file-earmark-text"></i>
-                                Document Requests
-                            </a>
+                        <li class="nav-item mt-3">
+                            <div class="phase-block">
+                                <h6 class="phase-title">Phase 3 - Government Operations & Accountability</h6>
+
+                                <div class="phase-subheading phase-subheading--operations">Operations</div>
+                                <a class="nav-link phase-link {% if request.resolver_match.namespace == 'inventory' %}active{% endif %}"
+                                   href="{% url 'inventory:index' %}">
+                                    <i class="bi bi-box-seam"></i>
+                                    Inventory Management
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'reports_home' %}active{% endif %}"
+                                   href="{% url 'residents:reports_home' %}">
+                                    <i class="bi bi-bar-chart-line"></i>
+                                    Voters Records & Monitoring
+                                </a>
+
+                                <div class="phase-subheading phase-subheading--compliance">Compliance</div>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'document_requests_queue' %}active{% endif %}"
+                                   href="{% url 'residents:document_requests_queue' %}">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                    Document Requests
+                                </a>
+                                <a class="nav-link phase-link" href="{% url 'admin:residents_documentrequest_unlinked_identity_report' %}">
+                                    <i class="bi bi-link-45deg"></i>
+                                    Identity Reconciliation Report
+                                </a>
+
+                                <div class="phase-subheading phase-subheading--administration">Administration</div>
+                                <a class="nav-link phase-link" href="{% url 'admin:residents_barangayofficeprofile_changelist' %}">
+                                    <i class="bi bi-building-gear"></i>
+                                    Office Profile & Defaults
+                                </a>
+                                <a class="nav-link phase-link" href="{% url 'admin:index' %}">
+                                    <i class="bi bi-gear"></i>
+                                    System Administration
+                                </a>
+                                <a class="nav-link phase-link {% if request.resolver_match.url_name == 'faq_chatbot' %}active{% endif %}"
+                                   href="{% url 'assistant:faq_chatbot' %}">
+                                    <i class="bi bi-chat-dots"></i>
+                                    Resident Guidance Desk
+                                </a>
+                            </div>
                         </li>
 
                         <li class="nav-item mt-3 border-top pt-2">
@@ -194,8 +430,20 @@
                 </div>
 
                 <!-- Page Content -->
+                {% if messages %}
+                <div class="mt-2">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
                 {% block content %}
                 {% endblock %}
+
+                <footer class="app-footer">Developed by The SoftWorks @2026</footer>
             </main>
         </div>
     </div>

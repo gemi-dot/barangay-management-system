@@ -27,6 +27,7 @@ urlpatterns = [
     path('residents/', include('residents.urls')),
     path('reports/', include('bhw_reports.urls')),
     path('assistant/', include('assistant.urls')),
+    path('inventory/', include('inventory.urls')),
 ]
 
 if settings.DEBUG:

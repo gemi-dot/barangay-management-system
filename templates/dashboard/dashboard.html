@@ -4,7 +4,114 @@
 
 {% block page_title %}Dashboard Overview{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Laptop-fit mode: compress dashboard for short viewport heights. */
+    @media (min-width: 992px) and (max-height: 900px) {
+        .content-area > .d-flex.justify-content-between {
+            padding-top: 0.35rem !important;
+            padding-bottom: 0.32rem !important;
+            margin-bottom: 0.45rem !important;
+        }
+
+        .content-area > .d-flex.justify-content-between .h2 {
+            font-size: 1.35rem;
+            margin-bottom: 0;
+        }
+
+        .content-area > .d-flex.justify-content-between .btn {
+            font-size: 0.72rem;
+            padding: 0.22rem 0.46rem;
+        }
+
+        .dashboard-fit-wrap {
+            --fit-scale: 0.74;
+            transform: scale(var(--fit-scale));
+            transform-origin: top left;
+            width: calc(100% / var(--fit-scale));
+            margin-bottom: -24vh;
+        }
+
+        .dashboard-fit-wrap .row {
+            --bs-gutter-y: 0.42rem;
+        }
+
+        .dashboard-fit-wrap .mb-4 {
+            margin-bottom: 0.5rem !important;
+        }
+
+        .dashboard-fit-wrap .mt-4 {
+            margin-top: 0.5rem !important;
+        }
+
+        .dashboard-fit-wrap .mt-3 {
+            margin-top: 0.38rem !important;
+        }
+
+        .dashboard-fit-wrap .mb-3 {
+            margin-bottom: 0.4rem !important;
+        }
+
+        .dashboard-fit-wrap .card-body {
+            padding: 0.58rem 0.68rem;
+        }
+
+        .dashboard-fit-wrap .card-header {
+            padding: 0.48rem 0.68rem;
+        }
+
+        .dashboard-fit-wrap .card-header h5,
+        .dashboard-fit-wrap .card-title {
+            font-size: 0.94rem;
+            margin-bottom: 0;
+        }
+
+        .dashboard-fit-wrap .fs-1,
+        .dashboard-fit-wrap .fs-3 {
+            font-size: 1.55rem !important;
+        }
+
+        .dashboard-fit-wrap h3 {
+            font-size: 1.12rem;
+            margin-bottom: 0.05rem;
+        }
+
+        .dashboard-fit-wrap h4 {
+            font-size: 1.05rem;
+            margin-bottom: 0.08rem;
+        }
+
+        .dashboard-fit-wrap .card-text,
+        .dashboard-fit-wrap small,
+        .dashboard-fit-wrap .btn,
+        .dashboard-fit-wrap .table {
+            font-size: 0.74rem;
+        }
+
+        .dashboard-fit-wrap .btn {
+            padding-top: 0.28rem;
+            padding-bottom: 0.28rem;
+        }
+
+        .dashboard-fit-wrap #genderChart,
+        .dashboard-fit-wrap #ageChart {
+            height: 150px !important;
+        }
+
+        .dashboard-fit-wrap .table-responsive {
+            max-height: 140px;
+            overflow: auto;
+        }
+
+        .content-area .app-footer {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="dashboard-fit-wrap">
 <!-- Summary Statistics Cards -->
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
@@ -404,6 +511,18 @@
                         </a>
                     </div>
                     <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'residents:quick_gender_correction' %}" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-gender-ambiguous d-block fs-3 mb-2"></i>
+                            Correct Gender
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'residents:quick_birthday_correction' %}" class="btn btn-outline-dark w-100">
+                            <i class="bi bi-calendar-date d-block fs-3 mb-2"></i>
+                            Correct Birthday
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
                         <a href="{% url 'dashboard:household_report' %}" class="btn btn-outline-success w-100">
                             <i class="bi bi-house d-block fs-3 mb-2"></i>
                             Households
@@ -449,6 +568,7 @@
     <div class="col-12">
         <p class="text-center text-muted small mb-0">Developed by TheSoftWorks 2026 (Abgao,Maasin City)</p>
     </div>
+</div>
 </div>
 {% endblock %}
 

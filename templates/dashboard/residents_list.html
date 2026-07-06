@@ -64,6 +64,9 @@
                 Total Residents: <span class="badge bg-primary">{{ residents.count }}</span>
             </h6>
             <div class="d-flex gap-2">
+                <a href="{% url 'residents:quick_gender_correction' %}" class="btn btn-outline-warning">
+                    <i class="bi bi-gender-ambiguous me-1"></i> Quick Resident Record Correction
+                </a>
                 <a href="{% url 'residents:scan_test_page' %}" class="btn btn-outline-primary">
                     <i class="bi bi-qr-code-scan me-1"></i> Scan QR Input
                 </a>

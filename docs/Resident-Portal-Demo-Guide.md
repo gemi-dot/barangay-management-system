@@ -1,115 +1,85 @@
-# Resident Portal Demo Guide (Laptop to Cellphone)
+# Resident Portal Demo One-Page Checklist
 
-Date: 2026-06-10
+Date: 2026-06-17
 Project: Barangay IMS
 
 ## Goal
-Run the project from your laptop and let prospects open the resident portal from a cellphone.
+Start BIMS on your laptop and open the resident portal on a cellphone.
 
-## Prerequisites
+## Before You Start
 - Docker Desktop is running.
-- ngrok is installed and authenticated.
-- You are inside the project folder on your laptop.
+- ngrok is installed and already authenticated.
+- You are using the project folder below.
 
-## Step 1: Open Project Folder
-In Terminal:
-
+## Start BIMS
 ```bash
-cd /Users/macbookpro/barangay_ims
-```
-
-## Step 2: Start the App with Docker
-In Terminal:
-
-```bash
-docker compose up -d --build
-```
-
-Check if container is running:
-
-```bash
+cd /Users/macbookpro/SoftWorks/barangay_ims
+docker compose up -d
 docker compose ps
 ```
 
 Expected:
 - Service `web` is `Up`
-- Port mapping includes `0.0.0.0:8000->8000/tcp`
+- Port `8000` is mapped
 
-## Step 3: Start ngrok Tunnel
-In another terminal tab/window:
+## Check on Laptop
+Open:
+
+- `http://127.0.0.1:8000/`
+- `http://127.0.0.1:8000/resident/login/`
+
+## Start Phone Access with ngrok
+In another terminal:
 
 ```bash
 ngrok http 8000
 ```
 
-Keep this terminal open.
+Keep the ngrok terminal open.
 
-Copy the `https://...ngrok-free.dev` forwarding URL shown by ngrok.
+Use the `https://...ngrok-free.app` or `https://...ngrok-free.dev` URL shown by ngrok.
 
-## Step 4: Open Demo on Cellphone
-On your cellphone browser, open:
+## Open on Cellphone
+Open:
 
-- Login page:
-  - `https://YOUR-NGROK-URL/resident/login/`
-- Dashboard page (after login):
-  - `https://YOUR-NGROK-URL/resident/dashboard/`
+- `https://YOUR-NGROK-URL/resident/login/`
 
-Example:
-- `https://collision-unmoral-facsimile.ngrok-free.dev/resident/login/`
+Optional after login:
 
-## Step 5: Demo Flow (Recommended)
-1. Login as a resident.
-2. Open Dashboard.
-3. Create a new document request.
-4. Open Requests list and show status tracking.
-5. On laptop, open admin/staff side to show processing.
+- `https://YOUR-NGROK-URL/resident/dashboard/`
+- `https://YOUR-NGROK-URL/resident/requests/new/`
 
-## Step 6: Verify Health During Demo
-If anything looks broken, run on laptop:
+## Suggested Demo Flow
+1. Log in as a resident.
+2. Show the dashboard.
+3. Create a document request.
+4. Show request tracking.
+5. Switch to the laptop staff side if needed.
 
+## Quick Fixes
+
+### App not loading
 ```bash
 docker compose ps
-docker compose logs --tail 80 web
+docker compose logs --tail=50 web
 ```
 
-## Common Issues and Fixes
-
-### A) 403 CSRF Failed on Phone
-- Use the latest ngrok URL (free URL changes per restart).
-- Open in incognito/private tab.
-- Reload login page once before submitting.
-- Clear browser site data for `ngrok-free.dev`.
-
-### B) DisallowedHost Error
-- Ensure Docker env includes ngrok domains in allowed hosts.
-- Restart container:
-
+### ngrok not working
 ```bash
-docker compose up -d --build
+ngrok config check
 ```
 
-### C) ngrok 503 ERR_NGROK_3004
-- Tunnel not connected to local app yet.
-- Check app is up: `docker compose ps`
-- Keep ngrok terminal running.
-- Refresh after a few seconds.
+### Phone shows CSRF or stale page
+- Use the latest ngrok URL.
+- Use the `https` URL only.
+- Refresh once, then retry.
+- Try an incognito/private tab.
 
 ## Stop After Demo
-Stop ngrok:
-- In ngrok terminal, press `Ctrl+C`
+Stop ngrok with `Ctrl+C` in the ngrok terminal.
 
-Stop Docker app:
+Stop BIMS:
 
 ```bash
 docker compose down
 ```
-
-## Quick Start Commands (Copy/Paste)
-```bash
-cd /Users/macbookpro/barangay_ims
-docker compose up -d --build
-ngrok http 8000
-```
-
-Then on phone:
-- `https://YOUR-NGROK-URL/resident/login/`

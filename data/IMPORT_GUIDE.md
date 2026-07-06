@@ -28,6 +28,13 @@ source venv/bin/activate
 python manage.py import_residents_csv data/your_file.csv
 ```
 
+Note: Direct Desktop CSV imports now work without preprocessing. The importer automatically handles BOM/malformed headers, skips template guide rows (such as `Text` and `*Required`), and applies safe defaults for missing `date_of_birth` and invalid/missing `gender`.
+
+Example:
+```bash
+python manage.py import_residents_csv ~/Desktop/residents_import_template.csv --skip-errors
+```
+
 ### Step 3: Verify Import
 Check the Django admin panel at `http://localhost:8000/admin/residents/resident/` to see the imported residents.
 

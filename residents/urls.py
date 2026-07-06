@@ -5,6 +5,8 @@ app_name = 'residents'
 
 urlpatterns = [
     # Add resident-specific URLs here as needed
+    path('quick-gender-correction/', views.quick_gender_correction, name='quick_gender_correction'),
+    path('quick-birthday-correction/', views.quick_birthday_correction, name='quick_birthday_correction'),
     path('scan/diagnostic/', views.qr_diagnostic, name='qr_diagnostic'),
     path('scan/input/', views.scan_qr_input, name='scan_qr_input'),
     path('scan/test/', views.scan_test_page, name='scan_test_page'),
@@ -16,6 +18,7 @@ urlpatterns = [
     path('voters-report/', views.voters_report, name='voters_report'),
     path('voters-by-precinct/', views.voters_by_precinct_report, name='voters_by_precinct'),
     path('dashboard/voters-by-precinct/', views.voters_precinct_dashboard, name='voters_precinct_dashboard'),
+    path('blotter/', views.blotter_placeholder, name='blotter_placeholder'),
     path('request-document/', views.request_document, name='request_document'),
     path('request-document/success/', views.document_request_success, name='document_request_success'),
     path('track-request/', views.track_document_request, name='track_document_request'),
