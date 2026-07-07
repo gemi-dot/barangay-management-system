@@ -15,6 +15,7 @@ class AssetAdmin(admin.ModelAdmin):
 	list_display = (
 		'property_number',
 		'category',
+		'accountability_status',
 		'status',
 		'condition',
 		'funding_source',
@@ -23,8 +24,16 @@ class AssetAdmin(admin.ModelAdmin):
 		'responsible_person',
 		'date_acquired',
 	)
-	list_filter = ('category', 'status', 'condition', 'funding_source', 'location', 'responsible_role')
-	search_fields = ('property_number', 'description', 'serial_number', 'brand_model', 'supplier', 'qr_code')
+	list_filter = ('category', 'accountability_status', 'status', 'condition', 'funding_source', 'location', 'responsible_role')
+	search_fields = (
+		'property_number',
+		'description',
+		'serial_number',
+		'brand_model',
+		'supplier',
+		'qr_code',
+		'accountability_status',
+	)
 	readonly_fields = ('qr_code', 'qr_image', 'created_at', 'updated_at')
 
 

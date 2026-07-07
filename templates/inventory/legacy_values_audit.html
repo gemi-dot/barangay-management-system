@@ -1,15 +1,16 @@
 {% extends 'base.html' %}
 
-{% block title %}Inventory Legacy Values Audit{% endblock %}
-{% block page_title %}Inventory Legacy Values Audit{% endblock %}
+{% block title %}Governance and Accountability Assessment{% endblock %}
+{% block page_title %}Governance and Accountability Assessment{% endblock %}
 
 {% block content %}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body d-flex flex-wrap justify-content-between align-items-end gap-3">
         <div>
-            <h5 class="mb-1">One-Click Legacy Audit</h5>
-            <p class="text-muted mb-0">Review unmatched values in Category, Location, and Condition.</p>
+            <h5 class="mb-1">Governance and Accountability Assessment</h5>
+            <p class="text-muted mb-0">Review unmatched values in Category, Location, and Condition, then export or apply the suggested fix.</p>
         </div>
+        <div class="d-flex flex-wrap align-items-end gap-2">
         <form method="get" class="d-flex align-items-end gap-2">
             <div>
                 <label class="form-label" for="limit">Rows per section</label>
@@ -21,6 +22,8 @@
             </div>
             <button type="submit" class="btn btn-primary">Run Audit</button>
         </form>
+        <a href="{% url 'inventory:legacy_values_audit_export' %}" class="btn btn-outline-secondary">Export CSV</a>
+        </div>
     </div>
 </div>
 
@@ -59,6 +62,7 @@
                         <th>Value</th>
                         <th class="text-end">Count</th>
                         <th>Suggested Standardized Value</th>
+                        <th class="text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -67,6 +71,19 @@
                         <td>{{ row.value|default:'(empty)' }}</td>
                         <td class="text-end">{{ row.count }}</td>
                         <td><span class="badge text-bg-light">{{ row.suggestion }}</span></td>
+                        <td class="text-end">
+                            {% if row.suggestion != 'N/A' %}
+                            <form method="post" action="{% url 'inventory:legacy_values_audit_fix' %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="section_key" value="{{ row.section_key }}">
+                                <input type="hidden" name="raw_value" value="{{ row.value }}">
+                                <input type="hidden" name="limit" value="{{ limit }}">
+                                <button type="submit" class="btn btn-sm btn-primary">Apply Fix</button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted small">Manual review</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

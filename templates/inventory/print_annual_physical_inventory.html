@@ -167,6 +167,7 @@
         <thead>
             <tr>
                 <th>Property #</th>
+                <th>Accountability</th>
                 <th>Location</th>
                 <th>Last Inventory Date</th>
             </tr>
@@ -175,12 +176,13 @@
             {% for asset in counted_assets %}
             <tr>
                 <td>{{ asset.property_number }}</td>
+                <td>{{ asset.get_accountability_status_display|default:'N/A' }}</td>
                 <td>{{ asset.location }}</td>
                 <td>{{ asset.last_inventory_date|date:'M d, Y' }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="3" class="text-center">No counted assets.</td>
+                <td colspan="4" class="text-center">No counted assets.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -191,6 +193,7 @@
         <thead>
             <tr>
                 <th>Property #</th>
+                <th>Accountability</th>
                 <th>Location</th>
                 <th>Condition</th>
             </tr>
@@ -199,12 +202,13 @@
             {% for asset in not_counted_assets %}
             <tr>
                 <td>{{ asset.property_number }}</td>
+                <td>{{ asset.get_accountability_status_display|default:'N/A' }}</td>
                 <td>{{ asset.location }}</td>
                 <td>{{ asset.get_condition_display }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="3" class="text-center">No not-counted assets.</td>
+                <td colspan="4" class="text-center">No not-counted assets.</td>
             </tr>
             {% endfor %}
         </tbody>

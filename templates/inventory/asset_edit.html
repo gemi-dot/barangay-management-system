@@ -119,6 +119,11 @@
                         {{ form.responsible_role }}
                         {% for error in form.responsible_role.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                     </div>
+                    <div class="mb-0 mt-3">
+                        <label class="field-label" for="{{ form.accountability_status.id_for_label }}">Accountability Status (PAR/ICS)</label>
+                        {{ form.accountability_status }}
+                        {% for error in form.accountability_status.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
                 </div>
             </div>
 

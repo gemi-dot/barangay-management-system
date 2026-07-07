@@ -61,12 +61,12 @@ def load_inventory_sample_entries():
     }
 
     rows = [
-        ('BRGY-2026-0001', 'Lenovo Desktop Computer', 'ICT Equipment', 'Good', 'Barangay Office', 'Barangay Secretary'),
-        ('BRGY-2026-0002', 'Epson EcoTank Printer L3250', 'ICT Equipment', 'Good', 'Barangay Office', 'Barangay Secretary'),
-        ('BRGY-2026-0003', 'HP Laptop ProBook', 'ICT Equipment', 'Very Good', 'Barangay Office', 'Barangay Treasurer'),
-        ('BRGY-2026-0004', 'Steel Filing Cabinet (4 Drawer)', 'Office Furniture', 'Good', 'Records Room', 'Barangay Secretary'),
-        ('BRGY-2026-0005', 'Executive Office Table', 'Furniture', 'Good', 'Punong Barangay Office', 'Punong Barangay'),
-        ('BRGY-2026-0006', 'Plastic Monoblock Chairs (50 pcs)', 'Furniture', 'Good', 'Multi-Purpose Hall', 'Barangay Kagawad'),
+        ('ABG-ICT-2026-0001', 'Desktop Computer', 'ICT Equipment', 'Good', 'Barangay Office', 'Barangay Secretary'),
+        ('ABG-ICT-2026-0002', 'Printer', 'ICT Equipment', 'Good', 'Barangay Office', 'Barangay Secretary'),
+        ('ABG-FUR-2026-0003', 'Office Table', 'Office Furniture', 'Good', 'Barangay Office', 'Punong Barangay'),
+        ('ABG-DRR-2026-0004', 'Emergency Light', 'Disaster Equipment', 'Good', 'DRRM Storage', 'DRRM Coordinator'),
+        ('ABG-MED-2026-0005', 'Blood Pressure Monitor', 'Medical Equipment', 'Good', 'Health Center', 'Barangay Health Worker'),
+        ('ABG-VEH-2026-0006', 'Barangay Motorcycle', 'Vehicle', 'Good', 'Garage', 'Punong Barangay'),
         ('BRGY-2026-0007', 'Folding Tables (10 pcs)', 'Furniture', 'Good', 'Multi-Purpose Hall', 'Barangay Kagawad'),
         ('BRGY-2026-0008', 'Sound System Set', 'Equipment', 'Fair', 'Covered Court', 'SK Chairman'),
         ('BRGY-2026-0009', 'Portable Generator 5kVA', 'Heavy Equipment', 'Good', 'Storage Room', 'Barangay Captain'),

@@ -13,9 +13,10 @@ class Category(models.Model):
 		ICT_EQUIPMENT = 'ict_equipment', 'ICT Equipment'
 		OFFICE_FURNITURE = 'office_furniture', 'Office Furniture'
 		OFFICE_EQUIPMENT = 'office_equipment', 'Office Equipment'
+		OFFICE_SUPPLIES = 'office_supplies', 'Office Supplies'
 		MEDICAL_EQUIPMENT = 'medical_equipment', 'Medical Equipment'
 		DISASTER_EQUIPMENT = 'disaster_equipment', 'Disaster Equipment'
-		SAFETY_EQUIPMENT = 'safety_equipment', 'Safety Equipment'
+		SAFETY_EQUIPMENT = 'safety_equipment', 'Security/CCTV Equipment'
 		COMMUNICATION_EQUIPMENT = 'communication_equipment', 'Communication Equipment'
 		VEHICLE = 'vehicle', 'Vehicle'
 		HEAVY_EQUIPMENT = 'heavy_equipment', 'Heavy Equipment'
@@ -41,6 +42,10 @@ class Category(models.Model):
 
 
 class Asset(models.Model):
+	class AccountabilityStatusChoices(models.TextChoices):
+		PAR = 'par', 'PAR'
+		ICS = 'ics', 'ICS'
+
 	class ConditionChoices(models.TextChoices):
 		EXCELLENT = 'excellent', 'Excellent'
 		VERY_GOOD = 'very_good', 'Very Good'
@@ -122,6 +127,12 @@ class Asset(models.Model):
 		max_length=40,
 		choices=ResponsibleRoleChoices.choices,
 		blank=True,
+	)
+	accountability_status = models.CharField(
+		max_length=10,
+		choices=AccountabilityStatusChoices.choices,
+		blank=True,
+		default='',
 	)
 	next_inspection_date = models.DateField(blank=True, null=True)
 	status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)

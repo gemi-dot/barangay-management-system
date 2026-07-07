@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
-{% block title %}Asset Registry - Inventory{% endblock %}
-{% block page_title %}Asset Registry{% endblock %}
+{% block title %}{{ register_title }} - Inventory{% endblock %}
+{% block page_title %}{{ register_title }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -54,8 +54,11 @@
     .registry-search {
         max-width: 440px;
     }
+    .register-tabs .btn {
+        border-radius: 999px;
+    }
     .registry-table-shell {
-        max-height: calc(100vh - 340px);
+        max-height: calc(100vh - 390px);
         overflow: auto;
         border: 1px solid #e3edf5;
         border-radius: 12px;
@@ -71,13 +74,30 @@
 {% block content %}
 <div class="card registry-shell">
     <div class="card-header registry-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Registered Assets</h5>
+        <div>
+            <h5 class="mb-1">{{ register_title }}</h5>
+            <div class="small opacity-75">{{ register_subtitle }}</div>
+        </div>
         <div class="d-flex gap-2">
             <a class="btn btn-sm btn-light" href="{% url 'inventory:asset_create' %}?next={{ request.get_full_path|urlencode }}">Add Asset</a>
             <a class="btn btn-sm btn-outline-light" href="{% url 'inventory:index' %}">Back to Inventory</a>
         </div>
     </div>
     <div class="card-body">
+        <div class="d-flex flex-wrap gap-2 mb-3 register-tabs">
+            <a class="btn btn-sm {% if request.resolver_match.url_name == 'register_active_assets' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'inventory:register_active_assets' %}">Register 1: Active</a>
+            <a class="btn btn-sm {% if request.resolver_match.url_name == 'register_legacy_assets' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'inventory:register_legacy_assets' %}">Register 2: Legacy</a>
+            <a class="btn btn-sm {% if request.resolver_match.url_name == 'register_disposal_evaluation' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'inventory:register_disposal_evaluation' %}">Register 3: Disposal Evaluation</a>
+            <a class="btn btn-sm {% if request.resolver_match.url_name == 'item_list' %}btn-secondary{% else %}btn-outline-secondary{% endif %}" href="{% url 'inventory:item_list' %}">All Assets</a>
+        </div>
+
+        {% if print_url_name and export_url_name %}
+        <div class="d-flex justify-content-end gap-2 mb-3">
+            <a class="btn btn-sm btn-outline-dark" href="{% url print_url_name %}?{{ request.GET.urlencode }}" target="_blank">Print Layout</a>
+            <a class="btn btn-sm btn-outline-success" href="{% url export_url_name %}?{{ request.GET.urlencode }}">Export CSV</a>
+        </div>
+        {% endif %}
+
         <form method="get" class="row g-2 align-items-center mb-3">
             <div class="col-12 col-md-8 col-lg-6">
                 <div class="input-group registry-search">
@@ -103,7 +123,7 @@
             </div>
             <div class="col-12 col-md-auto">
                 {% if search_query %}
-                <a class="btn btn-outline-secondary" href="{% url 'inventory:item_list' %}?per_page={{ selected_per_page }}">Clear</a>
+                <a class="btn btn-outline-secondary" href="{% url clear_url_name %}?per_page={{ selected_per_page }}">Clear</a>
                 {% endif %}
             </div>
         </form>
@@ -115,6 +135,7 @@
                         <th>Description</th>
                         <th>Category</th>
                         <th>Accountability</th>
+                        <th>Status</th>
                         <th>Condition</th>
                         <th>Location</th>
                         <th>Responsible Person</th>
@@ -128,6 +149,7 @@
                         <td>{{ asset.description }}</td>
                         <td>{{ asset.category.get_name_display }}</td>
                         <td>{{ asset.get_accountability_status_display|default:'N/A' }}</td>
+                        <td>{{ asset.get_status_display }}</td>
                         <td><span class="registry-chip registry-chip--condition">{{ asset.get_condition_display }}</span></td>
                         <td><span class="registry-chip registry-chip--location">{{ asset.location }}</span></td>
                         <td>{{ asset.responsible_person|default:'N/A' }}</td>
@@ -165,7 +187,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             {% if search_query %}
                             No assets found for "{{ search_query }}".
                             {% else %}
@@ -182,7 +204,7 @@
             <small class="text-muted">
                 Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
             </small>
-            <nav aria-label="Asset registry pagination">
+            <nav aria-label="Asset register pagination">
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
                         <a class="page-link" href="?q={{ search_query|urlencode }}&per_page={{ selected_per_page }}&page=1" aria-label="First">First</a>

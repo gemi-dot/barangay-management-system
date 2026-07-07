@@ -15,6 +15,9 @@
     .inventory-hero .lead {
         color: rgba(248, 252, 255, 0.9);
     }
+        .inventory-hero .hero-actions .btn {
+            min-width: 170px;
+        }
     .inventory-feature-card {
         border: 0;
         border-radius: 14px;
@@ -49,6 +52,9 @@
         margin-bottom: 0.65rem;
     }
     .feature-tone-registry { --feature-color: #0f4c81; }
+    .feature-tone-register-1 { --feature-color: #0f4c81; }
+    .feature-tone-register-2 { --feature-color: #7c3f00; }
+    .feature-tone-register-3 { --feature-color: #9f1239; }
     .feature-tone-office { --feature-color: #0f766e; }
     .feature-tone-category { --feature-color: #1d4ed8; }
     .feature-tone-damaged { --feature-color: #b45309; }
@@ -56,6 +62,11 @@
     .feature-tone-annual { --feature-color: #166534; }
     .feature-tone-staff-tools { --feature-color: #6d28d9; }
     .feature-tone-audit { --feature-color: #9333ea; }
+    .staff-tools-note {
+        border: 1px dashed rgba(109, 40, 217, 0.26);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(109, 40, 217, 0.05), rgba(147, 51, 234, 0.02));
+    }
 
     @media (min-width: 992px) and (max-height: 900px) {
         .content-area > .d-flex.justify-content-between {
@@ -160,19 +171,61 @@
 
 <div class="card inventory-hero mb-3">
     <div class="card-body p-4">
-        <h4 class="mb-2">Inventory Operations Center</h4>
-        <p class="lead mb-0">Professional tracking for barangay assets, accountability reports, and compliance-ready audits.</p>
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            <div>
+                <h4 class="mb-2">Inventory Operations Center</h4>
+                <p class="lead mb-0">Professional tracking for barangay assets, accountability reports, and compliance-ready audits.</p>
+            </div>
+            <div class="hero-actions d-flex gap-2">
+                <a class="btn btn-light" href="{% url 'inventory:asset_create' %}?next={{ request.get_full_path|urlencode }}">
+                    <i class="bi bi-plus-circle me-1"></i>Add Asset
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="row g-3">
     <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:register_active_assets' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-register-1">
+                <div class="card-body">
+                    <div class="feature-tag">Register 1</div>
+                    <h5 class="card-title"><i class="bi bi-check2-square"></i> Active Asset Registry</h5>
+                    <p class="text-muted mb-0">Assets currently in active service.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:register_legacy_assets' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-register-2">
+                <div class="card-body">
+                    <div class="feature-tag">Register 2</div>
+                    <h5 class="card-title"><i class="bi bi-archive"></i> Legacy Assets</h5>
+                    <p class="text-muted mb-0">Historical records of lost and disposed assets.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a class="text-decoration-none" href="{% url 'inventory:register_disposal_evaluation' %}">
+            <div class="card h-100 inventory-feature-card feature-tone-register-3">
+                <div class="card-body">
+                    <div class="feature-tag">Register 3</div>
+                    <h5 class="card-title"><i class="bi bi-clipboard2-pulse"></i> Disposal Evaluation Register</h5>
+                    <p class="text-muted mb-0">Assets flagged for repair review or disposal recommendation.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
         <a class="text-decoration-none" href="{% url 'inventory:item_list' %}">
             <div class="card h-100 inventory-feature-card feature-tone-registry">
                 <div class="card-body">
                     <div class="feature-tag">Core</div>
-                    <h5 class="card-title"><i class="bi bi-box-seam"></i> Asset Registry</h5>
-                    <p class="text-muted mb-0">Browse all registered assets and open full records.</p>
+                    <h5 class="card-title"><i class="bi bi-box-seam"></i> Full Asset Registry</h5>
+                    <p class="text-muted mb-0">Browse all assets across all registers.</p>
                 </div>
             </div>
         </a>
@@ -233,6 +286,12 @@
         </a>
     </div>
     {% if user.is_staff %}
+    <div class="col-12 mt-1">
+        <div class="d-flex align-items-center justify-content-between">
+            <h6 class="mb-0 text-uppercase text-muted">Staff Tools</h6>
+            <small class="text-muted">Visible to admin and staff accounts only</small>
+        </div>
+    </div>
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 inventory-feature-card feature-tone-staff-tools">
             <div class="card-body d-flex flex-column justify-content-between">
@@ -253,11 +312,17 @@
             <div class="card h-100 inventory-feature-card feature-tone-audit">
                 <div class="card-body">
                     <div class="feature-tag">Staff Tool</div>
-                    <h5 class="card-title"><i class="bi bi-clipboard-data"></i> Legacy Values Audit</h5>
+                    <h5 class="card-title"><i class="bi bi-clipboard-data"></i> Governance and Accountability Assessment</h5>
                     <p class="text-muted mb-0">Run one-click audit for unmatched category, location, and condition values.</p>
                 </div>
             </div>
         </a>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="staff-tools-note p-3 text-muted">
+            Admin-only tools such as Load Sample Entries and Governance and Accountability Assessment are hidden on this account.
+        </div>
     </div>
     {% endif %}
 </div>

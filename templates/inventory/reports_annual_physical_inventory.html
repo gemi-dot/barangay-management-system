@@ -153,6 +153,7 @@
                         <thead>
                             <tr>
                                 <th>Property #</th>
+                                <th>Accountability</th>
                                 <th>Location</th>
                                 <th>Last Inventory Date</th>
                             </tr>
@@ -161,12 +162,13 @@
                             {% for asset in counted_assets %}
                             <tr>
                                 <td><a href="{% url 'inventory:asset_detail' asset.id %}">{{ asset.property_number }}</a></td>
+                                <td>{{ asset.get_accountability_status_display|default:'N/A' }}</td>
                                 <td>{{ asset.location }}</td>
                                 <td>{{ asset.last_inventory_date|date:'M d, Y' }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-3">No assets counted for this year.</td>
+                                <td colspan="4" class="text-center text-muted py-3">No assets counted for this year.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -187,6 +189,7 @@
                         <thead>
                             <tr>
                                 <th>Property #</th>
+                                <th>Accountability</th>
                                 <th>Location</th>
                                 <th>Condition</th>
                             </tr>
@@ -195,12 +198,13 @@
                             {% for asset in not_counted_assets %}
                             <tr>
                                 <td><a href="{% url 'inventory:asset_detail' asset.id %}">{{ asset.property_number }}</a></td>
+                                <td>{{ asset.get_accountability_status_display|default:'N/A' }}</td>
                                 <td>{{ asset.location }}</td>
                                 <td>{{ asset.get_condition_display }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-3">All assets counted for this year.</td>
+                                <td colspan="4" class="text-center text-muted py-3">All assets counted for this year.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
