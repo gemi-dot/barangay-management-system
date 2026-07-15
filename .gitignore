@@ -13,6 +13,13 @@ db.sqlite3
 staticfiles/
 media/
 
+
+# Python cache
+__pycache__/
+*.py[cod]
+ackup*
+EOF
+
 # Django secret keys
 *.key
 
@@ -30,3 +37,7 @@ __pycache__/
 *.pyd
 venv/
 offline_exports/
+
+# Local working data exports
+data/*.csv
+EOF
