@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Asset Record - {{ asset.property_number }}{% endblock %}
+{% block page_title %}Asset Record{% endblock %}
+
+{% block extra_css %}
+<style>
+    .asset-hero {
+        background: linear-gradient(120deg, #0f4c81 0%, #1f6d8f 45%, #2f8c7d 100%);
+        color: #f8fcff;
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(15, 76, 129, 0.2);
+    }
+    .asset-hero .small {
+        color: rgba(248, 252, 255, 0.88);
+    }
+    .asset-kpi {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
+        border-top: 4px solid var(--kpi-color, #0f4c81);
+    }
+    .asset-kpi small {
+        color: #4f6474;
+        font-weight: 600;
+    }
+    .asset-kpi strong {
+        color: #163f5f;
+    }
+    .kpi-property { --kpi-color: #0f4c81; }
+    .kpi-category { --kpi-color: #1d4ed8; }
+    .kpi-condition { --kpi-color: #b45309; }
+    .kpi-location { --kpi-color: #0f766e; }
+    .asset-section {
+        border: 0;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 28px rgba(16, 24, 40, 0.1);
+    }
+    .asset-section .card-header {
+        background: #eef6fb;
+        border-bottom: 1px solid #dbeaf4;
+    }
+    .asset-section h5,
+    .asset-section h6 {
+        color: #154568;
+        font-weight: 700;
+    }
+    .asset-field {
+        background: #fbfdff;
+        border: 1px solid #e2edf5;
+        border-radius: 12px;
+        padding: 0.7rem 0.8rem;
+        height: 100%;
+    }
+    .asset-field .form-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.3rem;
+        color: #4f6474;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card asset-hero mb-3">
+    <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <h4 class="mb-1">Asset Record: {{ asset.property_number }}</h4>
+                <div class="small">Complete accountability profile including condition, assignment context, and compliance fields.</div>
+            </div>
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-light" href="{% url 'inventory:asset_create' %}?next={{ request.get_full_path|urlencode }}">Add Asset</a>
+                {% if asset.condition != asset.ConditionChoices.UNSERVICEABLE %}
+                <form method="post" action="{% url 'inventory:asset_mark_damaged' asset.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="btn btn-warning" type="submit">Mark as Damaged</button>
+                </form>
+                {% endif %}
+                {% if asset.status != asset.StatusChoices.LOST %}
+                <form method="post" action="{% url 'inventory:asset_mark_missing' asset.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="btn btn-danger" type="submit">Mark as Missing</button>
+                </form>
+                {% endif %}
+                <a class="btn btn-light" href="{% url 'inventory:asset_edit' asset.id %}?next={{ request.get_full_path|urlencode }}">Edit Asset</a>
+                <form method="post" action="{% url 'inventory:asset_delete' asset.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'inventory:item_list' %}">
+                    <button class="btn btn-outline-light js-delete-asset-trigger" type="button" data-delete-label="{{ asset.property_number }} - {{ asset.description|truncatechars:40 }}">Delete Asset</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card asset-kpi kpi-property">
+            <div class="card-body">
+                <small class="text-muted d-block">Property Number</small>
+                <strong>{{ asset.property_number }}</strong>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card asset-kpi kpi-category">
+            <div class="card-body">
+                <small class="text-muted d-block">Category</small>
+                <strong>{{ asset.category.get_name_display }}</strong>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card asset-kpi kpi-condition">
+            <div class="card-body">
+                <small class="text-muted d-block">Condition</small>
+                <strong>{{ asset.get_condition_display }}</strong>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card asset-kpi kpi-location">
+            <div class="card-body">
+                <small class="text-muted d-block">Location</small>
+                <strong>{{ asset.get_location_display }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card asset-section mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Asset Details</h5>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'inventory:item_list' %}">Back to Asset Registry</a>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Description</label>
+                    <div>{{ asset.description }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Serial Number</label>
+                    <div>{{ asset.serial_number|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Brand / Model</label>
+                    <div>{{ asset.brand_model|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Date Acquired</label>
+                    <div>{{ asset.date_acquired|date:'F d, Y'|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Cost</label>
+                    <div>{% if asset.cost %}PHP {{ asset.cost }}{% else %}N/A{% endif %}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Responsible Person</label>
+                    <div>{{ asset.responsible_person|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Responsible Role</label>
+                    <div>{{ asset.get_responsible_role_display|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Accountability Status (PAR/ICS)</label>
+                    <div>{{ asset.get_accountability_status_display|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Funding Source</label>
+                    <div>{{ asset.get_funding_source_display|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Supplier</label>
+                    <div>{{ asset.supplier|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Useful Life (Years)</label>
+                    <div>{{ asset.useful_life_years|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Status</label>
+                    <div>{{ asset.get_status_display }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Last Inventory Date</label>
+                    <div>{{ asset.last_inventory_date|date:'F d, Y'|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Next Inspection Date</label>
+                    <div>{{ asset.next_inspection_date|date:'F d, Y'|default:'N/A' }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="asset-field">
+                    <label class="form-label text-muted">QR Code</label>
+                    <div>{{ asset.qr_code }}</div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="asset-field">
+                    <label class="form-label text-muted">Notes</label>
+                    <div>{{ asset.notes|default:'No notes recorded.' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if asset.qr_image %}
+<div class="card asset-section">
+    <div class="card-header">
+        <h6 class="mb-0">QR Label</h6>
+    </div>
+    <div class="card-body text-center">
+        <img src="{{ asset.qr_image.url }}" alt="QR code for {{ asset.property_number }}" class="img-fluid" style="max-height: 240px;">
+        <p class="text-muted mt-2 mb-0">Scan this code to open this asset record.</p>
+    </div>
+</div>
+{% endif %}
+{% include 'components/delete_confirm_modal.html' with modal_id='confirmAssetDeleteModal' modal_label_id='confirmAssetDeleteModalLabel' modal_target_id='confirmAssetDeleteLabel' modal_confirm_id='confirmAssetDeleteButton' modal_title='Confirm Asset Deletion' modal_message='Are you sure you want to delete this asset from the registry?' confirm_button_text='Yes, Delete' %}
+{% endblock %}
+
+{% block extra_js %}
+{% include 'components/delete_confirm_modal_script.html' with modal_id='confirmAssetDeleteModal' modal_target_id='confirmAssetDeleteLabel' modal_confirm_id='confirmAssetDeleteButton' trigger_class='js-delete-asset-trigger' %}
+{% endblock %}

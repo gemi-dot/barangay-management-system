@@ -1,0 +1,43 @@
+{% extends 'residents/portal/base.html' %}
+
+{% block title %}My Requests{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">My Requests</h1>
+    <a class="btn btn-primary" href="{% url 'resident_portal:request_new' %}">New Request</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if document_requests %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Tracking Number</th>
+                        <th>Document Type</th>
+                        <th>Status</th>
+                        <th>Requested On</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in document_requests %}
+                    <tr>
+                        <td>{{ req.tracking_number }}</td>
+                        <td>{{ req.get_document_type_display }}</td>
+                        <td>{{ req.get_status_display }}</td>
+                        <td>{{ req.created_at|date:'M d, Y h:i A' }}</td>
+                        <td>{{ req.remarks|default:'-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p class="mb-0">No document requests found for your account.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

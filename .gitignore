@@ -40,4 +40,9 @@ offline_exports/
 
 # Local working data exports
 data/*.csv
-EOF
+EOF.venv/
+
+# Frontend local files
+frontend/.env.local
+frontend/node_modules/
+frontend/.next/

@@ -1,0 +1,29 @@
+<form method="POST">
+    {% csrf_token %}
+    <div class="form-group">
+        <label for="{{ form.philhealth_number.id_for_label }}">PhilHealth Number</label>
+        {{ form.philhealth_number }}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.sss_gsis_number.id_for_label }}">SSS/GSIS Number</label>
+        {{ form.sss_gsis_number }}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.tin_number.id_for_label }}">TIN Number</label>
+        {{ form.tin_number }}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.voters_id.id_for_label }}">Voters ID</label>
+        {{ form.voters_id }}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.precinct_number.id_for_label }}">Precinct Number</label>
+        {{ form.precinct_number }}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>

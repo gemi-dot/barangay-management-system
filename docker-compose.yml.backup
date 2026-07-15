@@ -1,0 +1,15 @@
+services:
+  web:
+    build: ./backend
+    container_name: barangay_ims_web
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,192.168.1.8,0.0.0.0,.ngrok-free.app,.ngrok-free.dev"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1,http://192.168.1.8,https://*.ngrok-free.app,https://*.ngrok-free.dev"
+      DJANGO_DB_ENGINE: "django.db.backends.sqlite3"
+      DJANGO_DB_NAME: "/app/db.sqlite3"
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped

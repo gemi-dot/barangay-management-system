@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+
+{% block title %}Pregnancy Report - Barangay Information Management System{% endblock %}
+
+{% block page_title %}Pregnancy Monitoring Report{% endblock %}
+
+{% block content %}
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_pregnancies }}</h4>
+                        <p class="card-text">Active Pregnancies</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-heart-pulse fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ high_risk_pregnancies }}</h4>
+                        <p class="card-text">High Risk Cases</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ third_trimester_count }}</h4>
+                        <p class="card-text">3rd Trimester</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-calendar-event fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ upcoming_deliveries.count }}</h4>
+                        <p class="card-text">Due This Month</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trimester Distribution -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Pregnancy by Trimester</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-primary">{{ first_trimester_count }}</h4>
+                        <small class="text-muted">1st Trimester<br>(0-12 weeks)</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-warning">{{ second_trimester_count }}</h4>
+                        <small class="text-muted">2nd Trimester<br>(13-28 weeks)</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-info">{{ third_trimester_count }}</h4>
+                        <small class="text-muted">3rd Trimester<br>(29+ weeks)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Upcoming Deliveries (Next 30 Days)</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_deliveries %}
+                    {% for pregnancy in upcoming_deliveries|slice:":5" %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong>{{ pregnancy.pregnant_woman.full_name }}</strong>
+                                <br>
+                                <small class="text-muted">EDD: {{ pregnancy.expected_due_date|date:"M d, Y" }}</small>
+                            </div>
+                            {% if pregnancy.high_risk_pregnancy %}
+                                <span class="badge bg-danger">High Risk</span>
+                            {% else %}
+                                <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    {% if upcoming_deliveries.count > 5 %}
+                        <small class="text-muted">And {{ upcoming_deliveries.count|add:"-5" }} more...</small>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No deliveries expected in the next 30 days.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-list-ul"></i>
+                Pregnancy Monitoring
+            </h6>
+            <div>
+                <a href="{% url 'admin:bhw_reports_pregnancyreport_add' %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Add Pregnancy Record
+                </a>
+                <a href="{% url 'admin:bhw_reports_pregnancyreport_changelist' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-gear"></i> Manage in Admin
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pregnancies Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Active Pregnancies</h5>
+            </div>
+            <div class="card-body">
+                {% if active_pregnancies %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Pregnant Woman</th>
+                                    <th>Age</th>
+                                    <th>Gestation</th>
+                                    <th>Trimester</th>
+                                    <th>Expected Due Date</th>
+                                    <th>Risk Level</th>
+                                    <th>Prenatal Visits</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pregnancy in active_pregnancies %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-person-heart text-success fs-4 me-2"></i>
+                                            <div>
+                                                <strong>{{ pregnancy.pregnant_woman.full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">G{{ pregnancy.pregnancy_number }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ pregnancy.pregnant_woman.age }} years</td>
+                                    <td>
+                                        {% if pregnancy.age_of_gestation_weeks %}
+                                            <span class="badge bg-info">{{ pregnancy.age_of_gestation_weeks }} weeks</span>
+                                        {% else %}
+                                            <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pregnancy.age_of_gestation_weeks %}
+                                            {% if pregnancy.age_of_gestation_weeks <= 12 %}
+                                                <span class="badge bg-primary">1st Trimester</span>
+                                            {% elif pregnancy.age_of_gestation_weeks <= 28 %}
+                                                <span class="badge bg-warning">2nd Trimester</span>
+                                            {% else %}
+                                                <span class="badge bg-info">3rd Trimester</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ pregnancy.expected_due_date|date:"M d, Y" }}
+                                        {% if pregnancy.due_soon %}
+                                            <br><small class="text-warning">Due Soon!</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pregnancy.high_risk_pregnancy %}
+                                            <span class="badge bg-danger">High Risk</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Normal Risk</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span class="badge bg-secondary mb-1">{{ pregnancy.number_of_prenatal_visits }} visits</span>
+                                            {% if pregnancy.next_prenatal_visit %}
+                                                <small class="text-muted">Next: {{ pregnancy.next_prenatal_visit|date:"M d" }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'admin:bhw_reports_pregnancyreport_change' pregnancy.id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'admin:residents_resident_change' pregnancy.pregnant_woman.id %}" 
+                                               class="btn btn-sm btn-outline-info" title="View Resident">
+                                                <i class="bi bi-person"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-heart-pulse fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">No active pregnancies</h5>
+                        <p class="text-muted">No pregnancy records are currently being tracked.</p>
+                        <a href="{% url 'admin:bhw_reports_pregnancyreport_add' %}" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Add First Pregnancy Record
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- High Risk Pregnancies Alert -->
+{% if active_pregnancies %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    High Risk Pregnancies - Immediate Attention Required
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if high_risk_pregnancies > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Risk Factors</th>
+                                    <th>Attending Physician</th>
+                                    <th>Health Facility</th>
+                                    <th>Last Checkup</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pregnancy in active_pregnancies %}
+                                    {% if pregnancy.high_risk_pregnancy %}
+                                    <tr>
+                                        <td>{{ pregnancy.pregnant_woman.full_name }}</td>
+                                        <td>
+                                            {% if pregnancy.risk_factors %}
+                                                {{ pregnancy.risk_factors|truncatewords:8 }}
+                                            {% else %}
+                                                <span class="text-muted">Not specified</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ pregnancy.attending_physician|default:"Not assigned" }}</td>
+                                        <td>{{ pregnancy.health_facility|default:"Not specified" }}</td>
+                                        <td>
+                                            {% if pregnancy.last_prenatal_visit %}
+                                                {{ pregnancy.last_prenatal_visit|date:"M d, Y" }}
+                                            {% else %}
+                                                <span class="text-danger">No checkup yet</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle"></i>
+                        Great! No high-risk pregnancies are currently being monitored.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

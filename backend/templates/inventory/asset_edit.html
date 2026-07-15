@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Asset - {{ asset.property_number }}{% endblock %}
+{% block page_title %}Edit Asset{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-hero {
+        background: linear-gradient(120deg, #0f4c81 0%, #166088 45%, #0f766e 100%);
+        color: #f8fcff;
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(15, 76, 129, 0.2);
+    }
+    .edit-shell {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 28px rgba(16, 24, 40, 0.1);
+    }
+    .edit-shell .card-header {
+        background: #eef6fb;
+        border-bottom: 1px solid #dbeaf4;
+    }
+    .edit-shell h5 {
+        color: #154568;
+        font-weight: 700;
+    }
+    .form-section {
+        background: #fbfdff;
+        border: 1px solid #e2edf5;
+        border-radius: 14px;
+        padding: 1rem;
+        height: 100%;
+    }
+    .form-section h6 {
+        color: #154568;
+        font-weight: 700;
+        margin-bottom: 0.85rem;
+    }
+    .field-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #4f6474;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+    .asset-meta {
+        color: rgba(248, 252, 255, 0.88);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card edit-hero mb-3">
+    <div class="card-body p-4 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+            <h4 class="mb-1">Update Asset: {{ asset.property_number }}</h4>
+            <div class="asset-meta">Adjust condition, status, accountability, and follow-up notes without leaving Inventory Management.</div>
+        </div>
+        <div class="text-lg-end asset-meta">
+            <div><strong>Category:</strong> {{ asset.category.get_name_display }}</div>
+            <div><strong>Description:</strong> {{ asset.description|truncatechars:70 }}</div>
+        </div>
+    </div>
+</div>
+
+<form method="post" class="card edit-shell">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Asset Update Form</h5>
+        <div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{% if next_url %}{{ next_url }}{% else %}{% url 'inventory:asset_detail' asset.id %}{% endif %}">Cancel</a>
+            <button class="btn btn-sm btn-primary" type="submit">Save Changes</button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h6>Condition and Status</h6>
+                    <div class="mb-3">
+                        <label class="field-label" for="{{ form.condition.id_for_label }}">Condition</label>
+                        {{ form.condition }}
+                        {% for error in form.condition.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="field-label" for="{{ form.status.id_for_label }}">Status</label>
+                        {{ form.status }}
+                        {% for error in form.status.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-0">
+                        <label class="field-label" for="{{ form.location.id_for_label }}">Current Location</label>
+                        {{ form.location }}
+                        {% for error in form.location.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h6>Accountability</h6>
+                    <div class="mb-3">
+                        <label class="field-label" for="{{ form.responsible_person.id_for_label }}">Responsible Person</label>
+                        {{ form.responsible_person }}
+                        {% for error in form.responsible_person.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-0">
+                        <label class="field-label" for="{{ form.responsible_role.id_for_label }}">Responsible Role</label>
+                        {{ form.responsible_role }}
+                        {% for error in form.responsible_role.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-0 mt-3">
+                        <label class="field-label" for="{{ form.accountability_status.id_for_label }}">Accountability Status (PAR/ICS)</label>
+                        {{ form.accountability_status }}
+                        {% for error in form.accountability_status.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h6>Inspection Timeline</h6>
+                    <div class="mb-3">
+                        <label class="field-label" for="{{ form.last_inventory_date.id_for_label }}">Last Inventory Date</label>
+                        {{ form.last_inventory_date }}
+                        {% for error in form.last_inventory_date.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-0">
+                        <label class="field-label" for="{{ form.next_inspection_date.id_for_label }}">Next Inspection Date</label>
+                        {{ form.next_inspection_date }}
+                        {% for error in form.next_inspection_date.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="form-section">
+                    <h6>Notes</h6>
+                    <label class="field-label" for="{{ form.notes.id_for_label }}">Repair or Disposal Notes</label>
+                    {{ form.notes }}
+                    {% for error in form.notes.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

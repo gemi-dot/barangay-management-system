@@ -1,0 +1,665 @@
+{% extends 'base.html' %}
+
+{% block title %}Barangay Excellence Dashboard - Barangay Information Management System{% endblock %}
+
+{% block page_title %}Barangay Excellence Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Laptop-fit mode: compress dashboard for short viewport heights. */
+    @media (min-width: 992px) and (max-height: 900px) {
+        .content-area > .d-flex.justify-content-between {
+            padding-top: 0.35rem !important;
+            padding-bottom: 0.32rem !important;
+            margin-bottom: 0.45rem !important;
+        }
+
+        .content-area > .d-flex.justify-content-between .h2 {
+            font-size: 1.35rem;
+            margin-bottom: 0;
+        }
+
+        .content-area > .d-flex.justify-content-between .btn {
+            font-size: 0.72rem;
+            padding: 0.22rem 0.46rem;
+        }
+
+        .dashboard-fit-wrap {
+            --fit-scale: 0.74;
+            transform: scale(var(--fit-scale));
+            transform-origin: top left;
+            width: calc(100% / var(--fit-scale));
+            margin-bottom: -24vh;
+        }
+
+        .dashboard-fit-wrap .row {
+            --bs-gutter-y: 0.42rem;
+        }
+
+        .dashboard-fit-wrap .mb-4 {
+            margin-bottom: 0.5rem !important;
+        }
+
+        .dashboard-fit-wrap .mt-4 {
+            margin-top: 0.5rem !important;
+        }
+
+        .dashboard-fit-wrap .mt-3 {
+            margin-top: 0.38rem !important;
+        }
+
+        .dashboard-fit-wrap .mb-3 {
+            margin-bottom: 0.4rem !important;
+        }
+
+        .dashboard-fit-wrap .card-body {
+            padding: 0.58rem 0.68rem;
+        }
+
+        .dashboard-fit-wrap .card-header {
+            padding: 0.48rem 0.68rem;
+        }
+
+        .dashboard-fit-wrap .card-header h5,
+        .dashboard-fit-wrap .card-title {
+            font-size: 0.94rem;
+            margin-bottom: 0;
+        }
+
+        .dashboard-fit-wrap .fs-1,
+        .dashboard-fit-wrap .fs-3 {
+            font-size: 1.55rem !important;
+        }
+
+        .dashboard-fit-wrap h3 {
+            font-size: 1.12rem;
+            margin-bottom: 0.05rem;
+        }
+
+        .dashboard-fit-wrap h4 {
+            font-size: 1.05rem;
+            margin-bottom: 0.08rem;
+        }
+
+        .dashboard-fit-wrap .card-text,
+        .dashboard-fit-wrap small,
+        .dashboard-fit-wrap .btn,
+        .dashboard-fit-wrap .table {
+            font-size: 0.74rem;
+        }
+
+        .dashboard-fit-wrap .btn {
+            padding-top: 0.28rem;
+            padding-bottom: 0.28rem;
+        }
+
+        .dashboard-fit-wrap #genderChart,
+        .dashboard-fit-wrap #ageChart {
+            height: 150px !important;
+        }
+
+        .dashboard-fit-wrap .table-responsive {
+            max-height: 140px;
+            overflow: auto;
+        }
+
+        .content-area .app-footer {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-fit-wrap">
+<!-- Summary Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_residents }}</h4>
+                        <p class="card-text">Total Residents</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <a href="{% url 'dashboard:household_report' %}" class="text-decoration-none">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_households }}</h4>
+                            <p class="card-text">Total Households</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-house fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ senior_citizens }}</h4>
+                        <p class="card-text">Senior Citizens</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-person-wheelchair fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ fourps_beneficiaries }}</h4>
+                        <p class="card-text">4Ps Beneficiaries</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-cash-stack fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Shortcuts -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-shield-lock"></i>
+                    Admin Shortcuts
+                </h5>
+                <small class="text-muted">Fast access to system controls</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{% url 'admin:index' %}" class="btn btn-outline-primary w-100 py-3">
+                            <div class="fw-semibold">Open Admin Panel</div>
+                            <small class="d-block">Manage users, residents, and system settings</small>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{% url 'admin:residents_documentrequest_changelist' %}" class="btn btn-outline-secondary w-100 py-3">
+                            <div class="fw-semibold">Document Requests</div>
+                            <small class="d-block">Review and process request records</small>
+                        </a>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{% url 'admin:residents_documentrequest_unlinked_identity_report' %}" class="btn btn-outline-danger w-100 py-3">
+                            <div class="fw-semibold">Unlinked Identity Report</div>
+                            <small class="d-block">Review rows still missing stable portal links</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ready Today Panel -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom-0">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-file-earmark-check"></i>
+                    Ready Today
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-stretch">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <small class="text-muted d-block">Ready for Pickup Today</small>
+                            <h3 class="mb-0 text-success">{{ ready_today_count }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <small class="text-muted d-block">Currently Ready</small>
+                            <h3 class="mb-0 text-primary">{{ currently_ready_count }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{% url 'dashboard:today_visitors_report' %}" class="text-decoration-none text-reset d-block h-100">
+                            <div class="border rounded p-3 h-100">
+                                <small class="text-muted d-block">Visitors Today</small>
+                                <h3 class="mb-0 text-info">{{ visitors_today_count }}</h3>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <small class="text-muted d-block">Pending and Processing</small>
+                            <h3 class="mb-0 text-warning">{{ pending_document_requests }}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <a href="{% url 'residents:document_requests_queue' %}?status=ready_for_pickup" class="btn btn-success w-100">
+                            <i class="bi bi-check2-circle me-1"></i>
+                            Open Ready Queue
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <a href="{% url 'residents:document_requests_queue' %}?status=processing" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-arrow-repeat me-1"></i>
+                            Processing Queue
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <a href="{% url 'residents:document_requests_queue' %}?status=pending" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-hourglass-split me-1"></i>
+                            Pending Queue
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <a href="{% url 'dashboard:today_visitors_report' %}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-people me-1"></i>
+                            Today's Visitors
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <a href="{% url 'residents:document_requests_queue' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-list-ul me-1"></i>
+                            All Requests
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <form method="post" action="{% url 'residents:reset_document_request_test_data' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger w-100">
+                                <i class="bi bi-trash me-1"></i>
+                                Reset Test Data
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="mb-3">Latest 5 Ready for Pickup</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Tracking #</th>
+                                    <th>Resident</th>
+                                    <th>Document</th>
+                                    <th>Updated</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in latest_ready_requests %}
+                                <tr>
+                                    <td><strong>{{ item.tracking_number }}</strong></td>
+                                    <td>{{ item.full_name }}</td>
+                                    <td>{{ item.get_document_type_display }}</td>
+                                    <td>{{ item.updated_at|date:'M d, Y h:i A' }}</td>
+                                    <td class="text-end">
+                                        <form
+                                            method="post"
+                                            action="{% url 'residents:update_document_request_status' item.id %}"
+                                            class="d-inline quick-release-form"
+                                            data-tracking-number="{{ item.tracking_number }}"
+                                            data-resident-name="{{ item.full_name }}"
+                                            data-document-type="{{ item.get_document_type_display }}"
+                                        >
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="released">
+                                            <input type="hidden" name="remarks" value="Released via dashboard quick action">
+                                            <button type="button" class="btn btn-sm btn-outline-success quick-release-trigger">
+                                                <i class="bi bi-check-circle"></i>
+                                                Mark Released
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3">No ready requests at the moment.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmReleaseModal" tabindex="-1" aria-labelledby="confirmReleaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmReleaseModalLabel">Confirm Release</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">You are about to mark this request as <strong>Released</strong>:</p>
+                <ul class="mb-0">
+                    <li><strong>Tracking #:</strong> <span id="modalTrackingNumber"></span></li>
+                    <li><strong>Resident:</strong> <span id="modalResidentName"></span></li>
+                    <li><strong>Document:</strong> <span id="modalDocumentType"></span></li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmReleaseButton">
+                    Yes, Mark Released
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demographics and BHW Reports Row -->
+<div class="row mb-4">
+    <!-- Demographics Chart -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-pie-chart"></i>
+                    Demographics by Gender
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="genderChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- BHW Reports Summary -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-clipboard-data"></i>
+                    BHW Reports Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <h3 class="text-primary">{{ active_businesses }}</h3>
+                        <small class="text-muted">Active Businesses</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <h3 class="text-success">{{ active_pregnancies }}</h3>
+                        <small class="text-muted">Active Pregnancies</small>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-info">{{ pwd_count }}</h3>
+                        <small class="text-muted">PWD Residents</small>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-warning">{{ recent_health_reports }}</h3>
+                        <small class="text-muted">Recent Health Reports</small>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <a href="{% url 'dashboard:household_report' %}" class="text-decoration-none">
+                            <div class="border rounded p-2 bg-light">
+                                <h4 class="text-success mb-1">{{ total_households }}</h4>
+                                <small class="text-muted">Households (Grouped Report)</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Age Groups and Purok Distribution -->
+<div class="row mb-4">
+    <!-- Age Groups -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-bar-chart"></i>
+                    Age Group Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="ageChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Purok Distribution -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-geo-alt"></i>
+                    Population by Purok
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if zone_distribution %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Purok</th>
+                                    <th>Population</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for zone in zone_distribution %}
+                                <tr>
+                                    <td>{{ zone.zone }}</td>
+                                    <td>{{ zone.count }}</td>
+                                    <td>{{ zone.percentage }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No purok data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-lightning"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'dashboard:residents_list' %}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-people d-block fs-3 mb-2"></i>
+                            View All Residents
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'residents:quick_gender_correction' %}" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-gender-ambiguous d-block fs-3 mb-2"></i>
+                            Correct Gender
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'residents:quick_birthday_correction' %}" class="btn btn-outline-dark w-100">
+                            <i class="bi bi-calendar-date d-block fs-3 mb-2"></i>
+                            Correct Birthday
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'dashboard:household_report' %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-house d-block fs-3 mb-2"></i>
+                            Households
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'admin:residents_resident_add' %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-person-plus d-block fs-3 mb-2"></i>
+                            Add New Resident
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'dashboard:senior_citizens_report' %}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-person-wheelchair d-block fs-3 mb-2"></i>
+                            Senior Citizens
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'dashboard:businesses_report' %}" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-shop d-block fs-3 mb-2"></i>
+                            Businesses
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'dashboard:fourps_report' %}" class="btn btn-outline-danger w-100">
+                            <i class="bi bi-cash-stack d-block fs-3 mb-2"></i>
+                            4Ps Reports
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'dashboard:pregnancy_report' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-heart-pulse d-block fs-3 mb-2"></i>
+                            Pregnancies
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <p class="text-center text-muted small mb-0">Developed by TheSoftWorks 2026 (Abgao,Maasin City)</p>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Gender Distribution Chart
+const genderCtx = document.getElementById('genderChart').getContext('2d');
+const genderChart = new Chart(genderCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Male', 'Female'],
+        datasets: [{
+            data: [{{ male_residents }}, {{ female_residents }}],
+            backgroundColor: [
+                '#36A2EB',
+                '#FF6384'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+
+// Age Group Distribution Chart
+const ageCtx = document.getElementById('ageChart').getContext('2d');
+const ageChart = new Chart(ageCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Children (0-17)', 'Adults (18-59)', 'Seniors (60+)'],
+        datasets: [{
+            label: 'Population',
+            data: [{{ children }}, {{ adults }}, {{ seniors }}],
+            backgroundColor: [
+                '#4BC0C0',
+                '#36A2EB',
+                '#FF6384'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+let pendingReleaseForm = null;
+const confirmReleaseModalElement = document.getElementById('confirmReleaseModal');
+const confirmReleaseModal = new bootstrap.Modal(confirmReleaseModalElement);
+
+document.querySelectorAll('.quick-release-trigger').forEach((button) => {
+    button.addEventListener('click', function () {
+        const form = this.closest('.quick-release-form');
+        if (!form) {
+            return;
+        }
+
+        pendingReleaseForm = form;
+        document.getElementById('modalTrackingNumber').textContent = form.dataset.trackingNumber || '-';
+        document.getElementById('modalResidentName').textContent = form.dataset.residentName || '-';
+        document.getElementById('modalDocumentType').textContent = form.dataset.documentType || '-';
+        confirmReleaseModal.show();
+    });
+});
+
+document.getElementById('confirmReleaseButton').addEventListener('click', function () {
+    if (pendingReleaseForm) {
+        pendingReleaseForm.submit();
+    }
+});
+
+confirmReleaseModalElement.addEventListener('hidden.bs.modal', function () {
+    pendingReleaseForm = null;
+});
+</script>
+{% endblock %}

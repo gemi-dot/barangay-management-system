@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+
+{% block title %}Residents List - Barangay Information Management System{% endblock %}
+
+{% block page_title %}Residents Directory{% endblock %}
+
+{% block content %}
+<!-- Search and Filter Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-search"></i>
+                    Search and Filter Residents
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search by Name or Contact</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ search_query|default:'' }}" placeholder="Enter name or contact number">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="zone" class="form-label">Filter by Purok</label>
+                        <select class="form-select" id="zone" name="zone">
+                            <option value="">All Puroks</option>
+                            {% for zone in zones %}
+                                <option value="{{ zone }}" {% if zone == zone_filter %}selected{% endif %}>
+                                    {{ zone }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="gender" class="form-label">Filter by Gender</label>
+                        <select class="form-select" id="gender" name="gender">
+                            <option value="">All Genders</option>
+                            <option value="M" {% if gender_filter == 'M' %}selected{% endif %}>Male</option>
+                            <option value="F" {% if gender_filter == 'F' %}selected{% endif %}>Female</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Residents Count Summary -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-people"></i>
+                Total Residents: <span class="badge bg-primary">{{ residents.count }}</span>
+            </h6>
+            <div class="d-flex gap-2">
+                <a href="{% url 'residents:quick_gender_correction' %}" class="btn btn-outline-warning">
+                    <i class="bi bi-gender-ambiguous me-1"></i> Quick Resident Record Correction
+                </a>
+                <a href="{% url 'residents:scan_test_page' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-qr-code-scan me-1"></i> Scan QR Input
+                </a>
+                <a href="{% url 'admin:residents_resident_add' %}" class="btn btn-success">
+                    <i class="bi bi-person-plus"></i> Add New Resident
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Residents Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if residents %}
+                    <form method="post" action="{% url 'residents:barangay_id_bulk_print' %}" target="_blank" id="bulkPrintForm">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="selectAllResidents">
+                                <label class="form-check-label" for="selectAllResidents">
+                                    Select all visible residents
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-outline-success" id="bulkPrintButton" disabled>
+                                <i class="bi bi-printer me-1"></i>
+                                Print Selected IDs (<span id="selectedCount">0</span>)
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Name</th>
+                                    <th>QR Code</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Purok</th>
+                                    <th>Contact</th>
+                                    <th>Special Categories</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for resident in residents %}
+                                <tr>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            class="form-check-input resident-select"
+                                            name="resident_ids"
+                                            value="{{ resident.id }}"
+                                            aria-label="Select {{ resident.full_name }}"
+                                        >
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar me-2">
+                                                {% if resident.gender == 'M' %}
+                                                    <i class="bi bi-person-fill text-primary fs-4"></i>
+                                                {% else %}
+                                                    <i class="bi bi-person-fill text-danger fs-4"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <strong>{{ resident.full_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ resident.complete_address }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="fw-semibold d-block">{{ resident.qr_code }}</small>
+                                        {% if resident.qr_image %}
+                                            <a href="{{ resident.qr_image.url }}" target="_blank" class="small text-decoration-none">View QR</a>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ resident.age }}</td>
+                                    <td>
+                                        {% if resident.gender == 'M' %}
+                                            <span class="badge bg-primary">Male</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Female</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ resident.zone }}</td>
+                                    <td>{{ resident.contact_number|default:"N/A" }}</td>
+                                    <td>
+                                        {% if resident.is_senior_citizen %}
+                                            <span class="badge bg-info me-1">Senior</span>
+                                        {% endif %}
+                                        {% if resident.is_4ps_beneficiary %}
+                                            <span class="badge bg-warning me-1">4Ps</span>
+                                        {% endif %}
+                                        {% if resident.is_pwd %}
+                                            <span class="badge bg-secondary me-1">PWD</span>
+                                        {% endif %}
+                                        {% if resident.is_solo_parent %}
+                                            <span class="badge bg-success me-1">Solo Parent</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'admin:residents_resident_change' resident.id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'admin:residents_resident_change' resident.id %}" 
+                                               class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                                          <a href="{% url 'residents:barangay_id_sample_for_resident' resident.id %}?refresh_qr=1"
+                                               class="btn btn-sm btn-outline-success"
+                                               title="Print Barangay ID"
+                                               target="_blank"
+                                               rel="noopener">
+                                                <i class="bi bi-printer me-1"></i>
+                                                Print ID
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            </table>
+                        </div>
+                    </form>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-people fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">No residents found</h5>
+                        <p class="text-muted">
+                            {% if search_query or zone_filter or gender_filter %}
+                                No residents match your search criteria. Try adjusting your filters.
+                            {% else %}
+                                No residents have been added yet. Click the button above to add the first resident.
+                            {% endif %}
+                        </p>
+                        {% if search_query or zone_filter or gender_filter %}
+                            <a href="{% url 'dashboard:residents_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Clear Filters
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        const selectAll = document.getElementById('selectAllResidents');
+        const selectedCount = document.getElementById('selectedCount');
+        const bulkPrintButton = document.getElementById('bulkPrintButton');
+        const residentCheckboxes = Array.from(document.querySelectorAll('.resident-select'));
+
+        if (!selectAll || !selectedCount || !bulkPrintButton || residentCheckboxes.length === 0) {
+            return;
+        }
+
+        function updateSelectionUI() {
+            const checkedCount = residentCheckboxes.filter((checkbox) => checkbox.checked).length;
+            selectedCount.textContent = String(checkedCount);
+            bulkPrintButton.disabled = checkedCount === 0;
+
+            if (checkedCount === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            } else if (checkedCount === residentCheckboxes.length) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            }
+        }
+
+        selectAll.addEventListener('change', function () {
+            residentCheckboxes.forEach((checkbox) => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateSelectionUI();
+        });
+
+        residentCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', updateSelectionUI);
+        });
+
+        updateSelectionUI();
+    })();
+</script>
+{% endblock %}

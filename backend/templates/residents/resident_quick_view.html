@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Resident Quick View{% endblock %}
+{% block page_title %}Resident Quick View{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+    <div class="col-12 d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'dashboard:residents_list' %}">
+            <i class="bi bi-arrow-left"></i>
+            Back to Residents
+        </a>
+        <form method="post" action="{% url 'residents:quick_create_document_request' resident.id %}" class="d-flex flex-wrap gap-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning" name="document_type" value="certificate_of_residency">
+                <i class="bi bi-file-earmark-plus"></i>
+                Create Residency Request
+            </button>
+            <button type="submit" class="btn btn-outline-warning" name="document_type" value="certificate_of_indigency">
+                <i class="bi bi-file-earmark-plus"></i>
+                Create Indigency Request
+            </button>
+            <button type="submit" class="btn btn-outline-secondary" name="document_type" value="barangay_clearance">
+                <i class="bi bi-file-earmark-plus"></i>
+                Create Barangay Clearance
+            </button>
+            <button type="submit" class="btn btn-outline-secondary" name="document_type" value="business_clearance">
+                <i class="bi bi-file-earmark-plus"></i>
+                Create Business Clearance
+            </button>
+        </form>
+        <a class="btn btn-primary" href="{% url 'admin:residents_resident_change' resident.id %}">
+            <i class="bi bi-pencil-square"></i>
+            Open Full Edit Page
+        </a>
+        <a class="btn btn-success" href="{% url 'residents:barangay_id_sample_for_resident' resident.id %}" target="_blank" rel="noopener">
+            <i class="bi bi-printer"></i>
+            Print ID
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Resident Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Full Name</small>
+                        <strong>{{ resident.full_name }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Age</small>
+                        <strong>{{ resident.age }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Gender</small>
+                        <strong>{{ resident.get_gender_display }}</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Address</small>
+                        <strong>{{ resident.complete_address }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Contact</small>
+                        <strong>{{ resident.contact_number|default:'N/A' }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block">Civil Status</small>
+                        <strong>{{ resident.get_civil_status_display }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Voter ID</small>
+                        <strong>{{ resident.voters_id|default:'N/A' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Precinct</small>
+                        <strong>{{ resident.precinct_number|default:'N/A' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">QR ID</small>
+                        <strong>{{ resident.qr_code }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Emergency Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Contact Name</small>
+                        <strong>{{ resident.emergency_contact_name|default:'N/A' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Contact Number</small>
+                        <strong>{{ resident.emergency_contact_number|default:'N/A' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Relationship</small>
+                        <strong>{{ resident.emergency_contact_relationship|default:'N/A' }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">QR Code</h6>
+            </div>
+            <div class="card-body text-center">
+                {% if resident.qr_image %}
+                    <img src="{{ resident.qr_image.url }}" alt="Resident QR" class="img-fluid" style="max-width: 210px; border: 1px solid #ddd; padding: 8px; background: #fff;">
+                {% else %}
+                    <p class="text-muted mb-0">No QR image available.</p>
+                {% endif %}
+                <div class="mt-2 text-muted small">Scan this code to open this quick view.</div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Special Categories</h6>
+            </div>
+            <div class="card-body">
+                <span class="badge bg-info me-1 {% if not resident.is_senior_citizen %}opacity-50{% endif %}">Senior</span>
+                <span class="badge bg-warning text-dark me-1 {% if not resident.is_4ps_beneficiary %}opacity-50{% endif %}">4Ps</span>
+                <span class="badge bg-secondary me-1 {% if not resident.is_pwd %}opacity-50{% endif %}">PWD</span>
+                <span class="badge bg-success me-1 {% if not resident.is_solo_parent %}opacity-50{% endif %}">Solo Parent</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

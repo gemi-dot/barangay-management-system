@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+
+{% block title %}Businesses Report - Barangay Information Management System{% endblock %}
+
+{% block page_title %}Sari-Sari Stores & Carenderias Report{% endblock %}
+
+{% block content %}
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_businesses }}</h4>
+                        <p class="card-text">Total Businesses</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-shop fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ sari_sari_count }}</h4>
+                        <p class="card-text">Sari-Sari Stores</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-basket fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ carenderia_count }}</h4>
+                        <p class="card-text">Carenderias</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-cup-hot fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ both_count }}</h4>
+                        <p class="card-text">Both Services</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-diagram-3 fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-list-ul"></i>
+                Business Directory
+            </h6>
+            <div>
+                <a href="{% url 'admin:bhw_reports_sarisaristorereport_add' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Business
+                </a>
+                <a href="{% url 'admin:bhw_reports_sarisaristorereport_changelist' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-gear"></i> Manage in Admin
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Businesses Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Business Directory</h5>
+            </div>
+            <div class="card-body">
+                {% if businesses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Business Name</th>
+                                    <th>Owner</th>
+                                    <th>Type</th>
+                                    <th>Address</th>
+                                    <th>Employees</th>
+                                    <th>Health & Safety</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for business in businesses %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if business.business_type == 'sari_sari' %}
+                                                <i class="bi bi-basket text-success fs-4 me-2"></i>
+                                            {% elif business.business_type == 'carenderia' %}
+                                                <i class="bi bi-cup-hot text-warning fs-4 me-2"></i>
+                                            {% else %}
+                                                <i class="bi bi-shop text-primary fs-4 me-2"></i>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ business.business_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">
+                                                    Since: {{ business.date_started|date:"M Y"|default:"Unknown" }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {{ business.owner.full_name }}
+                                        <br>
+                                        <small class="text-muted">{{ business.owner.contact_number|default:"No contact" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if business.business_type == 'sari_sari' %}
+                                            <span class="badge bg-success">Sari-Sari Store</span>
+                                        {% elif business.business_type == 'carenderia' %}
+                                            <span class="badge bg-warning">Carenderia</span>
+                                        {% elif business.business_type == 'both' %}
+                                            <span class="badge bg-info">Both</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ business.get_business_type_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ business.business_address|truncatewords:3 }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ business.number_of_employees }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            {% if business.has_proper_sanitation %}
+                                                <span class="badge bg-success mb-1">Sanitary ✓</span>
+                                            {% else %}
+                                                <span class="badge bg-danger mb-1">No Sanitation</span>
+                                            {% endif %}
+                                            
+                                            {% if business.has_fire_safety_measures %}
+                                                <span class="badge bg-success">Fire Safety ✓</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">No Fire Safety</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'admin:bhw_reports_sarisaristorereport_change' business.id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'admin:bhw_reports_sarisaristorereport_change' business.id %}" 
+                                               class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-shop fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">No businesses registered</h5>
+                        <p class="text-muted">No Sari-Sari stores or Carenderias have been registered yet.</p>
+                        <a href="{% url 'admin:bhw_reports_sarisaristorereport_add' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Add First Business
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Business Statistics -->
+{% if businesses %}
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Compliance Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-success">{{ sanitation_compliant }}</h4>
+                        <small class="text-muted">With Proper Sanitation</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info">{{ fire_safety_compliant }}</h4>
+                        <small class="text-muted">With Fire Safety</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Inspections</h5>
+            </div>
+            <div class="card-body">
+                {% if businesses %}
+                    {% for business in businesses|slice:":5" %}
+                        {% if business.last_inspection_date %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>{{ business.business_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ business.last_inspection_date|date:"M d, Y" }}</small>
+                                </div>
+                                {% if business.has_proper_sanitation and business.has_fire_safety_measures %}
+                                    <span class="badge bg-success">Compliant</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Needs Attention</span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No recent inspections recorded.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
