@@ -7,6 +7,8 @@ import type { ResidentListItem } from "@/lib/api";
 
 type Props = {
   residents: ResidentListItem[];
+  loading?: boolean;
+  error?: string | null;
 };
 
 const PAGE_SIZE = 5;
@@ -42,7 +44,7 @@ function matchesSearch(resident: ResidentListItem, query: string) {
   return haystack.includes(query.toLowerCase());
 }
 
-export function DashboardResidentsPreview({ residents }: Props) {
+export function DashboardResidentsPreview({ residents, loading = false, error = null }: Props) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -82,6 +84,12 @@ export function DashboardResidentsPreview({ residents }: Props) {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200">
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
@@ -90,12 +98,22 @@ export function DashboardResidentsPreview({ residents }: Props) {
                 <th className="px-4 py-3 font-semibold">Resident Name</th>
                 <th className="px-4 py-3 font-semibold">Purok</th>
                 <th className="px-4 py-3 font-semibold">Gender</th>
+                <th className="px-4 py-3 font-semibold">Age</th>
                 <th className="px-4 py-3 font-semibold">Precinct</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pageResidents.length > 0 ? (
+              {loading && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
+                    Loading resident preview...
+                  </td>
+                </tr>
+              )}
+
+              {!loading && pageResidents.length > 0 ? (
                 pageResidents.map((resident) => (
                   <tr key={resident.id} className="transition hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-900">
@@ -103,6 +121,7 @@ export function DashboardResidentsPreview({ residents }: Props) {
                     </td>
                     <td className="px-4 py-3 text-slate-600">{resident.zone || "-"}</td>
                     <td className="px-4 py-3 text-slate-600">{resident.gender || "-"}</td>
+                    <td className="px-4 py-3 text-slate-600">-</td>
                     <td className="px-4 py-3 text-slate-600">{resident.precinct_number || "-"}</td>
                     <td className="px-4 py-3">
                       <span
@@ -115,14 +134,21 @@ export function DashboardResidentsPreview({ residents }: Props) {
                         {resident.is_active === false ? "Inactive" : "Active"}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <Link href={`/residents/${resident.id}`} className="text-xs font-semibold text-blue-700 hover:text-blue-800">
+                        View Resident
+                      </Link>
+                    </td>
                   </tr>
                 ))
               ) : (
+                !loading && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                     No residents match the current search.
                   </td>
                 </tr>
+                )
               )}
             </tbody>
           </table>
