@@ -7,6 +7,7 @@ import {
   HeartPulse,
   Home,
   LayoutDashboard,
+  LogOut,
   QrCode,
   SearchCheck,
   ShieldAlert,
@@ -127,7 +128,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
     ],
   },
   {
-    title: "Analytics",
+    title: "Reports",
     items: [
       {
         label: "Reports",
@@ -138,7 +139,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
     ],
   },
   {
-    title: "AI Tools",
+    title: "AI",
     items: [
       {
         label: "Assistant",
@@ -156,6 +157,12 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
         href: "/settings",
         icon: Settings,
         matchPaths: ["/settings"],
+      },
+      {
+        label: "Logout",
+        href: "logout",
+        icon: LogOut,
+        matchPaths: [],
       },
     ],
   },
