@@ -1,0 +1,8 @@
+{
+  "name": "barangay_ims-root",
+  "private": true,
+  "scripts": {
+    "dev:full": "./scripts/start_dev.sh",
+    "stop:full": "./scripts/stop_dev.sh"
+  }
+}

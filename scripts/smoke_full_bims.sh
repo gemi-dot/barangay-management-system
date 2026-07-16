@@ -300,6 +300,36 @@ assert_redirect_location "reports root redirect" "$BACKEND_BASE/reports/" "/resi
 assert_status_with_cookie "reports redirect target" "$BACKEND_BASE/residents/reports/" "200" "$COOKIE_JAR"
 feature_end
 
+feature_begin "Households module"
+assert_status_with_cookie "households legacy report page" "$BACKEND_BASE/reports/households/" "200" "$COOKIE_JAR"
+assert_status_with_cookie "households summary api" "$BACKEND_BASE/api/households/summary/" "200" "$COOKIE_JAR"
+assert_body_contains_with_cookie "households summary field" "$BACKEND_BASE/api/households/summary/" '"total_households"' "$COOKIE_JAR"
+assert_status_with_cookie "households list api" "$BACKEND_BASE/api/households/list/?page=1&page_size=10" "200" "$COOKIE_JAR"
+assert_body_contains_with_cookie "households list payload" "$BACKEND_BASE/api/households/list/?page=1&page_size=10" '"results"' "$COOKIE_JAR"
+feature_end
+
+feature_begin "Legacy report pages"
+assert_status_with_cookie "today visitors report page" "$BACKEND_BASE/reports/today-visitors/" "200" "$COOKIE_JAR"
+assert_status_with_cookie "senior citizens report page" "$BACKEND_BASE/reports/senior-citizens/" "200" "$COOKIE_JAR"
+assert_status_with_cookie "businesses report page" "$BACKEND_BASE/reports/businesses/" "200" "$COOKIE_JAR"
+assert_status_with_cookie "4ps report page" "$BACKEND_BASE/reports/4ps/" "200" "$COOKIE_JAR"
+assert_status_with_cookie "pregnancy report page" "$BACKEND_BASE/reports/pregnancy/" "200" "$COOKIE_JAR"
+feature_end
+
+feature_begin "Reports API + Next pages"
+assert_status_with_cookie "today visitors api" "$BACKEND_BASE/api/reports/today-visitors/" "200" "$COOKIE_JAR"
+assert_body_contains_with_cookie "today visitors payload" "$BACKEND_BASE/api/reports/today-visitors/" '"visitors_today_count"' "$COOKIE_JAR"
+assert_status_with_cookie "senior citizens api" "$BACKEND_BASE/api/reports/senior-citizens/?page=1&page_size=10" "200" "$COOKIE_JAR"
+assert_status_with_cookie "businesses api" "$BACKEND_BASE/api/reports/businesses/?page=1&page_size=10" "200" "$COOKIE_JAR"
+assert_status_with_cookie "4ps api" "$BACKEND_BASE/api/reports/fourps/?page=1&page_size=10" "200" "$COOKIE_JAR"
+assert_status_with_cookie "pregnancy api" "$BACKEND_BASE/api/reports/pregnancy/?page=1&page_size=10" "200" "$COOKIE_JAR"
+assert_status "frontend today visitors" "$FRONTEND_BASE/reports/today-visitors" "200"
+assert_status "frontend senior citizens" "$FRONTEND_BASE/reports/senior-citizens" "200"
+assert_status "frontend businesses" "$FRONTEND_BASE/reports/businesses" "200"
+assert_status "frontend 4ps" "$FRONTEND_BASE/reports/fourps" "200"
+assert_status "frontend pregnancy" "$FRONTEND_BASE/reports/pregnancy" "200"
+feature_end
+
 feature_begin "Inventory module"
 assert_status_with_cookie "inventory home" "$BACKEND_BASE/inventory/" "200" "$COOKIE_JAR"
 assert_status_with_cookie "inventory items" "$BACKEND_BASE/inventory/items/" "200" "$COOKIE_JAR"
@@ -313,6 +343,15 @@ if BASE_URL="$BACKEND_BASE" BIMS_USERNAME="$BIMS_USERNAME" BIMS_PASSWORD="$BIMS_
 else
   fail_assertion "assistant auth + csrf API flow"
 fi
+feature_end
+
+feature_begin "BHW reports module"
+assert_status_with_cookie "bhw summary api" "$BACKEND_BASE/api/bhw-reports/summary/" "200" "$COOKIE_JAR"
+assert_body_contains_with_cookie "bhw summary field senior" "$BACKEND_BASE/api/bhw-reports/summary/" '"senior_citizens_total"' "$COOKIE_JAR"
+assert_status_with_cookie "bhw senior list api" "$BACKEND_BASE/api/bhw-reports/senior-citizens/?page=1&page_size=5" "200" "$COOKIE_JAR"
+assert_status_with_cookie "bhw 4ps list api" "$BACKEND_BASE/api/bhw-reports/fourps/?page=1&page_size=5" "200" "$COOKIE_JAR"
+assert_status_with_cookie "bhw pregnancy list api" "$BACKEND_BASE/api/bhw-reports/pregnancy/?page=1&page_size=5" "200" "$COOKIE_JAR"
+assert_status_with_cookie "bhw health list api" "$BACKEND_BASE/api/bhw-reports/health/?page=1&page_size=5" "200" "$COOKIE_JAR"
 feature_end
 
 feature_begin "Resident portal"
@@ -332,6 +371,7 @@ feature_begin "Frontend app"
 assert_status "frontend home" "$FRONTEND_BASE/" "200"
 assert_status "frontend residents list" "$FRONTEND_BASE/residents" "200"
 assert_status "frontend resident detail" "$FRONTEND_BASE/residents/$RESIDENT_ID" "200"
+assert_status "frontend households" "$FRONTEND_BASE/households" "200"
 feature_end
 
 echo

@@ -51,14 +51,24 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         'DJANGO_CSRF_TRUSTED_ORIGINS',
-        'http://localhost,http://127.0.0.1,https://*.ngrok-free.dev,https://*.ngrok-free.app'
+        'http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000,https://*.ngrok-free.dev,https://*.ngrok-free.app'
     ).split(',')
     if origin.strip()
 ]
 
+_default_cors_origins = 'http://localhost:3000,http://127.0.0.1:3000'
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
+    origin.strip()
+    for origin in os.getenv('DJANGO_CORS_ALLOWED_ORIGINS', _default_cors_origins).split(',')
+    if origin.strip()
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_COOKIE_SAMESITE = os.getenv('DJANGO_CSRF_COOKIE_SAMESITE', 'Lax')
+SESSION_COOKIE_SAMESITE = os.getenv('DJANGO_SESSION_COOKIE_SAMESITE', 'Lax')
+CSRF_COOKIE_SECURE = os.getenv('DJANGO_CSRF_COOKIE_SECURE', 'False').lower() in ('1', 'true', 'yes', 'on')
+SESSION_COOKIE_SECURE = os.getenv('DJANGO_SESSION_COOKIE_SECURE', 'False').lower() in ('1', 'true', 'yes', 'on')
 
 
 # Application definition
