@@ -1,0 +1,7 @@
+-r requirements.txt
+
+gunicorn
+psycopg[binary]
+whitenoise
+dj-database-url
+python-dotenv

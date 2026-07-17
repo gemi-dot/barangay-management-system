@@ -1,0 +1,9 @@
+-r requirements.txt
+
+pytest
+pytest-django
+coverage
+ruff
+whitenoise
+python-dotenv
+dj-database-url

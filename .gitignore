@@ -1,41 +1,86 @@
+####################################################
+# BIMS - Django + Next.js
+####################################################
+
+########################
 # Python
+########################
 venv/
 .venv/
+backend/.venv/
+
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 
-# Database
+########################
+# Django
+########################
 *.sqlite3
 *.sqlite
 
-# Environment
-.env
+# Collectstatic output
+backend/staticfiles/
 
-# Node.js
+########################
+# Media Uploads
+########################
+backend/media/
+
+########################
+# Environment Variables
+########################
+.env
+.env.*
+!.env.example
+
+########################
+# Node / Next.js
+########################
 node_modules/
 .next/
+frontend/node_modules/
+frontend/.next/
 
+########################
 # macOS
+########################
 .DS_Store
 
+########################
+# VS Code
+########################
+.vscode/
+
+########################
 # Logs
+########################
 *.log
 
-# Python cache
+########################
+# Python test cache
+########################
 .pytest_cache/
 .mypy_cache/
 
-# VS Code
-.vscode/
-
-
-# Media (optional)
-backend/media/
-
-# Static collectstatic output (optional)
-backend/staticfiles/
-# Temporary resident import files
+########################
+# Temporary Data Files
+########################
 data/*.csv
-
-# Keep the data folder
 !data/.gitkeep
+
+########################
+# Offline Export Bundles
+########################
+offline_exports/
+
+########################
+# Backup Files
+########################
+*.backup
+*.bak
+
+# Database backups
+backups/*
+!backups/.gitkeep
