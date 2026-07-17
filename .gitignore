@@ -1,48 +1,41 @@
 # Python
+venv/
+.venv/
 __pycache__/
 *.py[cod]
-*$py.class
 
-# Virtual environment
-venv/
+# Database
+*.sqlite3
+*.sqlite
+
+# Environment
 .env
 
-# Django
-db.sqlite3
-*.log
-staticfiles/
-media/
+# Node.js
+node_modules/
+.next/
 
+# macOS
+.DS_Store
+
+# Logs
+*.log
 
 # Python cache
-__pycache__/
-*.py[cod]
-ackup*
-EOF
+.pytest_cache/
+.mypy_cache/
 
-# Django secret keys
-*.key
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
+# VS Code
 .vscode/
-.idea/
 
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-venv/
-offline_exports/
 
-# Local working data exports
+# Media (optional)
+backend/media/
+
+# Static collectstatic output (optional)
+backend/staticfiles/
+# Temporary resident import files
 data/*.csv
-EOF.venv/
 
-# Frontend local files
-frontend/.env.local
-frontend/node_modules/
-frontend/.next/
+# Keep the data folder
+!data/.gitkeep
