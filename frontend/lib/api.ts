@@ -150,6 +150,32 @@ export type InventoryAsset = {
   date_acquired: string | null;
 };
 
+export type InventoryCategoryOption = {
+  value: string;
+  label: string;
+};
+
+export type CreateInventoryAssetEntryPayload = {
+  property_number?: string;
+  category: string;
+  description: string;
+  serial_number?: string;
+  brand_model?: string;
+  date_acquired?: string;
+  cost?: string;
+  funding_source?: string;
+  supplier?: string;
+  useful_life_years?: string;
+  condition?: string;
+  location?: string;
+  responsible_role?: string;
+  accountability_status?: string;
+  next_inspection_date?: string;
+  status?: string;
+  last_inventory_date?: string;
+  notes?: string;
+};
+
 export type PortalDashboard = {
   user: {
     username: string;
@@ -824,6 +850,98 @@ export async function getInventoryAssets(query: {
   }
 
   return res.json();
+}
+
+function stripHtml(value: string) {
+  return value
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
+export async function getInventoryCategoryOptions(): Promise<InventoryCategoryOption[]> {
+  const res = await fetch(`${getBackendBaseUrl()}/inventory/items/add/`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Inventory form options failed: ${res.status} ${body}`);
+  }
+
+  const html = await res.text();
+  const selectMatch = html.match(/<select[^>]*name=["']category["'][^>]*>([\s\S]*?)<\/select>/i);
+  if (!selectMatch) {
+    throw new Error("Category options are not available from the backend form.");
+  }
+
+  const options: InventoryCategoryOption[] = [];
+  const optionRegex = /<option[^>]*value=["']([^"']*)["'][^>]*>([\s\S]*?)<\/option>/gi;
+  let optionMatch: RegExpExecArray | null;
+  while ((optionMatch = optionRegex.exec(selectMatch[1])) !== null) {
+    const value = optionMatch[1].trim();
+    const label = stripHtml(optionMatch[2]);
+    if (value) {
+      options.push({ value, label });
+    }
+  }
+
+  return options;
+}
+
+export async function createInventoryAssetEntry(
+  payload: CreateInventoryAssetEntryPayload,
+): Promise<void> {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+
+  const body = new URLSearchParams({
+    property_number: payload.property_number || "",
+    category: payload.category,
+    description: payload.description,
+    serial_number: payload.serial_number || "",
+    brand_model: payload.brand_model || "",
+    date_acquired: payload.date_acquired || "",
+    cost: payload.cost || "",
+    funding_source: payload.funding_source || "barangay_fund",
+    supplier: payload.supplier || "",
+    useful_life_years: payload.useful_life_years || "",
+    condition: payload.condition || "good",
+    location: payload.location || "barangay_hall",
+    responsible_person: "",
+    responsible_role: payload.responsible_role || "",
+    accountability_status: payload.accountability_status || "",
+    next_inspection_date: payload.next_inspection_date || "",
+    status: payload.status || "active",
+    last_inventory_date: payload.last_inventory_date || "",
+    notes: payload.notes || "",
+  });
+
+  const res = await fetch(`${getBackendBaseUrl()}/inventory/items/add/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": csrfToken,
+    },
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Create asset failed: ${res.status} ${text}`);
+  }
+
+  const text = await res.text();
+  if (/Please correct the errors|errorlist|This field is required/i.test(text)) {
+    throw new Error("Asset entry was not saved. Please check required fields.");
+  }
 }
 
 export async function askAssistant(message: string): Promise<{

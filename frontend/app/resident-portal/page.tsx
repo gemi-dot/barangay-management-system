@@ -8,7 +8,9 @@ import {
   createPortalRequest,
   getPortalDashboard,
   getPortalRequests,
+  getResidentsPaginated,
   portalRegister,
+  type ResidentListItem,
   type PortalDashboard,
   type PortalRequest,
 } from "@/lib/api";
@@ -33,11 +35,23 @@ const EMPTY_REQUEST_FORM: RequestForm = {
   preferred_release_date: "",
 };
 
+function getResidentDisplayName(resident: ResidentListItem) {
+  if (resident.full_name?.trim()) {
+    return resident.full_name.trim();
+  }
+
+  return [resident.first_name, resident.middle_name, resident.last_name]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 export default function ResidentPortalPage() {
   const { session, login, refreshSession } = useSessionAuth();
 
   const [dashboard, setDashboard] = useState<PortalDashboard | null>(null);
   const [requests, setRequests] = useState<PortalRequest[]>([]);
+  const [residentSuggestions, setResidentSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,13 +68,17 @@ export default function ResidentPortalPage() {
       if (!session?.is_authenticated) {
         setDashboard(null);
         setRequests([]);
+        setResidentSuggestions([]);
         return;
       }
 
       setLoading(true);
       setError(null);
       try {
-        const [dash, reqs] = await Promise.all([getPortalDashboard(), getPortalRequests()]);
+        const [dash, reqs] = await Promise.all([
+          getPortalDashboard(),
+          getPortalRequests(),
+        ]);
         if (!cancelled) {
           setDashboard(dash);
           setRequests(reqs.results);
@@ -89,6 +107,56 @@ export default function ResidentPortalPage() {
       cancelled = true;
     };
   }, [session?.is_authenticated]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!session?.is_authenticated) {
+      setResidentSuggestions([]);
+      return undefined;
+    }
+
+    const query = requestForm.full_name.trim();
+    if (query.length < 2) {
+      setResidentSuggestions([]);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const residents = await getResidentsPaginated({
+            search: query,
+            page: 1,
+            page_size: 10,
+            is_active: true,
+            ordering: "last_name",
+            fields: ["id", "first_name", "middle_name", "last_name", "full_name"],
+          });
+
+          if (!cancelled) {
+            const names = Array.from(
+              new Set(
+                residents.results
+                  .map((resident) => getResidentDisplayName(resident))
+                  .filter((name) => name.length > 0),
+              ),
+            );
+            setResidentSuggestions(names);
+          }
+        } catch {
+          if (!cancelled) {
+            setResidentSuggestions([]);
+          }
+        }
+      })();
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [session?.is_authenticated, requestForm.full_name]);
 
   async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -217,11 +285,20 @@ export default function ResidentPortalPage() {
             <section className="grid gap-4 lg:grid-cols-2">
               <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
                 <h2 className="text-lg font-semibold">Submit Document Request</h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Start typing a resident name to search the full resident list, or enter the name manually.
+                </p>
                 <form onSubmit={handleCreateRequest} className="mt-3 grid gap-3">
+                  <datalist id="resident-name-suggestions">
+                    {residentSuggestions.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
                   <input
                     value={requestForm.full_name}
                     onChange={(event) => setRequestForm((prev) => ({ ...prev, full_name: event.target.value }))}
-                    placeholder="Full name"
+                    placeholder="Search or encode full name"
+                    list="resident-name-suggestions"
                     className="rounded-md border px-3 py-2 text-sm"
                     required
                   />

@@ -25,6 +25,12 @@ class ResidentForm(forms.ModelForm):
 
 
 class DocumentRequestForm(forms.ModelForm):
+    contact_number = forms.CharField(
+        max_length=15,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX'}),
+    )
+
     class Meta:
         model = DocumentRequest
         fields = [
@@ -38,7 +44,6 @@ class DocumentRequestForm(forms.ModelForm):
         ]
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Juan Dela Cruz'}),
-            'contact_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '09XXXXXXXXX'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'name@example.com'}),
             'address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'House No., Street, Purok, Barangay'}),
             'document_type': forms.Select(attrs={'class': 'form-select'}),

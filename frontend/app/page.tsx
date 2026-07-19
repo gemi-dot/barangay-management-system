@@ -288,6 +288,9 @@ export default function Home() {
               <p className="mt-1 max-w-3xl text-sm text-slate-600">
                 Practical operations command center for residents, frontline service queues, and barangay action tracking.
               </p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                BIMS is developed by TheSoftWorks. All rights reserved.
+              </p>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                 <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -383,7 +386,6 @@ export default function Home() {
         <footer className="rounded-[1.2rem] border border-slate-200/80 bg-white px-4 py-3 text-xs text-slate-600">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span>Signed in as {session?.full_name || session?.username || "Guest"}</span>
-            <span>Developed by TheSoftWorks. All rights reserved.</span>
           </div>
         </footer>
       </div>
