@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { BrandFooter } from "@/components/branding/BrandFooter";
 import { SessionProvider } from "@/components/session-context";
 import { MobileNavigation } from "@/components/layout/MobileNavigation";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -19,7 +20,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-y-[var(--header-height)] left-0 hidden lg:block">
           <Sidebar />
         </div>
-        <main className="min-h-[calc(100vh-var(--header-height))]">{children}</main>
+
+        <div className="flex min-h-[calc(100vh-var(--header-height))] flex-col">
+          <main className="min-h-[calc(100vh-var(--header-height))] flex-1">{children}</main>
+          <BrandFooter />
+        </div>
       </div>
     </SessionProvider>
   );

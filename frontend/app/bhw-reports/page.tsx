@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download, FileText, HeartPulse, Users, Stethoscope } from "lucide-react";
 
+import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
+import { ExportButtons } from "@/components/enterprise/ExportButtons";
+import { ModuleQuickActions } from "@/components/enterprise/ModuleQuickActions";
+import { StatisticsSidebar } from "@/components/enterprise/StatisticsSidebar";
 import { ContentContainer } from "@/components/layout/ContentContainer";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
 import { DataTable } from "@/components/ui/DataTable";
@@ -122,11 +126,31 @@ export default function BhwReportsPage() {
     <ContentContainer>
       <SessionRoleBanner />
 
-      <PageHeader
-        eyebrow="BHW Reports"
-        title="Community Health and Social Reports"
-        description="Senior citizens, 4Ps beneficiaries, pregnancy monitoring, and health logs with staff-only access."
-        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+      <ExecutivePageHeader
+        subtitle="BHW Reports"
+        title="BHW Executive Workspace"
+        description="Community health reporting command center for senior, 4Ps, pregnancy, and health records with enterprise operations visibility."
+        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        actions={
+          <ExportButtons
+            rows={
+              mode === "senior"
+                ? seniorRows
+                : mode === "fourps"
+                  ? fourpsRows
+                  : mode === "pregnancy"
+                    ? pregnancyRows
+                    : healthRows
+            }
+            fileName={`bhw-${mode}-export.csv`}
+            toExportRecord={(row: BhwSeniorCitizen | BhwFourPs | BhwPregnancy | BhwHealth) => {
+              const name = "full_name" in row ? row.full_name : "";
+              const zone = "zone" in row ? row.zone : "";
+              return { name, zone, mode };
+            }}
+            disabled={loading}
+          />
+        }
       />
 
       {!canWrite ? (
@@ -141,6 +165,15 @@ export default function BhwReportsPage() {
 
       {canWrite ? (
         <>
+          <ModuleQuickActions
+            actions={[
+              { label: "Senior Citizens", description: "Review senior monitoring", href: "/bhw-reports", icon: Users, tone: "blue" },
+              { label: "Health Reports", description: "Review health report logs", href: "/bhw-reports", icon: Stethoscope, tone: "emerald" },
+              { label: "Pregnancy", description: "Review pregnancy watchlist", href: "/bhw-reports", icon: HeartPulse, tone: "amber" },
+              { label: "Export Rows", description: "Download currently visible BHW dataset", href: "/bhw-reports", icon: Download, tone: "slate" },
+            ]}
+          />
+
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
             <div className="xl:col-span-2">
               <StatCard label="Senior Citizens" value={summary?.senior_citizens_total ?? 0} />
@@ -158,32 +191,36 @@ export default function BhwReportsPage() {
             </div>
           </section>
 
-          <FilterBar>
-            <div className="flex flex-wrap items-center gap-2">
-              <SecondaryButton onClick={() => setMode("senior")} className={mode === "senior" ? "bg-slate-100" : ""}>
-                Senior Citizens
-              </SecondaryButton>
-              <SecondaryButton onClick={() => setMode("fourps")} className={mode === "fourps" ? "bg-slate-100" : ""}>
-                4Ps
-              </SecondaryButton>
-              <SecondaryButton onClick={() => setMode("pregnancy")} className={mode === "pregnancy" ? "bg-slate-100" : ""}>
-                Pregnancy
-              </SecondaryButton>
-              <SecondaryButton onClick={() => setMode("health")} className={mode === "health" ? "bg-slate-100" : ""}>
-                Health
-              </SecondaryButton>
-            </div>
+          <SectionCard title="Advanced Search and Filters" description="Switch BHW report views and search records in real time.">
+            <FilterBar>
+              <div className="flex flex-wrap items-center gap-2">
+                <SecondaryButton onClick={() => setMode("senior")} className={mode === "senior" ? "bg-slate-100" : ""}>
+                  Senior Citizens
+                </SecondaryButton>
+                <SecondaryButton onClick={() => setMode("fourps")} className={mode === "fourps" ? "bg-slate-100" : ""}>
+                  4Ps
+                </SecondaryButton>
+                <SecondaryButton onClick={() => setMode("pregnancy")} className={mode === "pregnancy" ? "bg-slate-100" : ""}>
+                  Pregnancy
+                </SecondaryButton>
+                <SecondaryButton onClick={() => setMode("health")} className={mode === "health" ? "bg-slate-100" : ""}>
+                  Health
+                </SecondaryButton>
+              </div>
 
-            <label className="text-sm md:col-span-2">
-              <span className="mb-1 block font-medium text-gray-700">Search</span>
-              <SearchInput
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search name, zone, household..."
-              />
-            </label>
-          </FilterBar>
+              <label className="text-sm md:col-span-2">
+                <span className="mb-1 block font-medium text-gray-700">Search</span>
+                <SearchInput
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search name, zone, household..."
+                />
+              </label>
+            </FilterBar>
+          </SectionCard>
 
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
+            <div className="space-y-4">
           {mode === "senior" ? (
             <DataTable
               columns={[
@@ -248,6 +285,18 @@ export default function BhwReportsPage() {
               emptyDescription="No health report rows matched your filters."
             />
           ) : null}
+            </div>
+
+            <StatisticsSidebar
+              title="Statistics Sidebar"
+              stats={[
+                { label: "Active View", value: mode },
+                { label: "Search Term", value: query || "None" },
+                { label: "Senior Total", value: String(summary?.senior_citizens_total ?? 0) },
+                { label: "Health Reports 30D", value: String(summary?.health_reports_last_30_days ?? 0), note: "Rolling 30-day figure." },
+              ]}
+            />
+          </section>
         </>
       ) : null}
     </ContentContainer>

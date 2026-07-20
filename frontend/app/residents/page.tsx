@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FileSpreadsheet, House, ScanLine, UserPlus, Users } from "lucide-react";
 
+import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
+import { ExportButtons } from "@/components/enterprise/ExportButtons";
+import { ModuleQuickActions } from "@/components/enterprise/ModuleQuickActions";
+import { StatisticsSidebar } from "@/components/enterprise/StatisticsSidebar";
 import { ContentContainer } from "@/components/layout/ContentContainer";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { DataTable } from "@/components/ui/DataTable";
@@ -14,6 +19,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   createResident,
@@ -136,8 +142,10 @@ export default function ResidentsPage() {
   const [form, setForm] = useState<ResidentFormState>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pendingStatusResident, setPendingStatusResident] = useState<ResidentListItem | null>(null);
+  const requestIdRef = useRef(0);
 
   const { session, loading: authLoading, canWrite } = useSessionAuth();
 
@@ -215,7 +223,29 @@ export default function ResidentsPage() {
     ];
   }, [canWrite]);
 
-  async function reloadResidents(targetPage = page) {
+  type ResidentsLoadOptions = {
+    targetPage?: number;
+    targetSearchQuery?: string;
+    targetZone?: string;
+    targetStatus?: "all" | "active" | "inactive";
+  };
+
+  async function reloadResidents({
+    targetPage = page,
+    targetSearchQuery = searchQuery,
+    targetZone = zone,
+    targetStatus = status,
+  }: ResidentsLoadOptions = {}) {
+    // Keep signed-out residents view clean and avoid noisy "Failed to fetch" banners.
+    if (!authLoading && !session?.is_authenticated) {
+      setResidents([]);
+      setCount(0);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
 
@@ -223,20 +253,43 @@ export default function ResidentsPage() {
       const response = await getResidentsPaginated({
         page: targetPage,
         page_size: PAGE_SIZE,
-        search: searchQuery || undefined,
-        zone: zone !== "all" ? zone : undefined,
+        search: targetSearchQuery || undefined,
+        zone: targetZone !== "all" ? targetZone : undefined,
         is_active:
-          status === "all" ? undefined : status === "active" ? true : false,
+          targetStatus === "all"
+            ? undefined
+            : targetStatus === "active"
+              ? true
+              : false,
         ordering: "last_name",
       });
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
 
       setResidents(response.results);
       setCount(response.count);
     } catch (err) {
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
       const message = err instanceof Error ? err.message : "Failed to load residents.";
-      setError(message);
+
+      if (
+        /\b(401|403)\b/.test(message) ||
+        /Authentication credentials|Staff access is required/i.test(message)
+      ) {
+        setResidents([]);
+        setCount(0);
+        setError(null);
+      } else {
+        setError(message);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -250,52 +303,13 @@ export default function ResidentsPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadResidents() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await getResidentsPaginated({
-          page,
-          page_size: PAGE_SIZE,
-          search: searchQuery || undefined,
-          zone: zone !== "all" ? zone : undefined,
-          is_active:
-            status === "all" ? undefined : status === "active" ? true : false,
-          ordering: "last_name",
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        setResidents(response.results);
-        setCount(response.count);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        const message = err instanceof Error ? err.message : "Failed to load residents.";
-        setError(message);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-
-      if (cancelled) {
-        return;
-      }
-    }
-
-    void loadResidents();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [page, searchQuery, status, zone]);
+    void reloadResidents({
+      targetPage: page,
+      targetSearchQuery: searchQuery,
+      targetZone: zone,
+      targetStatus: status,
+    });
+  }, [page, searchQuery, status, zone, authLoading, session?.is_authenticated]);
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -335,7 +349,7 @@ export default function ResidentsPage() {
   }
 
   async function refreshCurrentPage() {
-    await reloadResidents(page);
+    await reloadResidents({ targetPage: page });
   }
 
   async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
@@ -359,13 +373,34 @@ export default function ResidentsPage() {
       const payload = buildPayload(form);
       if (editingResidentId) {
         await updateResident(editingResidentId, payload);
+        setSubmitSuccess("Resident record updated successfully.");
+        setIsFormOpen(false);
+        resetForm();
+        await refreshCurrentPage();
       } else {
-        await createResident(payload);
-      }
+        const created = await createResident(payload);
+        setSubmitSuccess("Resident registered successfully.");
+        setIsFormOpen(false);
+        resetForm();
 
-      setIsFormOpen(false);
-      resetForm();
-      await refreshCurrentPage();
+        const createdSearch = [created.first_name, created.last_name]
+          .filter((value): value is string => Boolean(value && value.trim()))
+          .join(" ")
+          .trim() || [payload.first_name, payload.last_name].join(" ").trim();
+
+        setZone("all");
+        setStatus("all");
+        setPage(1);
+        setSearchInput(createdSearch);
+        setSearchQuery(createdSearch);
+
+        await reloadResidents({
+          targetPage: 1,
+          targetSearchQuery: createdSearch,
+          targetZone: "all",
+          targetStatus: "all",
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save resident.";
       setSubmitError(message);
@@ -382,6 +417,7 @@ export default function ResidentsPage() {
     const nextState = resident.is_active === false;
     try {
       await setResidentActive(resident.id, nextState);
+      setSubmitSuccess(nextState ? "Resident reactivated successfully." : "Resident deactivated successfully.");
       await refreshCurrentPage();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update resident status.";
@@ -391,11 +427,13 @@ export default function ResidentsPage() {
 
   return (
     <ContentContainer>
-      <PageHeader
-        eyebrow="Residents"
-        title="Residents"
-        description="Search, manage, and review resident records."
-        meta={(
+      <SessionRoleBanner />
+
+      <ExecutivePageHeader
+        subtitle="Residents Module"
+        title="Residents Executive Workspace"
+        description="Enterprise resident registry with advanced filtering, responsive records table, and frontline quick actions."
+        badges={(
           <>
             {authLoading ? <StatusBadge label="Checking session..." /> : null}
             {!authLoading && canWrite ? <StatusBadge label={`Staff session active (${session?.username})`} tone="success" /> : null}
@@ -403,109 +441,160 @@ export default function ResidentsPage() {
             {!authLoading && !session?.is_authenticated ? <StatusBadge label="Not logged in" tone="warning" /> : null}
           </>
         )}
-        actions={canWrite ? <PrimaryButton onClick={openCreateForm}>Add resident</PrimaryButton> : null}
+        actions={(
+          <div className="flex flex-wrap gap-2">
+            <ExportButtons
+              rows={residents}
+              fileName="residents-export.csv"
+              toExportRecord={(resident) => ({
+                id: resident.id,
+                full_name: getResidentName(resident),
+                purok: getResidentPurok(resident),
+                precinct_number: resident.precinct_number || "",
+                gender: resident.gender || "",
+                status: resident.is_active === false ? "Inactive" : "Active",
+              })}
+              disabled={loading}
+            />
+            {canWrite ? <PrimaryButton onClick={openCreateForm}>Add resident</PrimaryButton> : null}
+          </div>
+        )}
       />
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total Residents" value={count} icon={Users} />
+        <StatCard label="Active" value={residents.filter((item) => item.is_active !== false).length} icon={UserPlus} />
+        <StatCard label="Inactive" value={residents.filter((item) => item.is_active === false).length} icon={Users} />
+        <StatCard label="Purok In View" value={new Set(residents.map((item) => getResidentPurok(item))).size} icon={House} />
+      </section>
 
       {!session?.is_authenticated && !authLoading ? (
         <SectionCard title="Staff sign-in for write actions" description="Use the top navigation sign-in to enable create, edit, deactivate, and reactivate." className="border-amber-200 bg-amber-50" />
       ) : null}
 
-      <FilterBar
-        rightSlot={
-          <SecondaryButton
-            onClick={() => {
-              void reloadResidents(page);
-            }}
-            disabled={loading}
-          >
-            {loading ? "Retrying..." : "Retry"}
-          </SecondaryButton>
-        }
-      >
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Search</span>
-          <SearchInput
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Name, precinct, city"
-          />
-        </label>
+      {submitSuccess ? <StatusBadge label={submitSuccess} tone="success" /> : null}
 
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Purok</span>
-          <select
-            value={zone}
-            onChange={(event) => {
-              setZone(event.target.value);
-              setPage(1);
-            }}
-            className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
-          >
-            <option value="all">All purok</option>
-            {ZONE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+      <ModuleQuickActions
+        actions={[
+          { label: "Register Resident", description: "Open resident create dialog", href: "/residents", icon: UserPlus, tone: "blue", disabled: !canWrite },
+          { label: "Create Household", description: "Proceed to household management", href: "/households", icon: House, tone: "emerald", disabled: !canWrite },
+          { label: "Visitor Reports", description: "Review daily visitor operations", href: "/reports/today-visitors", icon: ScanLine, tone: "amber" },
+          { label: "Export Registry", description: "Download current filtered resident list", href: "/residents", icon: FileSpreadsheet, tone: "slate" },
+        ]}
+      />
 
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Status</span>
-          <select
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value as "all" | "active" | "inactive");
-              setPage(1);
-            }}
-            className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
-          >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
+      <SectionCard title="Advanced Search and Filters" description="Use keyword, purok, and status criteria to narrow resident records quickly.">
+        <FilterBar
+          rightSlot={
+            <SecondaryButton
+              onClick={() => {
+                void reloadResidents({ targetPage: page });
+              }}
+              disabled={loading}
+            >
+              {loading ? "Retrying..." : "Retry"}
+            </SecondaryButton>
+          }
+        >
+          <label className="text-sm">
+            <span className="mb-1 block font-medium text-gray-700">Search</span>
+            <SearchInput
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Name, precinct, city"
+            />
+          </label>
 
-        <div className="text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Totals</span>
-          <div className="rounded-md border border-[var(--color-border)] bg-gray-50 px-3 py-2 text-gray-800">
-            {count} resident{count === 1 ? "" : "s"}
+          <label className="text-sm">
+            <span className="mb-1 block font-medium text-gray-700">Purok</span>
+            <select
+              value={zone}
+              onChange={(event) => {
+                setZone(event.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+            >
+              <option value="all">All purok</option>
+              {ZONE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm">
+            <span className="mb-1 block font-medium text-gray-700">Status</span>
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value as "all" | "active" | "inactive");
+                setPage(1);
+              }}
+              className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+            >
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+
+          <div className="text-sm">
+            <span className="mb-1 block font-medium text-gray-700">Totals</span>
+            <div className="rounded-md border border-[var(--color-border)] bg-gray-50 px-3 py-2 text-gray-800">
+              {count} resident{count === 1 ? "" : "s"}
+            </div>
           </div>
-        </div>
-      </FilterBar>
+        </FilterBar>
+      </SectionCard>
 
       {error ? <ErrorState message={error} /> : null}
 
-      <DataTable
-        columns={tableColumns}
-        rows={residents}
-        rowKey={(resident) => resident.id}
-        loading={loading}
-        emptyTitle="No residents found"
-        emptyDescription="No residents found for the current filters."
-      />
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
+        <div className="space-y-4">
+          <DataTable
+            columns={tableColumns}
+            rows={residents}
+            rowKey={(resident) => resident.id}
+            loading={loading}
+            emptyTitle="No residents found"
+            emptyDescription="No residents found for the current filters."
+          />
 
-      <SectionCard>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <p className="text-gray-600">
-            Page {page} of {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <SecondaryButton
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              disabled={page <= 1 || loading}
-            >
-              Previous
-            </SecondaryButton>
-            <SecondaryButton
-              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              disabled={page >= totalPages || loading}
-            >
-              Next
-            </SecondaryButton>
-          </div>
+          <SectionCard>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <p className="text-gray-600">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <SecondaryButton
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  disabled={page <= 1 || loading}
+                >
+                  Previous
+                </SecondaryButton>
+                <SecondaryButton
+                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                  disabled={page >= totalPages || loading}
+                >
+                  Next
+                </SecondaryButton>
+              </div>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+
+        <StatisticsSidebar
+          title="Statistics Sidebar"
+          stats={[
+            { label: "Current Search", value: searchQuery || "All residents" },
+            { label: "Status Filter", value: status },
+            { label: "Zone Filter", value: zone === "all" ? "All purok" : zone },
+            { label: "Visible Rows", value: String(residents.length), note: "Rows loaded for current page." },
+          ]}
+        />
+      </section>
 
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

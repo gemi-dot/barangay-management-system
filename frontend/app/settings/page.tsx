@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Download, Settings2, ShieldCheck, Users } from "lucide-react";
 
+import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
+import { ExportButtons } from "@/components/enterprise/ExportButtons";
+import { ModuleQuickActions } from "@/components/enterprise/ModuleQuickActions";
+import { StatisticsSidebar } from "@/components/enterprise/StatisticsSidebar";
 import { ContentContainer } from "@/components/layout/ContentContainer";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
 import { SectionCard } from "@/components/ui/SectionCard";
+import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getOfficeProfile, updateOfficeProfile, type OfficeProfile } from "@/lib/api";
 
@@ -114,11 +119,27 @@ export default function SettingsPage() {
     <ContentContainer>
       <SessionRoleBanner />
 
-      <PageHeader
-        eyebrow="System"
-        title="Settings"
-        description="Configure the barangay office profile used by certificate templates, branding, and system headers."
-        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+      <ExecutivePageHeader
+        subtitle="Staff Administration"
+        title="Administration Executive Workspace"
+        description="Manage office profile, institutional branding, and staff-facing system defaults with enterprise-grade controls."
+        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        actions={
+          <ExportButtons
+            rows={[profile]}
+            fileName="office-profile-export.csv"
+            toExportRecord={(row) => ({
+              office_name: row.office_name,
+              barangay: row.barangay,
+              city_municipality: row.city_municipality,
+              province: row.province,
+              captain_name: row.captain_name,
+              default_or_number: row.default_or_number,
+              default_control_number: row.default_control_number,
+            })}
+            disabled={loading}
+          />
+        }
       />
 
       {!canWrite ? (
@@ -132,17 +153,33 @@ export default function SettingsPage() {
       {error ? <ErrorState message={error} /> : null}
       {message ? <StatusBadge label={message} tone="success" /> : null}
 
-      <SectionCard title="Office Profile" description="These values are used by the resident portal and printable certificate screens.">
-        <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Last saved: {savedProfile.updated_at ? new Date(savedProfile.updated_at).toLocaleString() : "Never"}
-        </div>
+      <ModuleQuickActions
+        actions={[
+          { label: "Dashboard", description: "Return to executive dashboard", href: "/", icon: Settings2, tone: "blue" },
+          { label: "Residents", description: "Open resident registry", href: "/residents", icon: Users, tone: "emerald" },
+          { label: "Document Queue", description: "Review service requests", href: "/document-requests", icon: ShieldCheck, tone: "amber" },
+          { label: "Export Profile", description: "Download office profile", href: "/settings", icon: Download, tone: "slate" },
+        ]}
+      />
 
-        {loading ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-            Loading office profile...
+      <section className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Configured Fields" value={Object.values(profile).filter((value) => String(value || "").trim().length > 0).length} icon={Settings2} />
+        <StatCard label="Unsaved Changes" value={hasChanges ? 1 : 0} icon={ShieldCheck} />
+        <StatCard label="Profile Updated" value={savedProfile.updated_at ? 1 : 0} icon={Users} />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
+        <SectionCard title="Office Profile" description="These values are used by the resident portal and printable certificate screens.">
+          <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Last saved: {savedProfile.updated_at ? new Date(savedProfile.updated_at).toLocaleString() : "Never"}
           </div>
-        ) : (
-          <form onSubmit={handleSave} className="mt-2 space-y-5">
+
+          {loading ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-600">
+              Loading office profile...
+            </div>
+          ) : (
+            <form onSubmit={handleSave} className="mt-2 space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="text-sm">
                   <span className="mb-1 block font-medium text-slate-700">Office Name</span>
@@ -244,9 +281,20 @@ export default function SettingsPage() {
                   </PrimaryButton>
                 </div>
               </div>
-          </form>
-        )}
-      </SectionCard>
+            </form>
+          )}
+        </SectionCard>
+
+        <StatisticsSidebar
+          title="Statistics Sidebar"
+          stats={[
+            { label: "Staff Access", value: canWrite ? "Enabled" : "Disabled" },
+            { label: "Office Name", value: profile.office_name || "Not set" },
+            { label: "Barangay", value: profile.barangay || "Not set" },
+            { label: "Unsaved Changes", value: hasChanges ? "Yes" : "No" },
+          ]}
+        />
+      </section>
 
       <section className="grid gap-4 md:grid-cols-3">
           <Link href="/" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">

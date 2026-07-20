@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ClipboardList, Download, HeartPulse, ScanLine, Users } from "lucide-react";
 
+import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
+import { ExportButtons } from "@/components/enterprise/ExportButtons";
+import { ModuleQuickActions } from "@/components/enterprise/ModuleQuickActions";
+import { StatisticsSidebar } from "@/components/enterprise/StatisticsSidebar";
 import { ContentContainer } from "@/components/layout/ContentContainer";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -71,29 +75,43 @@ export default function ReportsPage() {
     <ContentContainer>
       <SessionRoleBanner />
 
-      <PageHeader
-        eyebrow="Reports"
-        title="Voters and Precinct Reports"
-        description="Professional reporting workspace for barangay electoral distribution and precinct coverage."
-        meta={(
+      <ExecutivePageHeader
+        subtitle="Reports Module"
+        title="Reports Executive Workspace"
+        description="Commercial-style analytics cockpit for voters, precincts, and purok distribution with export-ready data tables."
+        badges={
           <>
-            <Link href="/reports/today-visitors" className="rounded-full border border-[var(--color-border)] bg-white px-4 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100">
+            <Link href="/reports/today-visitors" className="rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium text-white hover:bg-white/20">
               Today Visitors
             </Link>
-            <Link href="/reports/senior-citizens" className="rounded-full border border-[var(--color-border)] bg-white px-4 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100">
+            <Link href="/reports/senior-citizens" className="rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium text-white hover:bg-white/20">
               Senior Citizens
             </Link>
-            <Link href="/reports/businesses" className="rounded-full border border-[var(--color-border)] bg-white px-4 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100">
+            <Link href="/reports/businesses" className="rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium text-white hover:bg-white/20">
               Businesses
             </Link>
-            <Link href="/reports/fourps" className="rounded-full border border-[var(--color-border)] bg-white px-4 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100">
+            <Link href="/reports/fourps" className="rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium text-white hover:bg-white/20">
               4Ps
             </Link>
-            <Link href="/reports/pregnancy" className="rounded-full border border-[var(--color-border)] bg-white px-4 py-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100">
+            <Link href="/reports/pregnancy" className="rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium text-white hover:bg-white/20">
               Pregnancy
             </Link>
           </>
-        )}
+        }
+        actions={
+          <ExportButtons
+            rows={filteredVoters}
+            fileName="reports-voters-export.csv"
+            toExportRecord={(voter) => ({
+              id: voter.id,
+              full_name: [voter.first_name, voter.middle_name, voter.last_name].filter(Boolean).join(" "),
+              purok: voter.zone || "",
+              precinct_number: voter.precinct_number || "",
+              gender: voter.gender || "",
+            })}
+            disabled={loading}
+          />
+        }
       />
 
       {error ? <ErrorState message={error} /> : null}
@@ -102,6 +120,15 @@ export default function ReportsPage() {
         <SectionCard title="Loading reports" description="Loading reports dataset..." />
       ) : (
         <>
+          <ModuleQuickActions
+            actions={[
+              { label: "Visitor Trend", description: "Open today visitor report", href: "/reports/today-visitors", icon: ScanLine, tone: "blue" },
+              { label: "Senior Reports", description: "Review senior citizen coverage", href: "/reports/senior-citizens", icon: Users, tone: "emerald" },
+              { label: "Pregnancy Reports", description: "Review maternal indicators", href: "/reports/pregnancy", icon: HeartPulse, tone: "amber" },
+              { label: "Export Data", description: "Download filtered voter rows", href: "/reports", icon: Download, tone: "slate" },
+            ]}
+          />
+
           <section className="grid gap-4 md:grid-cols-3">
             <StatCard label="Total Voters" value={dataset?.totalVoters ?? 0} />
             <StatCard label="Precincts Covered" value={dataset?.byPrecinct.length ?? 0} />
@@ -132,7 +159,7 @@ export default function ReportsPage() {
             />
           </section>
 
-          <SectionCard title="Voters Report">
+          <SectionCard title="Advanced Search and Filters" description="Search voters by name, precinct, and purok.">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <SearchInput
                 value={search}
@@ -141,7 +168,9 @@ export default function ReportsPage() {
                 placeholder="Search name, precinct, purok"
               />
             </div>
+          </SectionCard>
 
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
             <DataTable
               columns={[
                 {
@@ -158,7 +187,17 @@ export default function ReportsPage() {
               emptyTitle="No voter rows"
               emptyDescription="No voters matched your search query."
             />
-          </SectionCard>
+
+            <StatisticsSidebar
+              title="Statistics Sidebar"
+              stats={[
+                { label: "Search Term", value: search || "None" },
+                { label: "Visible Voters", value: String(filteredVoters.length) },
+                { label: "Total Precincts", value: String(dataset?.byPrecinct.length ?? 0) },
+                { label: "Total Puroks", value: String(dataset?.byPurok.length ?? 0) },
+              ]}
+            />
+          </section>
         </>
       )}
     </ContentContainer>

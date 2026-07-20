@@ -1,9 +1,13 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
+import { Archive, ClipboardList, Download, PlusCircle, ScanLine } from "lucide-react";
 
+import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
+import { ExportButtons } from "@/components/enterprise/ExportButtons";
+import { ModuleQuickActions } from "@/components/enterprise/ModuleQuickActions";
+import { StatisticsSidebar } from "@/components/enterprise/StatisticsSidebar";
 import { ContentContainer } from "@/components/layout/ContentContainer";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
 import { DataTable } from "@/components/ui/DataTable";
@@ -196,11 +200,26 @@ export default function InventoryPage() {
     <ContentContainer>
       <SessionRoleBanner />
 
-      <PageHeader
-        eyebrow="Inventory"
-        title="Asset Registry and Reports"
-        description="Unified operations view for barangay assets with live status tracking and searchable registry."
-        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+      <ExecutivePageHeader
+        subtitle="Inventory Module"
+        title="Inventory Executive Workspace"
+        description="Enterprise asset registry with inspection visibility, quick filters, and export-ready tabular reporting."
+        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        actions={
+          <ExportButtons
+            rows={assets}
+            fileName="inventory-assets-export.csv"
+            toExportRecord={(asset) => ({
+              property_number: asset.property_number,
+              description: asset.description,
+              category: asset.category,
+              status: asset.status,
+              condition: asset.condition,
+              location: asset.location,
+            })}
+            disabled={loading}
+          />
+        }
       />
 
       {!canWrite ? (
@@ -215,6 +234,15 @@ export default function InventoryPage() {
 
       {canWrite ? (
         <>
+          <ModuleQuickActions
+            actions={[
+              { label: "Add Asset", description: "Create a new inventory entry", href: "/inventory", icon: PlusCircle, tone: "blue" },
+              { label: "View Reports", description: "Open reports workspace", href: "/reports", icon: ClipboardList, tone: "emerald" },
+              { label: "Visitor Logs", description: "Access today visitor logs", href: "/reports/today-visitors", icon: ScanLine, tone: "amber" },
+              { label: "Export Assets", description: "Download active table rows", href: "/inventory", icon: Download, tone: "slate" },
+            ]}
+          />
+
           <SectionCard title="Add Asset Entry Form" description="Register new assets while keeping compatibility with existing backend inventory flows.">
             <div className="mb-4 flex items-center justify-end">
               <a
@@ -354,97 +382,113 @@ export default function InventoryPage() {
             <StatCard label="Disposed" value={summary?.disposed_assets ?? 0} />
           </section>
 
-          <FilterBar>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Search</span>
-              <SearchInput
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search property no, description, category"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Status</span>
-              <select
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value);
-                  setPage(1);
-                }}
-                className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
-              >
-                <option value="">All statuses</option>
-                <option value="active">Active</option>
-                <option value="under_repair">Under Repair</option>
-                <option value="lost">Lost</option>
-                <option value="disposed">Disposed</option>
-              </select>
-            </label>
-            <div className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Totals</span>
-              <div className="rounded-md border border-[var(--color-border)] bg-zinc-50 px-3 py-2 text-zinc-700">
-                {count} assets
-              </div>
-            </div>
-          </FilterBar>
-
-          <DataTable
-            columns={[
-              {
-                key: "property",
-                header: "Property #",
-                render: (asset) => <span className="font-medium">{asset.property_number}</span>,
-              },
-              {
-                key: "description",
-                header: "Description",
-                render: (asset) => asset.description,
-              },
-              {
-                key: "category",
-                header: "Category",
-                render: (asset) => asset.category,
-              },
-              {
-                key: "status",
-                header: "Status",
-                render: (asset) => <StatusBadge label={asset.status} tone="info" />,
-              },
-              {
-                key: "location",
-                header: "Location",
-                render: (asset) => asset.location,
-              },
-            ]}
-            rows={assets}
-            rowKey={(asset) => asset.id}
-            loading={loading}
-            emptyTitle="No assets found"
-            emptyDescription="No inventory assets match your current search and status filters."
-          />
-
-          <SectionCard>
-            <div className="flex items-center justify-between text-sm">
-              <p className="text-zinc-600">Page {page} of {totalPages}</p>
-              <div className="flex gap-2">
-                <SecondaryButton
-                  onClick={() => setPage((value) => Math.max(1, value - 1))}
-                  disabled={page <= 1 || loading}
+          <SectionCard title="Advanced Search and Filters" description="Use text and status criteria to find inventory assets faster.">
+            <FilterBar>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium text-gray-700">Search</span>
+                <SearchInput
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search property no, description, category"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block font-medium text-gray-700">Status</span>
+                <select
+                  value={status}
+                  onChange={(event) => {
+                    setStatus(event.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
                 >
-                  Previous
-                </SecondaryButton>
-                <SecondaryButton
-                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                  disabled={page >= totalPages || loading}
-                >
-                  Next
-                </SecondaryButton>
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="under_repair">Under Repair</option>
+                  <option value="lost">Lost</option>
+                  <option value="disposed">Disposed</option>
+                </select>
+              </label>
+              <div className="text-sm">
+                <span className="mb-1 block font-medium text-gray-700">Totals</span>
+                <div className="rounded-md border border-[var(--color-border)] bg-zinc-50 px-3 py-2 text-zinc-700">
+                  {count} assets
+                </div>
               </div>
-            </div>
+            </FilterBar>
           </SectionCard>
+
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
+            <div className="space-y-4">
+              <DataTable
+                columns={[
+                  {
+                    key: "property",
+                    header: "Property #",
+                    render: (asset) => <span className="font-medium">{asset.property_number}</span>,
+                  },
+                  {
+                    key: "description",
+                    header: "Description",
+                    render: (asset) => asset.description,
+                  },
+                  {
+                    key: "category",
+                    header: "Category",
+                    render: (asset) => asset.category,
+                  },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (asset) => <StatusBadge label={asset.status} tone="info" />,
+                  },
+                  {
+                    key: "location",
+                    header: "Location",
+                    render: (asset) => asset.location,
+                  },
+                ]}
+                rows={assets}
+                rowKey={(asset) => asset.id}
+                loading={loading}
+                emptyTitle="No assets found"
+                emptyDescription="No inventory assets match your current search and status filters."
+              />
+
+              <SectionCard>
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-zinc-600">Page {page} of {totalPages}</p>
+                  <div className="flex gap-2">
+                    <SecondaryButton
+                      onClick={() => setPage((value) => Math.max(1, value - 1))}
+                      disabled={page <= 1 || loading}
+                    >
+                      Previous
+                    </SecondaryButton>
+                    <SecondaryButton
+                      onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                      disabled={page >= totalPages || loading}
+                    >
+                      Next
+                    </SecondaryButton>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+
+            <StatisticsSidebar
+              title="Statistics Sidebar"
+              stats={[
+                { label: "Search Term", value: search || "None" },
+                { label: "Status Filter", value: status || "All statuses" },
+                { label: "Visible Rows", value: String(assets.length) },
+                { label: "Asset Totals", value: String(summary?.total_assets ?? 0), note: "Total from summary endpoint." },
+              ]}
+            />
+          </section>
         </>
       ) : null}
     </ContentContainer>

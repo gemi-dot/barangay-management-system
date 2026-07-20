@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { PoweredBy } from "@/components/branding/PoweredBy";
 import { useSessionAuth } from "@/components/session-context";
 import { cn } from "@/lib/cn";
 import type { OfficeRole } from "@/lib/design-tokens";
@@ -88,6 +89,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             );
           })}
         </nav>
+
+        <div className="border-t border-white/10 p-3">
+          <PoweredBy />
+        </div>
       </div>
     </aside>
   );
