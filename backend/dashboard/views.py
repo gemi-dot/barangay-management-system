@@ -4,6 +4,8 @@ from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from datetime import datetime, time, timedelta
 from collections import defaultdict
+from django.http import HttpResponseForbidden
+from accounts.roles import user_has_office_role
 from residents.models import Resident, Household, DocumentRequest, ResidentServiceLog
 from bhw_reports.models import (
     SeniorCitizenReport, SariSariStoreReport, 
@@ -33,9 +35,18 @@ def _get_todays_visitor_logs(today):
 
     return distinct_logs
 
+
+def _require_staff_or_forbidden(request):
+    if user_has_office_role(request.user):
+        return None
+    return HttpResponseForbidden('Staff access is required.')
+
 @login_required
 def dashboard_view(request):
     """Main dashboard with summary statistics"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
     
     # Basic resident statistics
     total_residents = Resident.objects.filter(is_active=True).count()
@@ -155,6 +166,10 @@ def dashboard_view(request):
 @login_required
 def today_visitors_report(request):
     """Today's visitors report based on resident service logs"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     today = timezone.localdate()
     visitor_logs = _get_todays_visitor_logs(today)
 
@@ -170,6 +185,10 @@ def today_visitors_report(request):
 @login_required
 def senior_citizens_report(request):
     """Senior Citizens Report View"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     senior_citizens = Resident.objects.filter(is_senior_citizen=True, is_active=True)
     senior_reports = SeniorCitizenReport.objects.filter(is_active=True).select_related('resident')
     zone_filter = request.GET.get('zone')
@@ -201,6 +220,10 @@ def senior_citizens_report(request):
 @login_required
 def businesses_report(request):
     """Sari-Sari Stores and Carenderias Report View"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     businesses = SariSariStoreReport.objects.filter(is_active=True).select_related('owner')
     
     # Business type breakdown
@@ -228,6 +251,10 @@ def businesses_report(request):
 @login_required
 def fourps_report(request):
     """4Ps Beneficiaries Report View"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     fourps_beneficiaries = FourPsBeneficiaryReport.objects.filter(is_active=True).select_related('beneficiary')
     
     # Compliance statistics
@@ -249,6 +276,10 @@ def fourps_report(request):
 @login_required
 def pregnancy_report(request):
     """Pregnancy Report View"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     active_pregnancies = PregnancyReport.objects.filter(
         pregnancy_outcome='ongoing', 
         is_active=True
@@ -300,6 +331,10 @@ def pregnancy_report(request):
 @login_required
 def residents_list(request):
     """Residents listing view with search and filter"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     residents = Resident.objects.filter(is_active=True).order_by('last_name', 'first_name')
     
     # Search functionality
@@ -345,6 +380,10 @@ def residents_list(request):
 @login_required
 def household_report(request):
     """Household report grouped by zone"""
+    denied = _require_staff_or_forbidden(request)
+    if denied is not None:
+        return denied
+
     zone_filter = request.GET.get('zone')
     households = Household.objects.select_related('household_head').prefetch_related(
         Prefetch(

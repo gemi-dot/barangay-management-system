@@ -48,6 +48,16 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 
+DEV_AUTO_LOGIN = (
+    DEBUG
+    and os.getenv("DEV_AUTO_LOGIN", "false").lower() in {"1", "true", "yes", "on"}
+)
+
+DEV_AUTO_LOGIN_USERNAME = os.getenv(
+    "DEV_AUTO_LOGIN_USERNAME",
+    "devstaff",
+)
+
 _default_allowed_hosts = [
     host.strip()
     for host in os.getenv(
@@ -122,6 +132,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'accounts.middleware.DevelopmentAutoLoginMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

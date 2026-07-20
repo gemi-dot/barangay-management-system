@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useSessionAuth } from "@/components/session-context";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { DataTable } from "@/components/ui/DataTable";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   createResident,
   getResidentById,
@@ -126,12 +137,83 @@ export default function ResidentsPage() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingStatusResident, setPendingStatusResident] = useState<ResidentListItem | null>(null);
 
   const { session, loading: authLoading, canWrite } = useSessionAuth();
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(count / PAGE_SIZE));
   }, [count]);
+
+  const tableColumns = useMemo(() => {
+    return [
+      {
+        key: "name",
+        header: "Name",
+        render: (resident: ResidentListItem) => (
+          <Link href={`/residents/${resident.id}`} className="font-medium text-gray-900 hover:underline">
+            {getResidentName(resident)}
+          </Link>
+        ),
+      },
+      {
+        key: "purok",
+        header: "Purok",
+        render: (resident: ResidentListItem) => getResidentPurok(resident),
+      },
+      {
+        key: "precinct",
+        header: "Precinct",
+        render: (resident: ResidentListItem) => resident.precinct_number || "-",
+      },
+      {
+        key: "gender",
+        header: "Gender",
+        render: (resident: ResidentListItem) => resident.gender || "-",
+      },
+      {
+        key: "status",
+        header: "Status",
+        render: (resident: ResidentListItem) =>
+          resident.is_active === false ? (
+            <StatusBadge label="Inactive" tone="warning" />
+          ) : (
+            <StatusBadge label="Active" tone="success" />
+          ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        render: (resident: ResidentListItem) => (
+          <div className="flex flex-wrap gap-2">
+            {canWrite ? (
+              <SecondaryButton
+                onClick={() => {
+                  void openEditForm(resident);
+                }}
+                className="px-2 py-1 text-xs"
+              >
+                Edit
+              </SecondaryButton>
+            ) : null}
+            {canWrite ? (
+              <SecondaryButton
+                onClick={() => {
+                  setPendingStatusResident(resident);
+                }}
+                className="px-2 py-1 text-xs"
+              >
+                {resident.is_active === false ? "Reactivate" : "Deactivate"}
+              </SecondaryButton>
+            ) : null}
+            <Link href={`/residents/${resident.id}`} className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-slate-50">
+              View
+            </Link>
+          </div>
+        ),
+      },
+    ];
+  }, [canWrite]);
 
   async function reloadResidents(targetPage = page) {
     setLoading(true);
@@ -308,238 +390,122 @@ export default function ResidentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <header className="rounded-xl bg-white px-6 py-5 shadow">
-          <h1 className="text-3xl font-bold text-gray-900">Residents</h1>
-          <p className="mt-1 text-gray-600">Search, manage, and review resident records.</p>
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-            {authLoading && (
-              <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-gray-700">
-                Checking session...
-              </span>
-            )}
-            {!authLoading && canWrite && (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
-                Staff session active ({session?.username})
-              </span>
-            )}
-            {!authLoading && session?.is_authenticated && !session.is_staff && (
-              <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800">
-                Logged in as non-staff (read-only)
-              </span>
-            )}
-            {!authLoading && !session?.is_authenticated && (
-              <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800">
-                Not logged in (read-only)
-              </span>
-            )}
-            {canWrite && (
-              <button
-                type="button"
-                onClick={openCreateForm}
-                className="rounded-md bg-gray-900 px-4 py-2 font-medium text-white hover:bg-gray-700"
-              >
-                Add resident
-              </button>
-            )}
-          </div>
-        </header>
-
-        {!session?.is_authenticated && !authLoading && (
-          <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-            <h2 className="text-lg font-semibold text-amber-900">Staff sign-in for write actions</h2>
-            <p className="mt-1 text-sm text-amber-800">
-              Use the top navigation sign-in to enable create, edit, deactivate, and reactivate.
-            </p>
-          </section>
+    <ContentContainer>
+      <PageHeader
+        eyebrow="Residents"
+        title="Residents"
+        description="Search, manage, and review resident records."
+        meta={(
+          <>
+            {authLoading ? <StatusBadge label="Checking session..." /> : null}
+            {!authLoading && canWrite ? <StatusBadge label={`Staff session active (${session?.username})`} tone="success" /> : null}
+            {!authLoading && session?.is_authenticated && !canWrite ? <StatusBadge label="Logged in read-only" tone="warning" /> : null}
+            {!authLoading && !session?.is_authenticated ? <StatusBadge label="Not logged in" tone="warning" /> : null}
+          </>
         )}
+        actions={canWrite ? <PrimaryButton onClick={openCreateForm}>Add resident</PrimaryButton> : null}
+      />
 
-        <section className="rounded-xl bg-white p-4 shadow">
-          <div className="mb-3 flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                void reloadResidents(page);
-              }}
-              disabled={loading}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+      {!session?.is_authenticated && !authLoading ? (
+        <SectionCard title="Staff sign-in for write actions" description="Use the top navigation sign-in to enable create, edit, deactivate, and reactivate." className="border-amber-200 bg-amber-50" />
+      ) : null}
+
+      <FilterBar
+        rightSlot={
+          <SecondaryButton
+            onClick={() => {
+              void reloadResidents(page);
+            }}
+            disabled={loading}
+          >
+            {loading ? "Retrying..." : "Retry"}
+          </SecondaryButton>
+        }
+      >
+        <label className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">Search</span>
+          <SearchInput
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Name, precinct, city"
+          />
+        </label>
+
+        <label className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">Purok</span>
+          <select
+            value={zone}
+            onChange={(event) => {
+              setZone(event.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+          >
+            <option value="all">All purok</option>
+            {ZONE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">Status</span>
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as "all" | "active" | "inactive");
+              setPage(1);
+            }}
+            className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+          >
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+
+        <div className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">Totals</span>
+          <div className="rounded-md border border-[var(--color-border)] bg-gray-50 px-3 py-2 text-gray-800">
+            {count} resident{count === 1 ? "" : "s"}
+          </div>
+        </div>
+      </FilterBar>
+
+      {error ? <ErrorState message={error} /> : null}
+
+      <DataTable
+        columns={tableColumns}
+        rows={residents}
+        rowKey={(resident) => resident.id}
+        loading={loading}
+        emptyTitle="No residents found"
+        emptyDescription="No residents found for the current filters."
+      />
+
+      <SectionCard>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="text-gray-600">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <SecondaryButton
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              disabled={page <= 1 || loading}
             >
-              {loading ? "Retrying..." : "Retry"}
-            </button>
+              Previous
+            </SecondaryButton>
+            <SecondaryButton
+              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+              disabled={page >= totalPages || loading}
+            >
+              Next
+            </SecondaryButton>
           </div>
-
-          <div className="grid gap-3 md:grid-cols-4">
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Search</span>
-              <input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Name, precinct, city"
-                className="w-full rounded-md border px-3 py-2"
-              />
-            </label>
-
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Purok</span>
-              <select
-                value={zone}
-                onChange={(event) => {
-                  setZone(event.target.value);
-                  setPage(1);
-                }}
-                className="w-full rounded-md border px-3 py-2"
-              >
-                <option value="all">All purok</option>
-                {ZONE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Status</span>
-              <select
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value as "all" | "active" | "inactive");
-                  setPage(1);
-                }}
-                className="w-full rounded-md border px-3 py-2"
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
-
-            <div className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Totals</span>
-              <div className="rounded-md border bg-gray-50 px-3 py-2 text-gray-800">
-                {count} resident{count === 1 ? "" : "s"}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <section className="overflow-hidden rounded-xl bg-white shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">Name</th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">Purok</th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">Precinct</th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">Gender</th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">Status</th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!loading && residents.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-gray-500">
-                      No residents found for the current filters.
-                    </td>
-                  </tr>
-                )}
-
-                {loading && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-gray-500">
-                      Loading residents...
-                    </td>
-                  </tr>
-                )}
-
-                {!loading &&
-                  residents.map((resident) => (
-                    <tr key={resident.id} className="border-t hover:bg-gray-50">
-                      <td className="px-5 py-3">
-                        <Link
-                          href={`/residents/${resident.id}`}
-                          className="font-medium text-gray-900 hover:underline"
-                        >
-                          {getResidentName(resident)}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3 text-gray-700">{getResidentPurok(resident)}</td>
-                      <td className="px-5 py-3 text-gray-700">{resident.precinct_number || "-"}</td>
-                      <td className="px-5 py-3 text-gray-700">{resident.gender || "-"}</td>
-                      <td className="px-5 py-3 text-gray-700">
-                        {resident.is_active === false ? "Inactive" : "Active"}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          {canWrite && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void openEditForm(resident);
-                              }}
-                              className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
-                            >
-                              Edit
-                            </button>
-                          )}
-                          {canWrite && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleToggleActive(resident);
-                              }}
-                              className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
-                            >
-                              {resident.is_active === false ? "Reactivate" : "Deactivate"}
-                            </button>
-                          )}
-                          <Link
-                            href={`/residents/${resident.id}`}
-                            className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
-                          >
-                            View
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-5 py-3 text-sm">
-            <p className="text-gray-600">
-              Page {page} of {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-                disabled={page <= 1 || loading}
-                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                disabled={page >= totalPages || loading}
-                className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+      </SectionCard>
 
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -739,6 +705,18 @@ export default function ResidentsPage() {
           </div>
         </div>
       )}
-    </main>
+      <ConfirmationModal
+        open={Boolean(pendingStatusResident)}
+        title={pendingStatusResident?.is_active === false ? "Reactivate resident" : "Deactivate resident"}
+        message={pendingStatusResident ? `Are you sure you want to ${pendingStatusResident.is_active === false ? "reactivate" : "deactivate"} ${getResidentName(pendingStatusResident)}?` : ""}
+        onCancel={() => setPendingStatusResident(null)}
+        onConfirm={() => {
+          if (pendingStatusResident) {
+            void handleToggleActive(pendingStatusResident);
+          }
+          setPendingStatusResident(null);
+        }}
+      />
+    </ContentContainer>
   );
 }

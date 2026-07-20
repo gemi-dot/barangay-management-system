@@ -3,6 +3,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+from accounts.roles import user_has_office_role
 
 from .models import Asset
 
@@ -11,7 +12,7 @@ def _staff_guard(request):
     user = request.user
     if not user.is_authenticated:
         return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
-    if not user.is_staff:
+    if not user_has_office_role(user):
         return JsonResponse({"detail": "Staff access is required."}, status=403)
     return None
 

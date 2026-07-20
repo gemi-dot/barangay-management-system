@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -9,10 +10,13 @@ from residents.models import Household, Resident, ResidentServiceLog
 
 class HouseholdReportTests(TestCase):
 	def setUp(self):
+		secretary_group, _ = Group.objects.get_or_create(name='Secretary')
 		self.user = get_user_model().objects.create_user(
 			username='staff',
 			password='testpass123',
+			is_staff=True,
 		)
+		self.user.groups.add(secretary_group)
 		self.client.force_login(self.user)
 
 		self.head = Resident.objects.create(
@@ -130,10 +134,13 @@ class HouseholdReportTests(TestCase):
 
 class DashboardViewTests(TestCase):
 	def setUp(self):
+		secretary_group, _ = Group.objects.get_or_create(name='Secretary')
 		self.user = get_user_model().objects.create_user(
 			username='dashboard-staff',
 			password='testpass123',
+			is_staff=True,
 		)
+		self.user.groups.add(secretary_group)
 		self.client.force_login(self.user)
 
 		self.resident = Resident.objects.create(
@@ -212,10 +219,13 @@ class DashboardViewTests(TestCase):
 
 class TodayVisitorsReportTests(TestCase):
 	def setUp(self):
+		secretary_group, _ = Group.objects.get_or_create(name='Secretary')
 		self.user = get_user_model().objects.create_user(
 			username='visitors-staff',
 			password='testpass123',
+			is_staff=True,
 		)
+		self.user.groups.add(secretary_group)
 		self.client.force_login(self.user)
 
 		self.first_resident = Resident.objects.create(
@@ -316,10 +326,13 @@ class TodayVisitorsReportTests(TestCase):
 
 class SeniorCitizensReportTests(TestCase):
 	def setUp(self):
+		secretary_group, _ = Group.objects.get_or_create(name='Secretary')
 		self.user = get_user_model().objects.create_user(
 			username='senior-staff',
 			password='testpass123',
+			is_staff=True,
 		)
+		self.user.groups.add(secretary_group)
 		self.client.force_login(self.user)
 
 		self.talisay_senior = Resident.objects.create(
@@ -396,3 +409,28 @@ class SeniorCitizensReportTests(TestCase):
 		self.assertContains(response, self.talisay_senior.full_name)
 		self.assertNotContains(response, self.malunggay_senior.full_name)
 		self.assertContains(response, 'All Puroks')
+
+
+class DashboardStaffAccessTests(TestCase):
+	def test_non_staff_user_gets_forbidden_on_dashboard(self):
+		user = get_user_model().objects.create_user(
+			username='nonstaff-dashboard',
+			password='testpass123',
+		)
+		self.client.force_login(user)
+
+		response = self.client.get(reverse('dashboard:dashboard'))
+		self.assertEqual(response.status_code, 403)
+
+	def test_bhw_role_user_can_access_dashboard_without_staff_flag(self):
+		bhw_group, _ = Group.objects.get_or_create(name='BHW')
+		user = get_user_model().objects.create_user(
+			username='bhw-dashboard',
+			password='testpass123',
+			is_staff=False,
+		)
+		user.groups.add(bhw_group)
+		self.client.force_login(user)
+
+		response = self.client.get(reverse('dashboard:dashboard'))
+		self.assertEqual(response.status_code, 200)

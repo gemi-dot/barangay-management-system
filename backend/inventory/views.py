@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from accounts.roles import user_has_office_role
 from django.views.decorators.http import require_POST
 
 from .audit_utils import apply_inventory_legacy_fix, build_inventory_legacy_audit, export_inventory_legacy_audit_rows
@@ -98,7 +99,7 @@ def _safe_next_url(request, candidate):
 
 
 def _ensure_staff_inventory_user(request, message):
-    if not request.user.is_staff:
+    if not user_has_office_role(request.user):
         raise PermissionDenied(message)
 
 

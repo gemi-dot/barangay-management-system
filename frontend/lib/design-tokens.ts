@@ -1,0 +1,60 @@
+export const designTokens = {
+  colors: {
+    background: "#f3f5f7",
+    surface: "#ffffff",
+    surfaceMuted: "#f8fafc",
+    border: "#d8dee6",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
+    textMuted: "#64748b",
+    navBackground: "#0b2a45",
+    navBackgroundSoft: "#13395d",
+    navText: "#dbeafe",
+    navTextActive: "#ffffff",
+    primary: "#0b67c2",
+    primaryHover: "#0a58a6",
+    success: "#0f766e",
+    warning: "#b45309",
+    danger: "#b91c1c",
+    info: "#0369a1",
+  },
+  spacing: {
+    xs: "0.25rem",
+    sm: "0.5rem",
+    md: "0.75rem",
+    lg: "1rem",
+    xl: "1.5rem",
+    xxl: "2rem",
+  },
+  radius: {
+    sm: "0.5rem",
+    md: "0.75rem",
+    lg: "1rem",
+    xl: "1.25rem",
+  },
+  shadows: {
+    sm: "0 1px 2px rgba(15, 23, 42, 0.06)",
+    md: "0 8px 24px rgba(15, 23, 42, 0.08)",
+    lg: "0 12px 30px rgba(15, 23, 42, 0.12)",
+  },
+  typography: {
+    fontSans: "var(--font-geist-sans), system-ui, -apple-system, sans-serif",
+    fontMono: "var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace",
+    bodySize: "0.95rem",
+    headingWeight: 700,
+  },
+  breakpoints: {
+    sm: "640px",
+    md: "768px",
+    lg: "1024px",
+    xl: "1280px",
+    "2xl": "1536px",
+  },
+  layout: {
+    sidebarWidth: "17.5rem",
+    headerHeight: "5rem",
+    maxContentWidth: "1600px",
+  },
+} as const;
+
+export type OfficeRole = "Secretary" | "BHW" | "Captain" | "Superuser";

@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getOfficeProfile, updateOfficeProfile, type OfficeProfile } from "@/lib/api";
 
 const EMPTY_PROFILE: OfficeProfile = {
@@ -104,56 +111,38 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <SessionRoleBanner />
+    <ContentContainer>
+      <SessionRoleBanner />
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">System</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Configure the barangay office profile used by certificate templates, branding, and
-            system headers.
-          </p>
-        </section>
+      <PageHeader
+        eyebrow="System"
+        title="Settings"
+        description="Configure the barangay office profile used by certificate templates, branding, and system headers."
+        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+      />
 
-        {!canWrite && (
-          <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
-            Staff login is required to edit system settings.
-          </section>
-        )}
+      {!canWrite ? (
+        <SectionCard
+          title="Restricted module"
+          description="Staff login is required to edit system settings."
+          className="border-amber-200 bg-amber-50"
+        />
+      ) : null}
 
-        {error && (
-          <section className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
-            {error}
-          </section>
-        )}
+      {error ? <ErrorState message={error} /> : null}
+      {message ? <StatusBadge label={message} tone="success" /> : null}
 
-        {message && (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">
-            {message}
-          </section>
-        )}
+      <SectionCard title="Office Profile" description="These values are used by the resident portal and printable certificate screens.">
+        <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          Last saved: {savedProfile.updated_at ? new Date(savedProfile.updated_at).toLocaleString() : "Never"}
+        </div>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">Office Profile</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                These values are used by the resident portal and printable certificate screens.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Last saved: {savedProfile.updated_at ? new Date(savedProfile.updated_at).toLocaleString() : "Never"}
-            </div>
+        {loading ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-600">
+            Loading office profile...
           </div>
-
-          {loading ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-600">
-              Loading office profile...
-            </div>
-          ) : (
-            <form onSubmit={handleSave} className="mt-6 space-y-5">
+        ) : (
+          <form onSubmit={handleSave} className="mt-2 space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="text-sm">
                   <span className="mb-1 block font-medium text-slate-700">Office Name</span>
@@ -240,28 +229,26 @@ export default function SettingsPage() {
                   {hasChanges ? "You have unsaved changes." : "All changes saved."}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  <SecondaryButton
                     type="button"
                     onClick={handleReset}
                     disabled={!hasChanges || saving}
-                    className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Reset
-                  </button>
-                  <button
+                  </SecondaryButton>
+                  <PrimaryButton
                     type="submit"
                     disabled={!canWrite || saving || loading || !hasChanges}
-                    className="rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {saving ? "Saving..." : "Save Settings"}
-                  </button>
+                  </PrimaryButton>
                 </div>
               </div>
-            </form>
-          )}
-        </section>
+          </form>
+        )}
+      </SectionCard>
 
-        <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-3">
           <Link href="/" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
             Dashboard
           </Link>
@@ -271,8 +258,7 @@ export default function SettingsPage() {
           <Link href="/document-requests" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
             Document Requests
           </Link>
-        </section>
-      </div>
-    </main>
+      </section>
+    </ContentContainer>
   );
 }

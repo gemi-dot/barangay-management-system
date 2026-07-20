@@ -1,13 +1,61 @@
 function getApiBaseUrl(): string {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (!apiBaseUrl) {
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
   }
-  return apiBaseUrl;
+
+  const normalizedBase = apiBaseUrl.replace(/\/+$/, "");
+  return /\/api$/i.test(normalizedBase) ? normalizedBase : `${normalizedBase}/api`;
 }
 
 function getBackendBaseUrl(): string {
-  return getApiBaseUrl().replace(/\/api\/?$/, "");
+  return getApiBaseUrl().replace(/\/api$/, "");
+}
+
+function summarizePayload(text: string) {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return compact.length > 180 ? `${compact.slice(0, 180)}...` : compact;
+}
+
+function looksLikeHtml(contentType: string, payload: string) {
+  const lowerContentType = contentType.toLowerCase();
+  const trimmedPayload = payload.trim().toLowerCase();
+  return (
+    lowerContentType.includes("text/html") ||
+    trimmedPayload.startsWith("<!doctype html") ||
+    trimmedPayload.startsWith("<html")
+  );
+}
+
+async function parseJsonResponse<T>(response: Response, context: string): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  const payload = await response.text();
+
+  if (!response.ok) {
+    const htmlHint = looksLikeHtml(contentType, payload)
+      ? " (received HTML; check endpoint path and NEXT_PUBLIC_API_BASE_URL)"
+      : "";
+    const details = summarizePayload(payload);
+    throw new Error(
+      `${context} failed: ${response.status}${htmlHint}${details ? ` ${details}` : ""}`,
+    );
+  }
+
+  if (looksLikeHtml(contentType, payload)) {
+    throw new Error(
+      `${context} returned HTML instead of JSON. Check endpoint path and NEXT_PUBLIC_API_BASE_URL.`,
+    );
+  }
+
+  if (!payload.trim()) {
+    throw new Error(`${context} returned an empty response body.`);
+  }
+
+  try {
+    return JSON.parse(payload) as T;
+  } catch {
+    throw new Error(`${context} returned invalid JSON. ${summarizePayload(payload)}`);
+  }
 }
 
 const REQUEST_TIMEOUT_MS = 12000;
@@ -50,11 +98,15 @@ function readCookie(name: string) {
 }
 
 async function ensureCsrfCookie() {
-  await fetch(`${getBackendBaseUrl()}/accounts/api/session/`, {
+  const response = await fetch(`${getBackendBaseUrl()}/accounts/api/session/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
+
+  if (!response.ok) {
+    throw new Error(`Failed to initialize CSRF cookie: ${response.status}`);
+  }
 }
 
 export type ResidentListItem = {
@@ -107,6 +159,9 @@ export type ResidentUpsertPayload = {
 export type SessionInfo = {
   is_authenticated: boolean;
   is_staff: boolean;
+  is_superuser?: boolean;
+  has_office_role?: boolean;
+  office_roles?: string[];
   username: string;
   full_name: string;
 };
@@ -520,12 +575,10 @@ export async function getResidents(): Promise<ResidentListItem[]> {
   const response = await fetch(`${getApiBaseUrl()}/residents/`, {
     cache: "no-store",
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to load residents: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await parseJsonResponse<ResidentListItem[] | PaginatedResponse<ResidentListItem>>(
+    response,
+    "Failed to load residents",
+  );
 
   // Supports either a plain list or DRF pagination.
   return Array.isArray(data) ? data : data.results ?? [];
@@ -542,11 +595,7 @@ export async function getResidentDetail(
     return null;
   }
 
-  if (!response.ok) {
-    throw new Error(`Failed to load resident detail: ${response.status}`);
-  }
-
-  return response.json();
+  return parseJsonResponse<ResidentDetailResponse>(response, "Failed to load resident detail");
 }
 
 export async function getResidentsPaginated(
@@ -584,11 +633,7 @@ export async function getResidentsPaginated(
   const url = `${getApiBaseUrl()}/residents/${params.size ? `?${params.toString()}` : ""}`;
   const res = await fetchWithTimeout(url, { cache: "no-store" });
 
-  if (!res.ok) {
-    throw new Error(`Residents API failed: ${res.status}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<PaginatedResponse<ResidentListItem>>(res, "Residents API");
 }
 
 export async function getReportsDataset(): Promise<ReportsDataset> {
@@ -661,12 +706,7 @@ export async function createResident(
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`Create resident failed: ${res.status} ${errBody}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<ResidentListItem>(res, "Create resident");
 }
 
 export async function updateResident(
@@ -685,12 +725,7 @@ export async function updateResident(
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`Update resident failed: ${res.status} ${errBody}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<ResidentListItem>(res, "Update resident");
 }
 
 export async function setResidentActive(
@@ -705,11 +740,7 @@ export async function getResidentById(id: number | string): Promise<Record<strin
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    throw new Error(`Resident lookup failed: ${res.status}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<Record<string, unknown>>(res, "Resident lookup");
 }
 
 export async function getSessionInfo(): Promise<SessionInfo> {
@@ -719,11 +750,7 @@ export async function getSessionInfo(): Promise<SessionInfo> {
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    throw new Error(`Session API failed: ${res.status}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<SessionInfo>(res, "Session API");
 }
 
 export async function getOfficeProfile(): Promise<OfficeProfile> {
@@ -733,12 +760,7 @@ export async function getOfficeProfile(): Promise<OfficeProfile> {
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Office profile failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<OfficeProfile>(res, "Office profile");
 }
 
 export async function updateOfficeProfile(payload: Partial<OfficeProfile>): Promise<OfficeProfile> {
@@ -755,12 +777,7 @@ export async function updateOfficeProfile(payload: Partial<OfficeProfile>): Prom
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Office profile update failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<OfficeProfile>(res, "Office profile update");
 }
 
 export async function loginWithSession(
@@ -812,18 +829,13 @@ export async function logoutSession(): Promise<void> {
 }
 
 export async function getInventorySummary(): Promise<InventorySummary> {
-  const res = await fetch(`${getBackendBaseUrl()}/api/inventory/summary/`, {
+  const res = await fetch(`${getApiBaseUrl()}/inventory/summary/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Inventory summary failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<InventorySummary>(res, "Inventory summary");
 }
 
 export async function getInventoryAssets(query: {
@@ -838,18 +850,13 @@ export async function getInventoryAssets(query: {
   if (query.q) params.set("q", query.q);
   if (query.status) params.set("status", query.status);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/inventory/assets/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/inventory/assets/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Inventory assets failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<PaginatedResponse<InventoryAsset>>(res, "Inventory assets");
 }
 
 function stripHtml(value: string) {
@@ -962,12 +969,10 @@ export async function askAssistant(message: string): Promise<{
     body: JSON.stringify({ message }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Assistant API failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<{ answer: string; matched_question: string | null; suggestions?: string[] }>(
+    res,
+    "Assistant API",
+  );
 }
 
 export async function portalRegister(payload: {
@@ -982,7 +987,7 @@ export async function portalRegister(payload: {
   const csrfToken = readCookie("csrftoken");
   const body = new URLSearchParams(payload);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/portal/register/`, {
+  const res = await fetch(`${getApiBaseUrl()}/portal/register/`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -992,42 +997,27 @@ export async function portalRegister(payload: {
     body: body.toString(),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Portal registration failed: ${res.status} ${text}`);
-  }
-
-  return res.json();
+  return parseJsonResponse(res, "Portal registration");
 }
 
 export async function getPortalDashboard(): Promise<PortalDashboard> {
-  const res = await fetch(`${getBackendBaseUrl()}/api/portal/dashboard/`, {
+  const res = await fetch(`${getApiBaseUrl()}/portal/dashboard/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Portal dashboard failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<PortalDashboard>(res, "Portal dashboard");
 }
 
 export async function getPortalRequests(): Promise<{ results: PortalRequest[] }> {
-  const res = await fetch(`${getBackendBaseUrl()}/api/portal/requests/`, {
+  const res = await fetch(`${getApiBaseUrl()}/portal/requests/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Portal requests failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<{ results: PortalRequest[] }>(res, "Portal requests");
 }
 
 export async function createPortalRequest(payload: {
@@ -1042,7 +1032,7 @@ export async function createPortalRequest(payload: {
   await ensureCsrfCookie();
   const csrfToken = readCookie("csrftoken");
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/portal/requests/create/`, {
+  const res = await fetch(`${getApiBaseUrl()}/portal/requests/create/`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -1052,27 +1042,17 @@ export async function createPortalRequest(payload: {
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Portal request create failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse(res, "Portal request create");
 }
 
 export async function getBhwSummary(): Promise<BhwSummary> {
-  const res = await fetch(`${getBackendBaseUrl()}/api/bhw-reports/summary/`, {
+  const res = await fetch(`${getApiBaseUrl()}/bhw-reports/summary/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`BHW summary failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<BhwSummary>(res, "BHW summary");
 }
 
 export async function getBhwSeniorCitizens(query: {
@@ -1085,18 +1065,13 @@ export async function getBhwSeniorCitizens(query: {
   if (query.page_size) params.set("page_size", String(query.page_size));
   if (query.q) params.set("q", query.q);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/bhw-reports/senior-citizens/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/bhw-reports/senior-citizens/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`BHW senior citizens failed: ${res.status} ${body}`);
-  }
-
-  return res.json() as Promise<PaginatedResponse<BhwSeniorCitizen>>;
+  return parseJsonResponse<PaginatedResponse<BhwSeniorCitizen>>(res, "BHW senior citizens");
 }
 
 export async function getBhwFourPs(query: {
@@ -1109,18 +1084,13 @@ export async function getBhwFourPs(query: {
   if (query.page_size) params.set("page_size", String(query.page_size));
   if (query.q) params.set("q", query.q);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/bhw-reports/fourps/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/bhw-reports/fourps/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`BHW 4Ps failed: ${res.status} ${body}`);
-  }
-
-  return res.json() as Promise<PaginatedResponse<BhwFourPs>>;
+  return parseJsonResponse<PaginatedResponse<BhwFourPs>>(res, "BHW 4Ps");
 }
 
 export async function getBhwPregnancy(query: {
@@ -1135,18 +1105,13 @@ export async function getBhwPregnancy(query: {
   if (query.q) params.set("q", query.q);
   if (query.outcome) params.set("outcome", query.outcome);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/bhw-reports/pregnancy/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/bhw-reports/pregnancy/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`BHW pregnancy failed: ${res.status} ${body}`);
-  }
-
-  return res.json() as Promise<PaginatedResponse<BhwPregnancy>>;
+  return parseJsonResponse<PaginatedResponse<BhwPregnancy>>(res, "BHW pregnancy");
 }
 
 export async function getBhwHealth(query: {
@@ -1161,33 +1126,23 @@ export async function getBhwHealth(query: {
   if (query.q) params.set("q", query.q);
   if (query.report_type) params.set("report_type", query.report_type);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/bhw-reports/health/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/bhw-reports/health/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`BHW health failed: ${res.status} ${body}`);
-  }
-
-  return res.json() as Promise<PaginatedResponse<BhwHealth>>;
+  return parseJsonResponse<PaginatedResponse<BhwHealth>>(res, "BHW health");
 }
 
 export async function getHouseholdSummary(): Promise<HouseholdSummary> {
-  const res = await fetch(`${getBackendBaseUrl()}/api/households/summary/`, {
+  const res = await fetch(`${getApiBaseUrl()}/households/summary/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Household summary failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<HouseholdSummary>(res, "Household summary");
 }
 
 export async function getHouseholds(query: {
@@ -1202,33 +1157,23 @@ export async function getHouseholds(query: {
   if (query.q) params.set("q", query.q);
   if (query.zone) params.set("zone", query.zone);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/households/list/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/households/list/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Household list failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<PaginatedResponse<HouseholdListItem>>(res, "Household list");
 }
 
 export async function getTodayVisitorsReport(): Promise<TodayVisitorsReport> {
-  const res = await fetch(`${getBackendBaseUrl()}/api/reports/today-visitors/`, {
+  const res = await fetch(`${getApiBaseUrl()}/reports/today-visitors/`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Today visitors report failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<TodayVisitorsReport>(res, "Today visitors report");
 }
 
 export async function getSeniorCitizensReport(query: {
@@ -1243,18 +1188,13 @@ export async function getSeniorCitizensReport(query: {
   if (query.q) params.set("q", query.q);
   if (query.zone) params.set("zone", query.zone);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/reports/senior-citizens/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/reports/senior-citizens/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Senior citizens report failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<SeniorCitizensReport>(res, "Senior citizens report");
 }
 
 export async function getBusinessesReport(query: {
@@ -1267,18 +1207,13 @@ export async function getBusinessesReport(query: {
   if (query.page_size) params.set("page_size", String(query.page_size));
   if (query.q) params.set("q", query.q);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/reports/businesses/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/reports/businesses/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Businesses report failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<BusinessesReport>(res, "Businesses report");
 }
 
 export async function getFourPsReport(query: {
@@ -1291,18 +1226,13 @@ export async function getFourPsReport(query: {
   if (query.page_size) params.set("page_size", String(query.page_size));
   if (query.q) params.set("q", query.q);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/reports/fourps/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/reports/fourps/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`4Ps report failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<FourPsReport>(res, "4Ps report");
 }
 
 export async function getPregnancyReport(query: {
@@ -1315,18 +1245,13 @@ export async function getPregnancyReport(query: {
   if (query.page_size) params.set("page_size", String(query.page_size));
   if (query.q) params.set("q", query.q);
 
-  const res = await fetch(`${getBackendBaseUrl()}/api/reports/pregnancy/?${params.toString()}`, {
+  const res = await fetch(`${getApiBaseUrl()}/reports/pregnancy/?${params.toString()}`, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Pregnancy report failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<PregnancyReport>(res, "Pregnancy report");
 }
 
 export type DashboardSummary = {
@@ -1368,10 +1293,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const res = await fetch(`${getApiBaseUrl()}/dashboard/summary/`, {
     cache: "no-store",
   });
-  if (!res.ok) {
-    throw new Error(`Dashboard summary API failed: ${res.status}`);
-  }
-  return res.json();
+  return parseJsonResponse<DashboardSummary>(res, "Dashboard summary API");
 }
 
 export async function getStaffDocumentRequests(query: {
@@ -1391,12 +1313,7 @@ export async function getStaffDocumentRequests(query: {
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Document requests API failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<PaginatedResponse<StaffDocumentRequest>>(res, "Document requests API");
 }
 
 export async function updateStaffDocumentRequestStatus(
@@ -1417,12 +1334,7 @@ export async function updateStaffDocumentRequestStatus(
     body: JSON.stringify({ status, remarks }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Update request status failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<StaffDocumentRequest>(res, "Update request status");
 }
 
 export async function trackDocumentRequest(
@@ -1434,12 +1346,7 @@ export async function trackDocumentRequest(
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Track request failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<DocumentRequestTracking>(res, "Track request");
 }
 
 export async function resolveResidentQr(qrInput: string): Promise<QrResolveResponse> {
@@ -1456,12 +1363,7 @@ export async function resolveResidentQr(qrInput: string): Promise<QrResolveRespo
     body: JSON.stringify({ qr_input: qrInput }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`QR resolve failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<QrResolveResponse>(res, "QR resolve");
 }
 
 export async function getResidentQuickView(
@@ -1473,12 +1375,7 @@ export async function getResidentQuickView(
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Quick view load failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<ResidentQuickViewPayload>(res, "Quick view load");
 }
 
 export async function logResidentVisitToday(
@@ -1497,12 +1394,7 @@ export async function logResidentVisitToday(
     body: JSON.stringify({ action: "visited_today" }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Visit log failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<{ detail: string }>(res, "Visit log");
 }
 
 export async function createQuickResidentDocumentRequest(
@@ -1526,12 +1418,11 @@ export async function createQuickResidentDocumentRequest(
     body: JSON.stringify({ document_type: documentType }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Quick document request failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<{
+    detail: string;
+    tracking_number: string;
+    document_type_display: string;
+  }>(res, "Quick document request");
 }
 
 export async function getQuickGenderCorrection(
@@ -1549,12 +1440,7 @@ export async function getQuickGenderCorrection(
     },
   );
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Quick gender correction load failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<QuickGenderCorrectionData>(res, "Quick gender correction load");
 }
 
 export async function saveQuickGenderCorrection(
@@ -1574,12 +1460,11 @@ export async function saveQuickGenderCorrection(
     body: JSON.stringify({ zone, updates }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Quick gender correction save failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<{
+    gender_updates: number;
+    birthday_updates: number;
+    invalid_birthday_rows: number;
+  }>(res, "Quick gender correction save");
 }
 
 export async function getQuickBirthdayCorrection(
@@ -1597,12 +1482,7 @@ export async function getQuickBirthdayCorrection(
     },
   );
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Quick birthday correction load failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<QuickBirthdayCorrectionData>(res, "Quick birthday correction load");
 }
 
 export async function saveQuickBirthdayCorrection(
@@ -1622,10 +1502,8 @@ export async function saveQuickBirthdayCorrection(
     body: JSON.stringify({ zone, updates }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Quick birthday correction save failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
+  return parseJsonResponse<{ birthday_updates: number; invalid_birthday_rows: number }>(
+    res,
+    "Quick birthday correction save",
+  );
 }

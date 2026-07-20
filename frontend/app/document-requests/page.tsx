@@ -2,8 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { DataTable } from "@/components/ui/DataTable";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   getStaffDocumentRequests,
   updateStaffDocumentRequestStatus,
@@ -38,6 +47,12 @@ export default function DocumentRequestsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    row: StaffDocumentRequest;
+    nextStatus: string;
+    label: string;
+  } | null>(null);
+  const [remarks, setRemarks] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -83,16 +98,11 @@ export default function DocumentRequestsPage() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / PAGE_SIZE)), [count]);
 
-  async function runStatusUpdate(requestId: number, nextStatus: string) {
-    const remarksInput = window.prompt("Remarks (optional)", "") ?? null;
-    if (remarksInput === null) {
-      return;
-    }
-
+  async function runStatusUpdate(requestId: number, nextStatus: string, nextRemarks: string) {
     setUpdatingId(requestId);
     setError(null);
     try {
-      await updateStaffDocumentRequestStatus(requestId, nextStatus, remarksInput.trim());
+      await updateStaffDocumentRequestStatus(requestId, nextStatus, nextRemarks.trim());
       const refreshed = await getStaffDocumentRequests({
         page,
         page_size: PAGE_SIZE,
@@ -100,6 +110,8 @@ export default function DocumentRequestsPage() {
       });
       setRows(refreshed.results);
       setCount(refreshed.count);
+      setPendingAction(null);
+      setRemarks("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update request status.";
       setError(message);
@@ -109,162 +121,177 @@ export default function DocumentRequestsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8 text-zinc-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <SessionRoleBanner />
+    <ContentContainer>
+      <SessionRoleBanner />
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">Document Requests</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Document Requests Queue</h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Staff module for tracking, filtering, and updating request statuses in real time.
-          </p>
-        </section>
+      <PageHeader
+        eyebrow="Document Requests"
+        title="Document Requests Queue"
+        description="Staff module for tracking, filtering, and updating request statuses in real time."
+        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+      />
 
-        {!canWrite && (
-          <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Staff login is required to access document request queue data.
-          </section>
-        )}
+      {!canWrite ? (
+        <SectionCard
+          title="Restricted module"
+          description="Staff login is required to access document request queue data."
+          className="border-amber-200 bg-amber-50"
+        />
+      ) : null}
 
-        {error && (
-          <section className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </section>
-        )}
+      {error ? <ErrorState message={error} /> : null}
 
-        {canWrite && (
-          <>
-            <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <div className="grid gap-3 md:grid-cols-3">
-                <label className="text-sm">
-                  <span className="mb-1 block font-medium text-gray-700">Filter by status</span>
-                  <select
-                    value={status}
-                    onChange={(event) => {
-                      setStatus(event.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full rounded-md border px-3 py-2"
-                  >
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option.value || "all"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+      {canWrite ? (
+        <>
+          <FilterBar>
+            <label className="text-sm">
+              <span className="mb-1 block font-medium text-gray-700">Filter by status</span>
+              <select
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value || "all"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-                <div className="text-sm md:col-span-2">
-                  <span className="mb-1 block font-medium text-gray-700">Totals</span>
-                  <div className="rounded-md border bg-gray-50 px-3 py-2 text-gray-800">
-                    {count} request{count === 1 ? "" : "s"}
+            <div className="text-sm">
+              <span className="mb-1 block font-medium text-gray-700">Totals</span>
+              <div className="rounded-md border border-[var(--color-border)] bg-gray-50 px-3 py-2 text-gray-800">
+                {count} request{count === 1 ? "" : "s"}
+              </div>
+            </div>
+          </FilterBar>
+
+          <DataTable
+            columns={[
+              {
+                key: "tracking",
+                header: "Tracking #",
+                render: (row) => <span className="font-medium text-gray-900">{row.tracking_number}</span>,
+              },
+              {
+                key: "resident",
+                header: "Resident",
+                render: (row) => (
+                  <div>
+                    <p className="font-medium text-gray-900">{row.full_name}</p>
+                    <p>{row.contact_number}</p>
+                    <p>{row.email || "-"}</p>
                   </div>
-                </div>
+                ),
+              },
+              {
+                key: "document",
+                header: "Document",
+                render: (row) => (
+                  <div>
+                    <p className="font-medium text-gray-900">{row.document_type_display}</p>
+                    <p className="max-w-xs">{row.purpose}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (row) => (
+                  <div>
+                    <p className="font-medium text-gray-900">{row.status_display}</p>
+                    <p className="text-xs text-gray-500">By: {row.processed_by || "-"}</p>
+                    <p className="text-xs text-gray-500">Remarks: {row.remarks || "-"}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "submitted",
+                header: "Submitted",
+                render: (row) => new Date(row.created_at).toLocaleString(),
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (row) => (
+                  <div className="flex flex-wrap gap-2">
+                    {QUICK_ACTIONS.map((action) => (
+                      <SecondaryButton
+                        key={action.value}
+                        onClick={() => {
+                          setPendingAction({ row, nextStatus: action.value, label: action.label });
+                        }}
+                        disabled={updatingId === row.id}
+                        className="px-2 py-1 text-xs"
+                      >
+                        {updatingId === row.id ? "Updating..." : action.label}
+                      </SecondaryButton>
+                    ))}
+                  </div>
+                ),
+              },
+            ]}
+            rows={rows}
+            rowKey={(row) => row.id}
+            loading={loading}
+            emptyTitle="No requests found"
+            emptyDescription="No document requests found for the selected filter."
+          />
+
+          <SectionCard>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <p className="text-gray-600">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <SecondaryButton
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  disabled={page <= 1 || loading}
+                >
+                  Previous
+                </SecondaryButton>
+                <SecondaryButton
+                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                  disabled={page >= totalPages || loading}
+                >
+                  Next
+                </SecondaryButton>
               </div>
-            </section>
+            </div>
+          </SectionCard>
+        </>
+      ) : null}
 
-            <section className="overflow-hidden rounded-xl bg-white shadow">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">Tracking #</th>
-                      <th className="px-4 py-3 text-left font-semibold">Resident</th>
-                      <th className="px-4 py-3 text-left font-semibold">Document</th>
-                      <th className="px-4 py-3 text-left font-semibold">Status</th>
-                      <th className="px-4 py-3 text-left font-semibold">Submitted</th>
-                      <th className="px-4 py-3 text-left font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!loading && rows.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                          No document requests found for the selected filter.
-                        </td>
-                      </tr>
-                    )}
-
-                    {loading && (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                          Loading document requests...
-                        </td>
-                      </tr>
-                    )}
-
-                    {!loading &&
-                      rows.map((row) => (
-                        <tr key={row.id} className="border-t align-top hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-900">{row.tracking_number}</td>
-                          <td className="px-4 py-3 text-gray-700">
-                            <p className="font-medium text-gray-900">{row.full_name}</p>
-                            <p>{row.contact_number}</p>
-                            <p>{row.email || "-"}</p>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            <p className="font-medium text-gray-900">{row.document_type_display}</p>
-                            <p className="max-w-xs">{row.purpose}</p>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            <p className="font-medium text-gray-900">{row.status_display}</p>
-                            <p className="text-xs text-gray-500">By: {row.processed_by || "-"}</p>
-                            <p className="text-xs text-gray-500">Remarks: {row.remarks || "-"}</p>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            {new Date(row.created_at).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              {QUICK_ACTIONS.map((action) => (
-                                <button
-                                  key={action.value}
-                                  type="button"
-                                  onClick={() => {
-                                    void runStatusUpdate(row.id, action.value);
-                                  }}
-                                  disabled={updatingId === row.id}
-                                  className="rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                  {updatingId === row.id ? "Updating..." : action.label}
-                                </button>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t px-5 py-3 text-sm">
-                <p className="text-gray-600">
-                  Page {page} of {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPage((value) => Math.max(1, value - 1))}
-                    disabled={page <= 1 || loading}
-                    className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                    disabled={page >= totalPages || loading}
-                    className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </section>
-          </>
-        )}
-      </div>
-    </main>
+      <ConfirmationModal
+        open={Boolean(pendingAction)}
+        title={pendingAction ? pendingAction.label : "Update status"}
+        message={pendingAction ? `Update ${pendingAction.row.tracking_number} to ${pendingAction.row.status_display}?` : ""}
+        confirmLabel="Apply status"
+        confirming={pendingAction ? updatingId === pendingAction.row.id : false}
+        onCancel={() => {
+          setPendingAction(null);
+          setRemarks("");
+        }}
+        onConfirm={() => {
+          if (pendingAction) {
+            void runStatusUpdate(pendingAction.row.id, pendingAction.nextStatus, remarks);
+          }
+        }}
+      >
+        <label className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">Remarks (optional)</span>
+          <textarea
+            value={remarks}
+            onChange={(event) => setRemarks(event.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+          />
+        </label>
+      </ConfirmationModal>
+    </ContentContainer>
   );
 }

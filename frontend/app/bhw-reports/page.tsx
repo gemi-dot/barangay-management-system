@@ -2,8 +2,18 @@
 
 import { useEffect, useState } from "react";
 
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
+import { DataTable } from "@/components/ui/DataTable";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatCard } from "@/components/ui/StatCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   getBhwFourPs,
   getBhwHealth,
@@ -109,201 +119,137 @@ export default function BhwReportsPage() {
   }, [canWrite, mode, query]);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8 text-zinc-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <SessionRoleBanner />
+    <ContentContainer>
+      <SessionRoleBanner />
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">BHW Reports</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Community Health and Social Reports</h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Senior citizens, 4Ps beneficiaries, pregnancy monitoring, and health logs with staff-only access.
-          </p>
-        </section>
+      <PageHeader
+        eyebrow="BHW Reports"
+        title="Community Health and Social Reports"
+        description="Senior citizens, 4Ps beneficiaries, pregnancy monitoring, and health logs with staff-only access."
+        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+      />
 
-        {!canWrite && (
-          <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Staff login is required to access BHW reports.
+      {!canWrite ? (
+        <SectionCard
+          title="Restricted module"
+          description="Staff login is required to access BHW reports."
+          className="border-amber-200 bg-amber-50"
+        />
+      ) : null}
+
+      {error ? <ErrorState message={error} /> : null}
+
+      {canWrite ? (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="xl:col-span-2">
+              <StatCard label="Senior Citizens" value={summary?.senior_citizens_total ?? 0} />
+            </div>
+            <div className="xl:col-span-2">
+              <StatCard label="4Ps Beneficiaries" value={summary?.fourps_total ?? 0} />
+            </div>
+            <StatCard label="Pregnancy Ongoing" value={summary?.pregnancy_ongoing_total ?? 0} />
+            <StatCard label="Due Soon" value={summary?.pregnancy_due_soon ?? 0} />
+            <div className="xl:col-span-2">
+              <StatCard label="Health Reports (30 days)" value={summary?.health_reports_last_30_days ?? 0} />
+            </div>
+            <div className="xl:col-span-2">
+              <StatCard label="Health Reports (Total)" value={summary?.health_reports_total ?? 0} />
+            </div>
           </section>
-        )}
 
-        {error && (
-          <section className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </section>
-        )}
+          <FilterBar>
+            <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton onClick={() => setMode("senior")} className={mode === "senior" ? "bg-slate-100" : ""}>
+                Senior Citizens
+              </SecondaryButton>
+              <SecondaryButton onClick={() => setMode("fourps")} className={mode === "fourps" ? "bg-slate-100" : ""}>
+                4Ps
+              </SecondaryButton>
+              <SecondaryButton onClick={() => setMode("pregnancy")} className={mode === "pregnancy" ? "bg-slate-100" : ""}>
+                Pregnancy
+              </SecondaryButton>
+              <SecondaryButton onClick={() => setMode("health")} className={mode === "health" ? "bg-slate-100" : ""}>
+                Health
+              </SecondaryButton>
+            </div>
 
-        {canWrite && (
-          <>
-            <section className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm lg:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Senior Citizens</p>
-                <p className="mt-1 text-2xl font-bold">{summary?.senior_citizens_total ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm lg:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">4Ps Beneficiaries</p>
-                <p className="mt-1 text-2xl font-bold">{summary?.fourps_total ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Pregnancy Ongoing</p>
-                <p className="mt-1 text-2xl font-bold text-amber-700">{summary?.pregnancy_ongoing_total ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Due Soon</p>
-                <p className="mt-1 text-2xl font-bold text-orange-700">{summary?.pregnancy_due_soon ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm lg:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Health Reports (30 days)</p>
-                <p className="mt-1 text-2xl font-bold text-sky-700">{summary?.health_reports_last_30_days ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm lg:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Health Reports (Total)</p>
-                <p className="mt-1 text-2xl font-bold text-blue-700">{summary?.health_reports_total ?? 0}</p>
-              </article>
-            </section>
+            <label className="text-sm md:col-span-2">
+              <span className="mb-1 block font-medium text-gray-700">Search</span>
+              <SearchInput
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search name, zone, household..."
+              />
+            </label>
+          </FilterBar>
 
-            <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMode("senior")}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${mode === "senior" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
-                >
-                  Senior Citizens
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("fourps")}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${mode === "fourps" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
-                >
-                  4Ps
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("pregnancy")}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${mode === "pregnancy" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
-                >
-                  Pregnancy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("health")}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${mode === "health" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
-                >
-                  Health
-                </button>
+          {mode === "senior" ? (
+            <DataTable
+              columns={[
+                { key: "name", header: "Name", render: (row) => row.full_name },
+                { key: "zone", header: "Purok", render: (row) => row.zone },
+                { key: "mobility", header: "Mobility", render: (row) => row.mobility_status },
+                { key: "pension", header: "Pension", render: (row) => row.pension_source || "-" },
+              ]}
+              rows={seniorRows}
+              rowKey={(row) => row.id}
+              loading={loading}
+              emptyTitle="No senior citizen rows"
+              emptyDescription="No senior citizen report rows matched your filters."
+            />
+          ) : null}
 
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search name, zone, household..."
-                  className="ml-auto w-full rounded-md border px-3 py-2 text-sm md:w-80"
-                />
-              </div>
+          {mode === "fourps" ? (
+            <DataTable
+              columns={[
+                { key: "name", header: "Name", render: (row) => row.full_name },
+                { key: "zone", header: "Purok", render: (row) => row.zone },
+                { key: "household", header: "Household ID", render: (row) => row.household_id },
+                { key: "grant", header: "Grant", render: (row) => row.monthly_grant_amount },
+              ]}
+              rows={fourpsRows}
+              rowKey={(row) => row.id}
+              loading={loading}
+              emptyTitle="No 4Ps rows"
+              emptyDescription="No 4Ps report rows matched your filters."
+            />
+          ) : null}
 
-              {loading ? (
-                <p className="text-sm text-zinc-600">Loading report rows...</p>
-              ) : (
-                <div className="max-h-[30rem] overflow-auto">
-                  {mode === "senior" && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200 text-left text-zinc-500">
-                          <th className="px-2 py-1 font-medium">Name</th>
-                          <th className="px-2 py-1 font-medium">Purok</th>
-                          <th className="px-2 py-1 font-medium">Mobility</th>
-                          <th className="px-2 py-1 font-medium">Pension</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {seniorRows.map((row) => (
-                          <tr key={row.id} className="border-b border-zinc-100">
-                            <td className="px-2 py-1">{row.full_name}</td>
-                            <td className="px-2 py-1">{row.zone}</td>
-                            <td className="px-2 py-1">{row.mobility_status}</td>
-                            <td className="px-2 py-1">{row.pension_source || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+          {mode === "pregnancy" ? (
+            <DataTable
+              columns={[
+                { key: "name", header: "Name", render: (row) => row.full_name },
+                { key: "zone", header: "Purok", render: (row) => row.zone },
+                { key: "due", header: "Expected Due Date", render: (row) => row.expected_due_date },
+                { key: "visits", header: "Visits", render: (row) => row.prenatal_visits },
+              ]}
+              rows={pregnancyRows}
+              rowKey={(row) => row.id}
+              loading={loading}
+              emptyTitle="No pregnancy rows"
+              emptyDescription="No pregnancy report rows matched your filters."
+            />
+          ) : null}
 
-                  {mode === "fourps" && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200 text-left text-zinc-500">
-                          <th className="px-2 py-1 font-medium">Name</th>
-                          <th className="px-2 py-1 font-medium">Purok</th>
-                          <th className="px-2 py-1 font-medium">Household ID</th>
-                          <th className="px-2 py-1 font-medium">Grant</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fourpsRows.map((row) => (
-                          <tr key={row.id} className="border-b border-zinc-100">
-                            <td className="px-2 py-1">{row.full_name}</td>
-                            <td className="px-2 py-1">{row.zone}</td>
-                            <td className="px-2 py-1">{row.household_id}</td>
-                            <td className="px-2 py-1">{row.monthly_grant_amount}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {mode === "pregnancy" && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200 text-left text-zinc-500">
-                          <th className="px-2 py-1 font-medium">Name</th>
-                          <th className="px-2 py-1 font-medium">Purok</th>
-                          <th className="px-2 py-1 font-medium">Expected Due Date</th>
-                          <th className="px-2 py-1 font-medium">Visits</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pregnancyRows.map((row) => (
-                          <tr key={row.id} className="border-b border-zinc-100">
-                            <td className="px-2 py-1">{row.full_name}</td>
-                            <td className="px-2 py-1">{row.zone}</td>
-                            <td className="px-2 py-1">{row.expected_due_date}</td>
-                            <td className="px-2 py-1">{row.prenatal_visits}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {mode === "health" && (
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200 text-left text-zinc-500">
-                          <th className="px-2 py-1 font-medium">Name</th>
-                          <th className="px-2 py-1 font-medium">Purok</th>
-                          <th className="px-2 py-1 font-medium">Report Type</th>
-                          <th className="px-2 py-1 font-medium">Date</th>
-                          <th className="px-2 py-1 font-medium">Provider</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {healthRows.map((row) => (
-                          <tr key={row.id} className="border-b border-zinc-100">
-                            <td className="px-2 py-1">{row.full_name}</td>
-                            <td className="px-2 py-1">{row.zone}</td>
-                            <td className="px-2 py-1">{row.report_type}</td>
-                            <td className="px-2 py-1">{row.report_date}</td>
-                            <td className="px-2 py-1">{row.healthcare_provider}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
-    </main>
+          {mode === "health" ? (
+            <DataTable
+              columns={[
+                { key: "name", header: "Name", render: (row) => row.full_name },
+                { key: "zone", header: "Purok", render: (row) => row.zone },
+                { key: "type", header: "Report Type", render: (row) => row.report_type },
+                { key: "date", header: "Date", render: (row) => row.report_date },
+                { key: "provider", header: "Provider", render: (row) => row.healthcare_provider },
+              ]}
+              rows={healthRows}
+              rowKey={(row) => row.id}
+              loading={loading}
+              emptyTitle="No health report rows"
+              emptyDescription="No health report rows matched your filters."
+            />
+          ) : null}
+        </>
+      ) : null}
+    </ContentContainer>
   );
 }

@@ -9,35 +9,11 @@ from .models import DocumentRequest, Resident
 
 
 def _linked_resident(user):
-    email = (user.email or "").strip()
-    if email:
-        resident = Resident.objects.filter(email__iexact=email, is_active=True).first()
-        if resident:
-            return resident
-
-    first_name = (user.first_name or "").strip()
-    last_name = (user.last_name or "").strip()
-    if first_name and last_name:
-        return Resident.objects.filter(
-            first_name__iexact=first_name,
-            last_name__iexact=last_name,
-            is_active=True,
-        ).first()
-
-    return None
+    return Resident.objects.filter(portal_user=user, is_active=True).first()
 
 
 def _my_requests(user):
-    email = (user.email or "").strip()
-    full_name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
-
-    queryset = DocumentRequest.objects.none()
-    if email:
-        queryset = queryset | DocumentRequest.objects.filter(email__iexact=email)
-    if full_name:
-        queryset = queryset | DocumentRequest.objects.filter(full_name__iexact=full_name)
-
-    return queryset.order_by("-created_at")
+    return DocumentRequest.objects.filter(submitted_by=user).order_by("-created_at")
 
 
 @require_POST

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeDollarSign,
@@ -21,13 +22,18 @@ import {
 
 import { DashboardActivityFeed, type ActivityItem } from "@/components/dashboard-activity-feed";
 import { DashboardAttentionPanel, type AttentionItem } from "@/components/dashboard-attention-panel";
-import { DashboardClock } from "@/components/dashboard-clock";
 import { DashboardCommunityAnalytics } from "@/components/dashboard-community-analytics";
 import { DashboardDocumentQueue } from "@/components/dashboard-document-queue";
-import { DashboardKpiCard } from "@/components/dashboard-kpi-card";
 import { DashboardQuickActions } from "@/components/dashboard-quick-actions";
 import { DashboardResidentsPreview } from "@/components/dashboard-residents-preview";
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useSessionAuth } from "@/components/session-context";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatCard } from "@/components/ui/StatCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   getDashboardSummary,
   getInventoryAssets,
@@ -102,6 +108,20 @@ function createFallbackSummary(): DashboardSummary {
   };
 }
 
+function formatDashboardErrors(messages: string[]) {
+  const uniqueMessages = [...new Set(messages.map((message) => message.trim()).filter(Boolean))];
+  if (uniqueMessages.length === 0) {
+    return "";
+  }
+
+  const onlyFetchFailures = uniqueMessages.every((message) => message.toLowerCase() === "failed to fetch");
+  if (onlyFetchFailures) {
+    return "Unable to connect to backend API. Verify backend availability and NEXT_PUBLIC_API_BASE_URL configuration.";
+  }
+
+  return uniqueMessages.join(" | ");
+}
+
 export default function Home() {
   const { canWrite, session } = useSessionAuth();
 
@@ -125,7 +145,9 @@ export default function Home() {
       const [summaryResult, residentsResult, queueResult, visitorsResult, inventorySummaryResult, inventoryAssetsResult] =
         await Promise.allSettled([
           getDashboardSummary(),
-          getResidentsPaginated({ page: 1, page_size: 12, ordering: "-last_name" }),
+          canWrite
+            ? getResidentsPaginated({ page: 1, page_size: 12, ordering: "-last_name" })
+            : Promise.resolve({ results: [] as ResidentListItem[] }),
           canWrite ? getStaffDocumentRequests({ page: 1, page_size: 5 }) : Promise.resolve({ results: [] as StaffDocumentRequest[] }),
           canWrite ? getTodayVisitorsReport() : Promise.resolve(null),
           canWrite ? getInventorySummary() : Promise.resolve(null),
@@ -278,117 +300,95 @@ export default function Home() {
   }, [data.inventorySummary, summary.cards.pending_document_requests, summary.cards.senior_citizens]);
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef4fb_100%)] text-slate-900">
-      <div className="mx-auto min-h-screen max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="rounded-[1.3rem] border border-slate-200/80 bg-white px-5 py-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] sm:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Dashboard</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Barangay Excellence Dashboard</h1>
-              <p className="mt-1 max-w-3xl text-sm text-slate-600">
-                Practical operations command center for residents, frontline service queues, and barangay action tracking.
-              </p>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                BIMS is developed by TheSoftWorks. All rights reserved.
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Online
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">Current time: <DashboardClock /></span>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">Last refresh: {formatDateTime(lastRefreshedAt)}</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setRefreshing(true);
-                void loadDashboard("refresh");
-              }}
-              disabled={refreshing || loading}
-              aria-label="Refresh dashboard data"
-              className="inline-flex items-center justify-center gap-2 self-start rounded-[1rem] border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
-        </header>
-
-        {errors.length > 0 && (
-          <section className="rounded-[1rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <p className="font-semibold">Some dashboard sources are unavailable:</p>
-            <ul className="mt-1 list-disc pl-5">
-              {errors.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </section>
+    <ContentContainer>
+      <PageHeader
+        eyebrow="Dashboard"
+        title="Barangay Excellence Dashboard"
+        description="Practical operations command center for residents, frontline service queues, and barangay action tracking."
+        meta={(
+          <>
+            <StatusBadge label="Online" tone="success" />
+            <StatusBadge label={`Current time: ${new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}`} />
+            <StatusBadge label={`Last refresh: ${formatDateTime(lastRefreshedAt)}`} />
+          </>
         )}
+        actions={(
+          <PrimaryButton
+            onClick={() => {
+              setRefreshing(true);
+              void loadDashboard("refresh");
+            }}
+            disabled={refreshing || loading}
+            aria-label="Refresh dashboard data"
+            leftIcon={<RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />}
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </PrimaryButton>
+        )}
+      />
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {kpis.map((kpi) => (
-            <DashboardKpiCard
-              key={kpi.label}
+      {errors.length > 0 ? <ErrorState message={`Some dashboard sources are unavailable: ${formatDashboardErrors(errors)}`} /> : null}
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map((kpi) => {
+          const card = (
+            <StatCard
               label={kpi.label}
-              value={kpi.value}
+              value={loading ? "..." : kpi.value ?? "N/A"}
               description={kpi.description}
-              href={kpi.href}
               icon={kpi.icon}
-              loading={loading}
-              accentClassName={kpi.accent}
-              unavailableReason={kpi.label === "Active Blotter Cases" ? "No blotter metrics endpoint is currently available." : undefined}
             />
-          ))}
-        </section>
+          );
 
-        <DashboardQuickActions actions={quickActions} canWrite={canWrite} />
+          if (kpi.value === null) {
+            return <div key={kpi.label}>{card}</div>;
+          }
 
-        <DashboardDocumentQueue requests={data.documentRequests} loading={loading} canWrite={canWrite} />
+          return (
+            <Link key={kpi.label} href={kpi.href} className="block">
+              {card}
+            </Link>
+          );
+        })}
+      </section>
 
-        <DashboardAttentionPanel items={attentionItems} loading={loading} />
+      <DashboardQuickActions actions={quickActions} canWrite={canWrite} />
 
-        <section className="grid gap-4 xl:grid-cols-5">
-          <div className="xl:col-span-3">
-            <DashboardCommunityAnalytics
-              male={summary.charts.gender_distribution.male}
-              female={summary.charts.gender_distribution.female}
-              childrenCount={summary.charts.age_distribution.children}
-              adults={summary.charts.age_distribution.adults}
-              seniors={summary.charts.age_distribution.seniors}
-              zones={summary.charts.zone_distribution}
-              fourPsBeneficiaries={summary.cards.fourps_beneficiaries}
-              seniorCitizens={summary.cards.senior_citizens}
-            />
-          </div>
-          <div className="xl:col-span-2">
-            <DashboardActivityFeed activities={activityItems} loading={loading} />
-          </div>
-        </section>
+      <DashboardDocumentQueue requests={data.documentRequests} loading={loading} canWrite={canWrite} />
 
-        <DashboardResidentsPreview
-          residents={data.residents}
-          loading={loading}
-          error={errors.find((message) => message.toLowerCase().includes("resident")) ?? null}
-        />
+      <DashboardAttentionPanel items={attentionItems} loading={loading} />
 
-        <section className="rounded-[1.35rem] border border-slate-200/80 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Barangay Notice</p>
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">{NOTICE_PLACEHOLDER.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{NOTICE_PLACEHOLDER.body}</p>
-          <p className="mt-3 text-xs font-medium text-slate-500">
-            Placeholder mode: this content is local-only and separate from live operational metrics.
-          </p>
-        </section>
+      <section className="grid gap-4 xl:grid-cols-5">
+        <div className="xl:col-span-3">
+          <DashboardCommunityAnalytics
+            male={summary.charts.gender_distribution.male}
+            female={summary.charts.gender_distribution.female}
+            childrenCount={summary.charts.age_distribution.children}
+            adults={summary.charts.age_distribution.adults}
+            seniors={summary.charts.age_distribution.seniors}
+            zones={summary.charts.zone_distribution}
+            fourPsBeneficiaries={summary.cards.fourps_beneficiaries}
+            seniorCitizens={summary.cards.senior_citizens}
+          />
+        </div>
+        <div className="xl:col-span-2">
+          <DashboardActivityFeed activities={activityItems} loading={loading} />
+        </div>
+      </section>
 
-        <footer className="rounded-[1.2rem] border border-slate-200/80 bg-white px-4 py-3 text-xs text-slate-600">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>Signed in as {session?.full_name || session?.username || "Guest"}</span>
-          </div>
-        </footer>
-      </div>
-    </main>
+      <DashboardResidentsPreview
+        residents={data.residents}
+        loading={loading}
+        error={errors.find((message) => message.toLowerCase().includes("resident")) ?? null}
+      />
+
+      <SectionCard title="Barangay Notice" description={NOTICE_PLACEHOLDER.body}>
+        <p className="text-xs text-[var(--color-text-muted)]">Placeholder mode: this content is local-only and separate from live operational metrics.</p>
+      </SectionCard>
+
+      <footer className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-xs text-[var(--color-text-secondary)]">
+        Signed in as {session?.full_name || session?.username || "Guest"}
+      </footer>
+    </ContentContainer>
   );
 }

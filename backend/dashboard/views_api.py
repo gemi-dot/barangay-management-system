@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
+from accounts.roles import user_has_office_role
 
 from bhw_reports.models import (
     FourPsBeneficiaryReport,
@@ -13,6 +14,7 @@ from bhw_reports.models import (
     SariSariStoreReport,
     SeniorCitizenReport,
 )
+from residents.views_api import DashboardSummaryAPIView
 from residents.models import Resident, ResidentServiceLog
 
 
@@ -20,7 +22,7 @@ def _staff_guard(request):
     user = request.user
     if not user.is_authenticated:
         return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
-    if not user.is_staff:
+    if not user_has_office_role(user):
         return JsonResponse({"detail": "Staff access is required."}, status=403)
     return None
 
@@ -41,6 +43,10 @@ def _page_params(request):
 
     page_size = min(max(page_size, 1), 100)
     return page, page_size
+
+
+def dashboard_summary_api(request):
+    return DashboardSummaryAPIView.as_view()(request)
 
 
 @require_GET

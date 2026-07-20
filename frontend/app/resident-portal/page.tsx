@@ -2,8 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionRoleBanner } from "@/components/session-role-banner";
 import { useSessionAuth } from "@/components/session-context";
+import { DataTable } from "@/components/ui/DataTable";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StatCard } from "@/components/ui/StatCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   createPortalRequest,
   getPortalDashboard,
@@ -112,13 +120,11 @@ export default function ResidentPortalPage() {
     let cancelled = false;
 
     if (!session?.is_authenticated) {
-      setResidentSuggestions([]);
       return undefined;
     }
 
     const query = requestForm.full_name.trim();
     if (query.length < 2) {
-      setResidentSuggestions([]);
       return undefined;
     }
 
@@ -220,178 +226,137 @@ export default function ResidentPortalPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8 text-zinc-900">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <SessionRoleBanner />
+    <ContentContainer>
+      <SessionRoleBanner />
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">Resident Portal</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Resident Self-Service</h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Migration includes registration, dashboard summary, and document request submission.
-          </p>
-        </section>
+      <PageHeader
+        eyebrow="Resident Portal"
+        title="Resident Self-Service"
+        description="Migration includes registration, dashboard summary, and document request submission."
+        meta={session?.is_authenticated ? <StatusBadge label="Signed in" tone="success" /> : <StatusBadge label="Guest" />}
+      />
 
-        {error && (
-          <section className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+      {error ? <ErrorState message={error} /> : null}
+      {registerMessage ? <StatusBadge label={registerMessage} tone="success" /> : null}
+
+      {!session?.is_authenticated ? (
+        <SectionCard title="Create Resident Portal Account">
+          <form onSubmit={handleRegister} className="mt-3 grid gap-3 md:grid-cols-2">
+            <input name="username" required placeholder="Username" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+            <input name="email" type="email" required placeholder="Email" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+            <input name="first_name" required placeholder="First name" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+            <input name="last_name" required placeholder="Last name" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+            <input name="password1" type="password" required placeholder="Password" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+            <input name="password2" type="password" required placeholder="Confirm password" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+            <PrimaryButton type="submit" disabled={registering} className="md:col-span-2">
+              {registering ? "Registering..." : "Register and sign in"}
+            </PrimaryButton>
+          </form>
+        </SectionCard>
+      ) : null}
+
+      {session?.is_authenticated ? (
+        <>
+          <section className="grid gap-4 md:grid-cols-3">
+            <StatCard label="Total Requests" value={dashboard?.counts.total_requests ?? 0} />
+            <StatCard label="Pending" value={dashboard?.counts.pending_requests ?? 0} />
+            <StatCard label="Ready" value={dashboard?.counts.ready_requests ?? 0} />
           </section>
-        )}
 
-        {registerMessage && (
-          <section className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {registerMessage}
-          </section>
-        )}
-
-        {!session?.is_authenticated && (
-          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">Create Resident Portal Account</h2>
-            <form onSubmit={handleRegister} className="mt-3 grid gap-3 md:grid-cols-2">
-              <input name="username" required placeholder="Username" className="rounded-md border px-3 py-2 text-sm" />
-              <input name="email" type="email" required placeholder="Email" className="rounded-md border px-3 py-2 text-sm" />
-              <input name="first_name" required placeholder="First name" className="rounded-md border px-3 py-2 text-sm" />
-              <input name="last_name" required placeholder="Last name" className="rounded-md border px-3 py-2 text-sm" />
-              <input name="password1" type="password" required placeholder="Password" className="rounded-md border px-3 py-2 text-sm" />
-              <input name="password2" type="password" required placeholder="Confirm password" className="rounded-md border px-3 py-2 text-sm" />
-              <button
-                type="submit"
-                disabled={registering}
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-50 md:col-span-2"
-              >
-                {registering ? "Registering..." : "Register and sign in"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {session?.is_authenticated && (
-          <>
-            <section className="grid gap-4 md:grid-cols-3">
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Total Requests</p>
-                <p className="mt-1 text-2xl font-bold">{dashboard?.counts.total_requests ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Pending</p>
-                <p className="mt-1 text-2xl font-bold text-amber-700">{dashboard?.counts.pending_requests ?? 0}</p>
-              </article>
-              <article className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Ready</p>
-                <p className="mt-1 text-2xl font-bold text-emerald-700">{dashboard?.counts.ready_requests ?? 0}</p>
-              </article>
-            </section>
-
-            <section className="grid gap-4 lg:grid-cols-2">
-              <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-semibold">Submit Document Request</h2>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Start typing a resident name to search the full resident list, or enter the name manually.
-                </p>
-                <form onSubmit={handleCreateRequest} className="mt-3 grid gap-3">
-                  <datalist id="resident-name-suggestions">
-                    {residentSuggestions.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
-                  <input
-                    value={requestForm.full_name}
-                    onChange={(event) => setRequestForm((prev) => ({ ...prev, full_name: event.target.value }))}
-                    placeholder="Search or encode full name"
-                    list="resident-name-suggestions"
-                    className="rounded-md border px-3 py-2 text-sm"
-                    required
-                  />
-                  <input
-                    value={requestForm.contact_number}
-                    onChange={(event) => setRequestForm((prev) => ({ ...prev, contact_number: event.target.value }))}
-                    placeholder="Contact number"
-                    className="rounded-md border px-3 py-2 text-sm"
-                    required
-                  />
-                  <input
-                    type="email"
-                    value={requestForm.email}
-                    onChange={(event) => setRequestForm((prev) => ({ ...prev, email: event.target.value }))}
-                    placeholder="Email"
-                    className="rounded-md border px-3 py-2 text-sm"
-                  />
-                  <input
-                    value={requestForm.address}
-                    onChange={(event) => setRequestForm((prev) => ({ ...prev, address: event.target.value }))}
-                    placeholder="Address"
-                    className="rounded-md border px-3 py-2 text-sm"
-                    required
-                  />
-                  <select
-                    value={requestForm.document_type}
-                    onChange={(event) =>
-                      setRequestForm((prev) => ({ ...prev, document_type: event.target.value }))
+          <section className="grid gap-4 lg:grid-cols-2">
+            <SectionCard title="Submit Document Request" description="Start typing a resident name to search the full resident list, or enter the name manually.">
+              <form onSubmit={handleCreateRequest} className="mt-3 grid gap-3">
+                <datalist id="resident-name-suggestions">
+                  {residentSuggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                <input
+                  value={requestForm.full_name}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setRequestForm((prev) => ({ ...prev, full_name: value }));
+                    if (value.trim().length < 2) {
+                      setResidentSuggestions([]);
                     }
-                    className="rounded-md border px-3 py-2 text-sm"
-                  >
-                    <option value="barangay_clearance">Barangay Clearance</option>
-                    <option value="certificate_of_residency">Certificate of Residency</option>
-                    <option value="certificate_of_indigency">Certificate of Indigency</option>
-                    <option value="business_clearance">Business Clearance</option>
-                  </select>
-                  <textarea
-                    value={requestForm.purpose}
-                    onChange={(event) => setRequestForm((prev) => ({ ...prev, purpose: event.target.value }))}
-                    placeholder="Purpose"
-                    className="rounded-md border px-3 py-2 text-sm"
-                    rows={3}
-                    required
-                  />
-                  <input
-                    type="date"
-                    value={requestForm.preferred_release_date}
-                    onChange={(event) =>
-                      setRequestForm((prev) => ({ ...prev, preferred_release_date: event.target.value }))
-                    }
-                    className="rounded-md border px-3 py-2 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={submittingRequest}
-                    className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 disabled:opacity-50"
-                  >
-                    {submittingRequest ? "Submitting..." : "Submit request"}
-                  </button>
-                </form>
-              </article>
+                  }}
+                  placeholder="Search or encode full name"
+                  list="resident-name-suggestions"
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                  required
+                />
+                <input
+                  value={requestForm.contact_number}
+                  onChange={(event) => setRequestForm((prev) => ({ ...prev, contact_number: event.target.value }))}
+                  placeholder="Contact number"
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                  required
+                />
+                <input
+                  type="email"
+                  value={requestForm.email}
+                  onChange={(event) => setRequestForm((prev) => ({ ...prev, email: event.target.value }))}
+                  placeholder="Email"
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                />
+                <input
+                  value={requestForm.address}
+                  onChange={(event) => setRequestForm((prev) => ({ ...prev, address: event.target.value }))}
+                  placeholder="Address"
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                  required
+                />
+                <select
+                  value={requestForm.document_type}
+                  onChange={(event) =>
+                    setRequestForm((prev) => ({ ...prev, document_type: event.target.value }))
+                  }
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                >
+                  <option value="barangay_clearance">Barangay Clearance</option>
+                  <option value="certificate_of_residency">Certificate of Residency</option>
+                  <option value="certificate_of_indigency">Certificate of Indigency</option>
+                  <option value="business_clearance">Business Clearance</option>
+                </select>
+                <textarea
+                  value={requestForm.purpose}
+                  onChange={(event) => setRequestForm((prev) => ({ ...prev, purpose: event.target.value }))}
+                  placeholder="Purpose"
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                  rows={3}
+                  required
+                />
+                <input
+                  type="date"
+                  value={requestForm.preferred_release_date}
+                  onChange={(event) =>
+                    setRequestForm((prev) => ({ ...prev, preferred_release_date: event.target.value }))
+                  }
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
+                />
+                <PrimaryButton type="submit" disabled={submittingRequest}>
+                  {submittingRequest ? "Submitting..." : "Submit request"}
+                </PrimaryButton>
+              </form>
+            </SectionCard>
 
-              <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-semibold">My Requests</h2>
-                {loading ? (
-                  <p className="mt-3 text-sm text-zinc-600">Loading requests...</p>
-                ) : (
-                  <div className="mt-3 max-h-[26rem] overflow-auto">
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-zinc-200 text-left text-zinc-500">
-                          <th className="px-2 py-1 font-medium">Tracking</th>
-                          <th className="px-2 py-1 font-medium">Type</th>
-                          <th className="px-2 py-1 font-medium">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {requests.map((request) => (
-                          <tr key={request.tracking_number} className="border-b border-zinc-100">
-                            <td className="px-2 py-1">{request.tracking_number}</td>
-                            <td className="px-2 py-1">{request.document_type}</td>
-                            <td className="px-2 py-1">{request.status}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </article>
-            </section>
-          </>
-        )}
-      </div>
-    </main>
+            <SectionCard title="My Requests">
+              <DataTable
+                columns={[
+                  { key: "tracking", header: "Tracking", render: (request) => request.tracking_number },
+                  { key: "type", header: "Type", render: (request) => request.document_type },
+                  { key: "status", header: "Status", render: (request) => request.status },
+                ]}
+                rows={requests}
+                rowKey={(request) => request.tracking_number}
+                loading={loading}
+                emptyTitle="No requests yet"
+                emptyDescription="Submit your first document request to see it here."
+              />
+            </SectionCard>
+          </section>
+        </>
+      ) : null}
+    </ContentContainer>
   );
 }

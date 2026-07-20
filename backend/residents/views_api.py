@@ -6,9 +6,10 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, pagination, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, BasePermission, SAFE_METHODS
+from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from accounts.roles import user_has_office_role
 
 from bhw_reports.models import (
     FourPsBeneficiaryReport,
@@ -34,13 +35,11 @@ class ResidentPagination(pagination.PageNumberPagination):
 
 
 class StaffWritePermission(BasePermission):
-    """Allow reads to everyone, but restrict writes to authenticated staff."""
+    """Restrict all access to authenticated staff users."""
 
     def has_permission(self, request, view):
-        if request.method in SAFE_METHODS:
-            return True
         user = request.user
-        return bool(user and user.is_authenticated and user.is_staff)
+        return user_has_office_role(user)
 
 
 class ResidentViewSet(viewsets.ModelViewSet):
@@ -347,7 +346,7 @@ class StaffOnlyPermission(BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
-        return bool(user and user.is_authenticated and user.is_staff)
+        return user_has_office_role(user)
 
 
 class DocumentRequestViewSet(viewsets.ViewSet):

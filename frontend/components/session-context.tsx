@@ -113,7 +113,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       loading,
       error,
-      canWrite: Boolean(session?.is_authenticated && session.is_staff),
+      canWrite: Boolean(session?.is_authenticated && (session.is_staff || session.has_office_role)),
       refreshSession,
       login,
       logout,

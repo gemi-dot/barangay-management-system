@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { ContentContainer } from "@/components/layout/ContentContainer";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { resolveResidentQr } from "@/lib/api";
 
 export default function ScanResolvePage() {
@@ -43,10 +45,8 @@ export default function ScanResolvePage() {
   }, [params.qrValue, router]);
 
   return (
-    <main className="min-h-screen bg-gray-50 px-6 py-8 text-zinc-900">
-      <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-white p-6 text-sm shadow-sm">
-        Resolving QR code and loading resident profile...
-      </div>
-    </main>
+    <ContentContainer>
+      <SectionCard description="Resolving QR code and loading resident profile..." />
+    </ContentContainer>
   );
 }

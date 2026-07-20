@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from io import StringIO
 from django.core.management import call_command
 from django.test import TestCase
@@ -9,12 +10,14 @@ from .models import Asset, Category
 
 class AssetEditViewTests(TestCase):
 	def setUp(self):
+		secretary_group, _ = Group.objects.get_or_create(name='Secretary')
 		self.user = get_user_model().objects.create_user(username='inventory-user', password='testpass123')
 		self.staff_user = get_user_model().objects.create_user(
 			username='inventory-staff',
 			password='testpass123',
 			is_staff=True,
 		)
+		self.staff_user.groups.add(secretary_group)
 		self.category = Category.objects.create(name=Category.NameChoices.ICT_EQUIPMENT)
 		self.asset = Asset.objects.create(
 			property_number='INV-001',

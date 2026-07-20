@@ -9,6 +9,8 @@ from django.utils import timezone
 from django.urls import reverse
 from datetime import timedelta
 from urllib.parse import urlencode
+from django.utils.http import url_has_allowed_host_and_scheme
+from accounts.roles import user_has_office_role
 from .models import Resident, DocumentRequest, BarangayOfficeProfile, ResidentServiceLog
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
@@ -22,10 +24,21 @@ def _require_staff_or_respond(request):
     if not request.user.is_authenticated:
         return redirect(f"{reverse('login')}?next={request.get_full_path()}")
 
-    if request.user.is_staff:
+    if user_has_office_role(request.user):
         return None
 
     return render(request, 'residents/access_denied.html', status=403)
+
+
+def _safe_next_url(request, fallback):
+    candidate = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if candidate and url_has_allowed_host_and_scheme(
+        url=candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return fallback
 
 
 def _normalize_qr_value(raw_value):
@@ -66,42 +79,13 @@ def _get_certificate_meta(request, document_request):
 def _get_linked_resident(user):
     if not user.is_authenticated:
         return None
-
-    email = (user.email or '').strip()
-    if email:
-        resident = Resident.objects.filter(email__iexact=email, is_active=True).first()
-        if resident:
-            return resident
-
-    first_name = (user.first_name or '').strip()
-    last_name = (user.last_name or '').strip()
-    if first_name and last_name:
-        return Resident.objects.filter(
-            first_name__iexact=first_name,
-            last_name__iexact=last_name,
-            is_active=True,
-        ).first()
-
-    return None
+    return Resident.objects.filter(portal_user=user, is_active=True).first()
 
 
 def _get_resident_document_requests(user):
     if not user.is_authenticated:
         return DocumentRequest.objects.none()
-
-    filters = Q()
-    email = (user.email or '').strip()
-    if email:
-        filters |= Q(email__iexact=email)
-
-    full_name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
-    if full_name:
-        filters |= Q(full_name__iexact=full_name)
-
-    if not filters:
-        return DocumentRequest.objects.none()
-
-    return DocumentRequest.objects.filter(filters).order_by('-created_at')
+    return DocumentRequest.objects.filter(submitted_by=user).order_by('-created_at')
 
 
 def resident_login(request):
@@ -114,7 +98,7 @@ def resident_login(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect(request.GET.get('next') or 'resident_portal:dashboard')
+            return redirect(_safe_next_url(request, reverse('resident_portal:dashboard')))
         messages.error(request, 'Invalid username or password.')
 
     return render(request, 'residents/portal/login.html')
@@ -195,6 +179,7 @@ def resident_request_new(request):
         form = DocumentRequestForm(request.POST)
         if form.is_valid():
             document_request = form.save(commit=False)
+            document_request.submitted_by = request.user
             if not document_request.email:
                 document_request.email = (request.user.email or '').strip()
             if not document_request.full_name.strip():
@@ -257,6 +242,10 @@ def blotter_placeholder(request):
 
 @login_required
 def reports_home(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     return render(request, 'residents/reports_home.html')
 
 
@@ -597,6 +586,10 @@ def quick_create_document_request(request, resident_id):
 
 @login_required
 def voters_precinct_dashboard(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     data = (
         Resident.objects
         .filter(
@@ -620,6 +613,10 @@ def voters_precinct_dashboard(request):
 
 @login_required
 def voters_report(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     voters = Resident.objects.filter(
         voters_id__gt='',
         precinct_number__gt='',
@@ -633,6 +630,10 @@ def voters_report(request):
 
 @login_required
 def voters_by_precinct_report(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     voters = Resident.objects.filter(
         voters_id__gt='',
         precinct_number__gt='',
@@ -692,6 +693,10 @@ def track_document_request(request):
 
 @login_required
 def document_requests_queue(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     status_filter = request.GET.get('status')
     document_requests = DocumentRequest.objects.all().order_by('-created_at')
 
@@ -707,6 +712,10 @@ def document_requests_queue(request):
 
 @login_required
 def update_document_request_status(request, request_id):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     if request.method != 'POST':
         return redirect('residents:document_requests_queue')
 
@@ -738,6 +747,10 @@ def update_document_request_status(request, request_id):
 
 @login_required
 def reset_document_request_test_data(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     if request.method != 'POST':
         return redirect('dashboard:dashboard')
 
@@ -755,6 +768,10 @@ def reset_document_request_test_data(request):
 
 @login_required
 def certificate_of_residency_sample(request, request_id=None):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     document_request = None
 
     if request_id is not None:
@@ -777,6 +794,10 @@ def certificate_of_residency_sample(request, request_id=None):
 
 @login_required
 def certificate_of_indigency_sample(request, request_id=None):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     document_request = None
 
     if request_id is not None:
@@ -799,6 +820,10 @@ def certificate_of_indigency_sample(request, request_id=None):
 
 @login_required
 def barangay_clearance_sample(request, request_id=None):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     document_request = None
 
     if request_id is not None:
@@ -821,6 +846,10 @@ def barangay_clearance_sample(request, request_id=None):
 
 @login_required
 def business_clearance_sample(request, request_id=None):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     document_request = None
 
     if request_id is not None:
@@ -843,6 +872,10 @@ def business_clearance_sample(request, request_id=None):
 
 @login_required
 def barangay_id_sample(request, resident_id=None):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     resident = None
     if resident_id is not None:
         resident = get_object_or_404(Resident, id=resident_id)
@@ -920,6 +953,10 @@ def barangay_id_bulk_print(request):
 
 @login_required
 def qr_frontdesk_sop_sheet(request):
+    denied_response = _require_staff_or_respond(request)
+    if denied_response is not None:
+        return denied_response
+
     profile = BarangayOfficeProfile.get_solo()
 
     context = {
