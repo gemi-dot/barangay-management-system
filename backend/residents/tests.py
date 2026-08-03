@@ -13,6 +13,7 @@ from .models import (
 	Household,
 	HouseholdMembership,
 	Resident,
+	ResidentServiceLog,
 )
 
 
@@ -116,6 +117,46 @@ class ResidentSecurityRegressionTests(TestCase):
 		self.client.force_login(self.staff_user)
 		staff = self.client.get('/api/residents/')
 		self.assertEqual(staff.status_code, 200)
+
+	def test_resident_profile_tabs_payload_uses_existing_related_data(self):
+		self.linked_resident.father_name = 'Ramon Dela Cruz'
+		self.linked_resident.mother_name = 'Elena Dela Cruz'
+		self.linked_resident.spouse_name = 'Marco Dela Cruz'
+		self.linked_resident.save(update_fields=['father_name', 'mother_name', 'spouse_name'])
+		household = create_household(
+			household_head=self.linked_resident,
+			household_number='PROFILE-HH-001',
+			purok='Purok Kulo',
+			complete_address='Purok Kulo, Abgao',
+		)
+		document = DocumentRequest.objects.create(
+			full_name=self.linked_resident.full_name,
+			contact_number='09171234567',
+			email=self.linked_resident.email,
+			submitted_by=self.regular_user,
+			address='Purok Kulo, Abgao',
+			document_type='certificate_of_residency',
+			purpose='Resident profile test',
+		)
+		log = ResidentServiceLog.objects.create(
+			resident=self.linked_resident,
+			logged_by=self.staff_user,
+			action=ResidentServiceLog.ACTION_VISITED_TODAY,
+			notes='Profile history test.',
+		)
+
+		anonymous = self.client.get(f'/api/residents/{self.linked_resident.id}/detail/')
+		self.assertIn(anonymous.status_code, {401, 403})
+		self.client.force_login(self.staff_user)
+		response = self.client.get(f'/api/residents/{self.linked_resident.id}/detail/')
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertEqual(payload['household']['id'], household.id)
+		self.assertEqual(payload['household']['relationship_to_head'], 'head')
+		self.assertEqual(payload['family']['father_name'], 'Ramon Dela Cruz')
+		self.assertEqual(payload['documents'][0]['tracking_number'], document.tracking_number)
+		self.assertEqual(payload['history'][0]['id'], log.id)
+		self.assertEqual(payload['qr_profile']['code'], self.linked_resident.qr_code)
 
 	def test_portal_api_requests_are_scoped_to_submitted_by(self):
 		own = DocumentRequest.objects.create(

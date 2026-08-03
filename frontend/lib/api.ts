@@ -641,6 +641,53 @@ export type ResidentDetailResponse = {
     is_solo_parent: boolean;
     is_indigenous: boolean;
   };
+  household: null | {
+    id: number;
+    household_number: string;
+    head_resident_id: number;
+    head_full_name: string;
+    complete_address: string;
+    purok: string;
+    status: HouseholdStatus;
+    relationship_to_head: string;
+    members: Array<{
+      resident_id: number;
+      full_name: string;
+      relationship_to_head: string;
+      resident_status: "active" | "inactive";
+    }>;
+  };
+  family: {
+    father_name: string;
+    mother_name: string;
+    spouse_name: string;
+    emergency_contact_name: string;
+    emergency_contact_number: string;
+    emergency_contact_relationship: string;
+  };
+  documents: Array<{
+    id: number;
+    tracking_number: string;
+    document_type: string;
+    document_type_display: string;
+    purpose: string;
+    status: string;
+    status_display: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  history: Array<{
+    id: number;
+    action: string;
+    action_display: string;
+    notes: string;
+    created_at: string;
+    logged_by: string;
+  }>;
+  qr_profile: {
+    code: string;
+    image_url: string | null;
+  };
   system: {
     is_active: boolean;
     date_registered: string;

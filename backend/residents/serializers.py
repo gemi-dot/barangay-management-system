@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from django.db.models import Q
 
-from .models import Resident
+from .models import DocumentRequest, HouseholdMembership, Resident
 
 
 class DynamicFieldsModelSerializer(serializers.ModelSerializer):
@@ -90,6 +91,42 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         detail = ResidentDetailSerializer(instance, context=self.context).data
+        active_membership = (
+            instance.household_memberships.filter(status=HouseholdMembership.Status.ACTIVE)
+            .select_related('household__household_head')
+            .first()
+        )
+        household_payload = None
+        if active_membership:
+            household = active_membership.household
+            household_payload = {
+                'id': household.id,
+                'household_number': household.household_number,
+                'head_resident_id': household.household_head_id,
+                'head_full_name': household.household_head.full_name,
+                'complete_address': household.complete_address,
+                'purok': household.purok,
+                'status': household.status,
+                'relationship_to_head': active_membership.relationship_to_head,
+                'members': [
+                    {
+                        'resident_id': membership.resident_id,
+                        'full_name': membership.resident.full_name,
+                        'relationship_to_head': membership.relationship_to_head,
+                        'resident_status': 'active' if membership.resident.is_active else 'inactive',
+                    }
+                    for membership in household.memberships.filter(
+                        status=HouseholdMembership.Status.ACTIVE
+                    ).select_related('resident')
+                ],
+            }
+
+        document_filter = Q(full_name__iexact=instance.full_name)
+        if instance.portal_user_id:
+            document_filter |= Q(submitted_by_id=instance.portal_user_id)
+        documents = DocumentRequest.objects.filter(document_filter).distinct().order_by('-created_at')[:50]
+        service_logs = instance.service_logs.select_related('logged_by').order_by('-created_at')[:50]
+
         return {
             'identity': {
                 'id': detail['id'],
@@ -136,6 +173,44 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 'is_senior_citizen': detail['is_senior_citizen'],
                 'is_solo_parent': detail['is_solo_parent'],
                 'is_indigenous': detail['is_indigenous'],
+            },
+            'household': household_payload,
+            'family': {
+                'father_name': instance.father_name,
+                'mother_name': instance.mother_name,
+                'spouse_name': instance.spouse_name,
+                'emergency_contact_name': instance.emergency_contact_name,
+                'emergency_contact_number': instance.emergency_contact_number,
+                'emergency_contact_relationship': instance.emergency_contact_relationship,
+            },
+            'documents': [
+                {
+                    'id': document.id,
+                    'tracking_number': document.tracking_number,
+                    'document_type': document.document_type,
+                    'document_type_display': document.get_document_type_display(),
+                    'purpose': document.purpose,
+                    'status': document.status,
+                    'status_display': document.get_status_display(),
+                    'created_at': document.created_at.isoformat(),
+                    'updated_at': document.updated_at.isoformat(),
+                }
+                for document in documents
+            ],
+            'history': [
+                {
+                    'id': log.id,
+                    'action': log.action,
+                    'action_display': log.get_action_display(),
+                    'notes': log.notes,
+                    'created_at': log.created_at.isoformat(),
+                    'logged_by': log.logged_by.username if log.logged_by else '',
+                }
+                for log in service_logs
+            ],
+            'qr_profile': {
+                'code': instance.qr_code,
+                'image_url': instance.qr_image.url if instance.qr_image else None,
             },
             'system': {
                 'is_active': detail['is_active'],
