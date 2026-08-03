@@ -428,9 +428,78 @@ export type HouseholdListItem = {
   head_resident_id: number | null;
   head_full_name: string;
   zone: string;
+  purok: string;
+  complete_address: string;
+  status: HouseholdStatus;
   member_count: number;
   house_ownership: string;
   total_monthly_income: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HouseholdStatus = "active" | "inactive" | "transferred" | "archived";
+
+export type HouseholdStatistics = {
+  total_members: number;
+  active_members: number;
+  inactive_members: number;
+  children_count: number;
+  adult_count: number;
+  senior_citizen_count: number;
+  male_count: number;
+  female_count: number;
+  voter_count: number;
+  pwd_count: number;
+  four_ps_beneficiary_count: number;
+};
+
+export type HouseholdMember = {
+  id: number;
+  resident_id: number;
+  resident_code: string;
+  full_name: string;
+  photo_url: string | null;
+  sex: "M" | "F";
+  birth_date: string;
+  age: number;
+  resident_status: "active" | "inactive";
+  relationship_to_head: string;
+  status: "active" | "inactive" | "transferred";
+  joined_date: string;
+  left_date: string | null;
+  voter_status: boolean;
+};
+
+export type HouseholdDetail = {
+  id: number;
+  household_number: string;
+  head_of_household: {
+    resident_id: number;
+    resident_code: string;
+    full_name: string;
+  };
+  complete_address: string;
+  purok: string;
+  status: HouseholdStatus;
+  notes: string;
+  house_ownership: "owned" | "rented" | "shared" | "caretaker";
+  total_monthly_income: string | null;
+  created_at: string;
+  updated_at: string;
+  members: HouseholdMember[];
+  statistics: HouseholdStatistics;
+};
+
+export type HouseholdWritePayload = {
+  household_number?: string;
+  household_head_id?: number;
+  complete_address?: string;
+  purok?: string;
+  status?: HouseholdStatus;
+  notes?: string;
+  house_ownership?: "owned" | "rented" | "shared" | "caretaker";
+  total_monthly_income?: string | null;
 };
 
 export type TodayVisitor = {
@@ -1169,12 +1238,14 @@ export async function getHouseholds(query: {
   page_size?: number;
   q?: string;
   zone?: string;
+  status?: HouseholdStatus | "";
 }): Promise<PaginatedResponse<HouseholdListItem>> {
   const params = new URLSearchParams();
   if (query.page) params.set("page", String(query.page));
   if (query.page_size) params.set("page_size", String(query.page_size));
   if (query.q) params.set("q", query.q);
   if (query.zone) params.set("zone", query.zone);
+  if (query.status) params.set("status", query.status);
 
   const res = await fetch(`${getApiBaseUrl()}/households/list/?${params.toString()}`, {
     method: "GET",
@@ -1183,6 +1254,106 @@ export async function getHouseholds(query: {
   });
 
   return parseJsonResponse<PaginatedResponse<HouseholdListItem>>(res, "Household list");
+}
+
+export async function getHousehold(id: number | string): Promise<HouseholdDetail> {
+  const res = await fetch(`${getApiBaseUrl()}/households/${id}/`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  return parseJsonResponse<HouseholdDetail>(res, "Household detail");
+}
+
+async function householdJsonMutation<T>(
+  path: string,
+  method: "POST" | "PATCH" | "PUT",
+  payload: unknown,
+  context: string,
+): Promise<T> {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    method,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonResponse<T>(res, context);
+}
+
+export function createHousehold(payload: HouseholdWritePayload & { household_head_id: number }) {
+  return householdJsonMutation<HouseholdDetail>(
+    "/households/",
+    "POST",
+    payload,
+    "Create household",
+  );
+}
+
+export function updateHousehold(id: number | string, payload: HouseholdWritePayload) {
+  return householdJsonMutation<HouseholdDetail>(
+    `/households/${id}/`,
+    "PATCH",
+    payload,
+    "Update household",
+  );
+}
+
+export function setHouseholdArchived(
+  id: number | string,
+  status: "inactive" | "archived",
+) {
+  return householdJsonMutation<HouseholdDetail>(
+    `/households/${id}/archive/`,
+    "POST",
+    { status },
+    "Change household status",
+  );
+}
+
+export function addHouseholdMember(
+  id: number | string,
+  payload: { resident_id: number; relationship_to_head: string; move?: boolean },
+) {
+  return householdJsonMutation<HouseholdMember>(
+    `/households/${id}/members/`,
+    "POST",
+    payload,
+    "Add household member",
+  );
+}
+
+export async function removeHouseholdMember(
+  id: number | string,
+  residentId: number | string,
+): Promise<void> {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}/households/${id}/members/${residentId}/`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "X-CSRFToken": csrfToken },
+  });
+  if (!res.ok) {
+    const payload = await res.text();
+    throw new Error(`Remove household member failed: ${res.status}${payload ? ` ${summarizePayload(payload)}` : ""}`);
+  }
+}
+
+export function changeHouseholdHead(
+  id: number | string,
+  payload: { resident_id: number; previous_head_relationship: string },
+) {
+  return householdJsonMutation<HouseholdDetail>(
+    `/households/${id}/change-head/`,
+    "POST",
+    payload,
+    "Change household head",
+  );
 }
 
 export async function getTodayVisitorsReport(): Promise<TodayVisitorsReport> {

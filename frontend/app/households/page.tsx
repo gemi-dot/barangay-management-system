@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Download, Home, UserPlus } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { ClipboardList, Download, Home, Plus, UserPlus, X } from "lucide-react";
 
 import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
 import { ExportButtons } from "@/components/enterprise/ExportButtons";
@@ -14,6 +14,7 @@ import { useSessionAuth } from "@/components/session-context";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StatCard } from "@/components/ui/StatCard";
@@ -22,8 +23,12 @@ import { SecondaryButton } from "@/components/ui/SecondaryButton";
 import {
   getHouseholds,
   getHouseholdSummary,
+  createHousehold,
+  getResidentsPaginated,
   type HouseholdListItem,
+  type HouseholdStatus,
   type HouseholdSummary,
+  type ResidentListItem,
 } from "@/lib/api";
 
 const PAGE_SIZE = 20;
@@ -37,8 +42,24 @@ export default function HouseholdsPage() {
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [zone, setZone] = useState("");
+  const [status, setStatus] = useState<HouseholdStatus | "">("");
+  const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [residentSearch, setResidentSearch] = useState("");
+  const [residentOptions, setResidentOptions] = useState<ResidentListItem[]>([]);
+  const [form, setForm] = useState({
+    household_number: "",
+    household_head_id: "",
+    complete_address: "",
+    purok: "Purok Talisay",
+    house_ownership: "owned",
+    total_monthly_income: "",
+    notes: "",
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +82,7 @@ export default function HouseholdsPage() {
             page_size: PAGE_SIZE,
             q: query || undefined,
             zone: zone || undefined,
+            status,
           }),
         ]);
 
@@ -86,7 +108,61 @@ export default function HouseholdsPage() {
     return () => {
       cancelled = true;
     };
-  }, [canWrite, page, query, zone]);
+  }, [canWrite, page, query, refreshTick, status, zone]);
+
+  useEffect(() => {
+    if (!createOpen || !canWrite) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await getResidentsPaginated({
+          page: 1,
+          page_size: 30,
+          search: residentSearch || undefined,
+          is_active: true,
+          ordering: "last_name",
+        });
+        if (!cancelled) setResidentOptions(result.results);
+      } catch (err) {
+        if (!cancelled) setCreateError(err instanceof Error ? err.message : "Failed to load residents.");
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [canWrite, createOpen, residentSearch]);
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const headId = Number(form.household_head_id);
+    if (!headId) {
+      setCreateError("Select a household head.");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await createHousehold({
+        household_number: form.household_number,
+        household_head_id: headId,
+        complete_address: form.complete_address,
+        purok: form.purok,
+        house_ownership: form.house_ownership as "owned" | "rented" | "shared" | "caretaker",
+        total_monthly_income: form.total_monthly_income || null,
+        notes: form.notes,
+      });
+      setCreateOpen(false);
+      setForm({ household_number: "", household_head_id: "", complete_address: "", purok: "Purok Talisay", house_ownership: "owned", total_monthly_income: "", notes: "" });
+      setResidentSearch("");
+      setPage(1);
+      setRefreshTick((value) => value + 1);
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create household.");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / PAGE_SIZE)), [count]);
 
@@ -100,19 +176,23 @@ export default function HouseholdsPage() {
         description="Advanced household registry with operational KPIs, filtering, exports, and cross-module quick actions."
         badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
         actions={(
-          <ExportButtons
-            rows={rows}
-            fileName="households-export.csv"
-            toExportRecord={(row) => ({
-              household_number: row.household_number,
-              head_full_name: row.head_full_name,
-              zone: row.zone,
-              member_count: row.member_count,
-              house_ownership: row.house_ownership,
-              total_monthly_income: row.total_monthly_income || "",
-            })}
-            disabled={loading}
-          />
+          <div className="flex flex-wrap gap-2">
+            {canWrite ? <PrimaryButton onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>New Household</PrimaryButton> : null}
+            <ExportButtons
+              rows={rows}
+              fileName="households-export.csv"
+              toExportRecord={(row) => ({
+                household_number: row.household_number,
+                head_full_name: row.head_full_name,
+                zone: row.zone,
+                status: row.status,
+                member_count: row.member_count,
+                house_ownership: row.house_ownership,
+                total_monthly_income: row.total_monthly_income || "",
+              })}
+              disabled={loading}
+            />
+          </div>
         )}
       />
 
@@ -143,7 +223,7 @@ export default function HouseholdsPage() {
             <StatCard label="Zones Covered" value={summary?.by_zone.length ?? 0} />
           </section>
 
-          <SectionCard title="Advanced Search and Filters" description="Filter households by free-text search and zone.">
+          <SectionCard title="Advanced Search and Filters" description="Search by code, head, member, address, purok, or status.">
             <FilterBar>
               <label className="text-sm">
                 <span className="mb-1 block font-medium text-gray-700">Search</span>
@@ -155,6 +235,24 @@ export default function HouseholdsPage() {
                   }}
                   placeholder="Search household no, head, zone"
                 />
+              </label>
+
+              <label className="text-sm">
+                <span className="mb-1 block font-medium text-gray-700">Status</span>
+                <select
+                  value={status}
+                  onChange={(event) => {
+                    setStatus(event.target.value as HouseholdStatus | "");
+                    setPage(1);
+                  }}
+                  className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"
+                >
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="transferred">Transferred</option>
+                  <option value="archived">Archived</option>
+                </select>
               </label>
 
               <label className="text-sm">
@@ -196,13 +294,9 @@ export default function HouseholdsPage() {
                     header: "Household #",
                     className: "min-w-[130px] whitespace-nowrap",
                     render: (row) =>
-                      row.head_resident_id ? (
-                        <Link className="font-medium text-zinc-900 hover:underline" href={`/residents/${row.head_resident_id}`}>
-                          {row.household_number}
-                        </Link>
-                      ) : (
-                        row.household_number
-                      ),
+                      <Link className="font-medium text-blue-700 hover:underline" href={`/households/${row.id}`}>
+                        {row.household_number}
+                      </Link>,
                   },
                   {
                     key: "head",
@@ -215,6 +309,12 @@ export default function HouseholdsPage() {
                     header: "Purok",
                     className: "min-w-[150px] whitespace-nowrap",
                     render: (row) => row.zone,
+                  },
+                  {
+                    key: "status",
+                    header: "Status",
+                    className: "min-w-[120px] whitespace-nowrap",
+                    render: (row) => <StatusBadge label={row.status} tone={row.status === "active" ? "success" : row.status === "archived" ? "default" : "warning"} />,
                   },
                   {
                     key: "members",
@@ -270,6 +370,7 @@ export default function HouseholdsPage() {
                 stats={[
                   { label: "Active Zone Filter", value: zone || "All zones" },
                   { label: "Search Term", value: query || "None" },
+                  { label: "Status Filter", value: status || "All statuses" },
                   { label: "Rows Loaded", value: String(rows.length) },
                   { label: "Total Pages", value: String(totalPages) },
                 ]}
@@ -279,6 +380,41 @@ export default function HouseholdsPage() {
             </div>
           </section>
         </>
+      ) : null}
+
+      {createOpen ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-8">
+          <form onSubmit={handleCreate} className="mx-auto w-full max-w-2xl rounded-xl border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-lg)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">Register household</h2>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select an existing resident as the initial household head.</p>
+              </div>
+              <button type="button" onClick={() => setCreateOpen(false)} aria-label="Close" className="rounded-md p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+            </div>
+            {createError ? <div className="mt-4"><ErrorState message={createError} /></div> : null}
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="text-sm md:col-span-2">
+                <span className="mb-1 block font-medium text-slate-700">Find resident</span>
+                <SearchInput value={residentSearch} onChange={(event) => setResidentSearch(event.target.value)} placeholder="Search resident name" />
+              </label>
+              <label className="text-sm md:col-span-2">
+                <span className="mb-1 block font-medium text-slate-700">Household head</span>
+                <select required value={form.household_head_id} onChange={(event) => setForm((value) => ({ ...value, household_head_id: event.target.value }))} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2">
+                  <option value="">Select resident</option>
+                  {residentOptions.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name || `${resident.last_name}, ${resident.first_name}`}</option>)}
+                </select>
+              </label>
+              <label className="text-sm"><span className="mb-1 block font-medium text-slate-700">Household code</span><input value={form.household_number} onChange={(event) => setForm((value) => ({ ...value, household_number: event.target.value }))} placeholder="Auto-generated when blank" className="w-full rounded-md border border-[var(--color-border)] px-3 py-2" /></label>
+              <label className="text-sm"><span className="mb-1 block font-medium text-slate-700">Purok</span><select value={form.purok} onChange={(event) => setForm((value) => ({ ...value, purok: event.target.value }))} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2">{["Purok Talisay", "Purok Malunggay", "Purok Mancinitas", "Purok Narra", "Purok Kulo", "Purok Ipil-ipil", "Purok Tugas"].map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="text-sm md:col-span-2"><span className="mb-1 block font-medium text-slate-700">Complete address</span><textarea value={form.complete_address} onChange={(event) => setForm((value) => ({ ...value, complete_address: event.target.value }))} rows={2} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2" /></label>
+              <label className="text-sm"><span className="mb-1 block font-medium text-slate-700">Ownership</span><select value={form.house_ownership} onChange={(event) => setForm((value) => ({ ...value, house_ownership: event.target.value }))} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"><option value="owned">Owned</option><option value="rented">Rented</option><option value="shared">Shared</option><option value="caretaker">Caretaker</option></select></label>
+              <label className="text-sm"><span className="mb-1 block font-medium text-slate-700">Monthly income</span><input type="number" min="0" step="0.01" value={form.total_monthly_income} onChange={(event) => setForm((value) => ({ ...value, total_monthly_income: event.target.value }))} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2" /></label>
+              <label className="text-sm md:col-span-2"><span className="mb-1 block font-medium text-slate-700">Notes</span><textarea value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} rows={3} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2" /></label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2"><SecondaryButton onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</SecondaryButton><PrimaryButton type="submit" disabled={creating}>{creating ? "Creating..." : "Create Household"}</PrimaryButton></div>
+          </form>
+        </div>
       ) : null}
     </ContentContainer>
   );
