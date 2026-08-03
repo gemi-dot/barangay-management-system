@@ -55,7 +55,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
 
           <section>
             <p className="font-semibold text-slate-900 dark:text-slate-100">Version History</p>
-            <p>v2.0 Enterprise</p>
+            <p>{BRAND.releaseLabel}</p>
           </section>
 
           <section>
