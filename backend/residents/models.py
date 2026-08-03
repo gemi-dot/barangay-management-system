@@ -1,6 +1,6 @@
 from django.conf import settings
-from django.db import models
-from django.db import IntegrityError
+from django.db import IntegrityError, models, transaction
+from django.db.models import Q
 from django.core.validators import RegexValidator
 from django.core.files.base import ContentFile
 from django.urls import reverse
@@ -251,9 +251,28 @@ class Resident(models.Model):
 
 class Household(models.Model):
     """Model to group residents by household/family"""
-    household_head = models.ForeignKey(Resident, on_delete=models.CASCADE, related_name='headed_household')
-    household_number = models.CharField(max_length=20, unique=True)
-    members = models.ManyToManyField(Resident, related_name='households', blank=True)
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        INACTIVE = 'inactive', 'Inactive'
+        TRANSFERRED = 'transferred', 'Transferred'
+        ARCHIVED = 'archived', 'Archived'
+
+    household_head = models.ForeignKey(
+        Resident,
+        on_delete=models.PROTECT,
+        related_name='headed_household',
+    )
+    household_number = models.CharField(max_length=20, unique=True, blank=True)
+    members = models.ManyToManyField(
+        Resident,
+        through='HouseholdMembership',
+        related_name='households',
+        blank=True,
+    )
+    complete_address = models.TextField(blank=True)
+    purok = models.CharField(max_length=50, choices=Resident.ZONE_CHOICES, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    notes = models.TextField(blank=True)
     total_monthly_income = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     house_ownership = models.CharField(max_length=50, choices=[
         ('owned', 'Owned'),
@@ -273,6 +292,88 @@ class Household(models.Model):
     def __str__(self):
         return f"Household {self.household_number} - {self.household_head.full_name}"
 
+    def save(self, *args, **kwargs):
+        if not self.household_number:
+            with transaction.atomic():
+                self.household_number = self._next_household_number()
+                return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def _next_household_number(cls):
+        """Return the next generated code without changing existing legacy codes."""
+        generated_numbers = []
+        for code in cls.objects.select_for_update().values_list('household_number', flat=True):
+            if code.startswith('HH-') and code[3:].isdigit():
+                generated_numbers.append(int(code[3:]))
+        return f"HH-{(max(generated_numbers, default=0) + 1):06d}"
+
+
+class HouseholdMembership(models.Model):
+    class Relationship(models.TextChoices):
+        HEAD = 'head', 'Head'
+        SPOUSE = 'spouse', 'Spouse'
+        SON = 'son', 'Son'
+        DAUGHTER = 'daughter', 'Daughter'
+        CHILD = 'child', 'Child'
+        FATHER = 'father', 'Father'
+        MOTHER = 'mother', 'Mother'
+        PARENT = 'parent', 'Parent'
+        BROTHER = 'brother', 'Brother'
+        SISTER = 'sister', 'Sister'
+        SIBLING = 'sibling', 'Sibling'
+        GRANDFATHER = 'grandfather', 'Grandfather'
+        GRANDMOTHER = 'grandmother', 'Grandmother'
+        GRANDPARENT = 'grandparent', 'Grandparent'
+        GRANDCHILD = 'grandchild', 'Grandchild'
+        GUARDIAN = 'guardian', 'Guardian'
+        WARD = 'ward', 'Ward'
+        OTHER_RELATIVE = 'other_relative', 'Other relative'
+        NON_RELATIVE = 'non_relative', 'Non-relative'
+
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        INACTIVE = 'inactive', 'Inactive'
+        TRANSFERRED = 'transferred', 'Transferred'
+
+    household = models.ForeignKey(
+        Household,
+        on_delete=models.CASCADE,
+        related_name='memberships',
+    )
+    resident = models.ForeignKey(
+        Resident,
+        on_delete=models.PROTECT,
+        related_name='household_memberships',
+    )
+    relationship_to_head = models.CharField(
+        max_length=30,
+        choices=Relationship.choices,
+        default=Relationship.OTHER_RELATIVE,
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    joined_date = models.DateField(default=timezone.localdate)
+    left_date = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['household_id', 'resident__last_name', 'resident__first_name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['resident'],
+                condition=Q(status='active'),
+                name='unique_active_household_per_resident',
+            ),
+            models.UniqueConstraint(
+                fields=['household'],
+                condition=Q(status='active', relationship_to_head='head'),
+                name='unique_active_head_per_household',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.resident.full_name} in {self.household.household_number}"
 
 class ResidentServiceLog(models.Model):
     ACTION_SCANNED_QR = 'scanned_qr'

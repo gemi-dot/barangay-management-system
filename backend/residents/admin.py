@@ -3,7 +3,15 @@ from django.utils.html import format_html
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 
-from .models import Resident, Household, Precinct, DocumentRequest, BarangayOfficeProfile, ResidentServiceLog
+from .models import (
+    BarangayOfficeProfile,
+    DocumentRequest,
+    Household,
+    HouseholdMembership,
+    Precinct,
+    Resident,
+    ResidentServiceLog,
+)
 
 # Register your models here.
 
@@ -61,13 +69,26 @@ class ResidentAdmin(admin.ModelAdmin):
     qr_preview.short_description = 'QR Preview'
 
 
+
+class HouseholdMembershipInline(admin.TabularInline):
+    model = HouseholdMembership
+    extra = 0
+    autocomplete_fields = ['resident']
+
+
 @admin.register(Household)
 class HouseholdAdmin(admin.ModelAdmin):
-    list_display = ['household_number', 'household_head', 'house_ownership', 'total_monthly_income', 'created_at']
-    list_filter = ['house_ownership']
-    search_fields = ['household_number', 'household_head__first_name', 'household_head__last_name']
-    
-    filter_horizontal = ['members']
+    list_display = ['household_number', 'household_head', 'purok', 'status', 'house_ownership', 'created_at']
+    list_filter = ['status', 'purok', 'house_ownership']
+    search_fields = [
+        'household_number',
+        'household_head__first_name',
+        'household_head__last_name',
+        'memberships__resident__first_name',
+        'memberships__resident__last_name',
+    ]
+    readonly_fields = ['created_at', 'updated_at']
+    inlines = [HouseholdMembershipInline]
 
 
 @admin.register(Precinct)

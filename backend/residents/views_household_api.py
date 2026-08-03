@@ -1,117 +1,226 @@
-from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
-from django.db.models import Q
-from django.http import JsonResponse
-from django.views.decorators.http import require_GET
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
+from rest_framework import pagination, status
+from rest_framework.permissions import BasePermission
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Household, Resident
+from accounts.roles import user_has_office_role
+
+from .household_serializers import (
+    HouseholdDetailSerializer,
+    HouseholdListSerializer,
+    HouseholdMemberSerializer,
+    HouseholdUpdateSerializer,
+    HouseholdWriteSerializer,
+    household_statistics,
+)
+from .household_services import (
+    add_household_member,
+    change_household_head,
+    remove_household_member,
+)
+from .models import Household, HouseholdMembership, Resident
 
 
-def _staff_guard(request):
-    user = request.user
-    if not user.is_authenticated:
-        return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
-    if not user.is_staff:
-        return JsonResponse({"detail": "Staff access is required."}, status=403)
-    return None
+class HouseholdStaffPermission(BasePermission):
+    def has_permission(self, request, view):
+        return user_has_office_role(request.user)
 
 
-@require_GET
-@login_required
-def households_summary_api(request):
-    denied = _staff_guard(request)
-    if denied:
-        return denied
+class HouseholdPagination(pagination.PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
-    households = Household.objects.select_related("household_head")
-    total_households = households.count()
 
-    zone_counts = {}
-    for row in households.values_list("household_head__zone", flat=True):
-        zone = row or "Unassigned"
-        zone_counts[zone] = zone_counts.get(zone, 0) + 1
-
-    by_zone = [
-        {"zone": zone, "total": total}
-        for zone, total in sorted(zone_counts.items(), key=lambda item: item[0])
-    ]
-
-    return JsonResponse(
-        {
-            "total_households": total_households,
-            "total_residents": Resident.objects.filter(is_active=True).count(),
-            "by_zone": by_zone,
-        }
+def household_queryset():
+    return Household.objects.select_related('household_head').prefetch_related(
+        'memberships__resident'
     )
 
 
-@require_GET
-@login_required
-def households_list_api(request):
-    denied = _staff_guard(request)
-    if denied:
-        return denied
+class HouseholdListCreateAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
 
-    q = request.GET.get("q", "").strip()
-    zone = request.GET.get("zone", "").strip()
+    def get(self, request):
+        households = household_queryset().order_by('household_number')
+        query = request.query_params.get('q', '').strip()
+        purok = (request.query_params.get('purok') or request.query_params.get('zone') or '').strip()
+        household_status = request.query_params.get('status', '').strip()
 
-    page_raw = request.GET.get("page", "1").strip()
-    page_size_raw = request.GET.get("page_size", "20").strip()
+        if purok:
+            households = households.filter(purok=purok)
+        if household_status:
+            households = households.filter(status=household_status)
+        if query:
+            households = households.filter(
+                Q(household_number__icontains=query)
+                | Q(household_head__first_name__icontains=query)
+                | Q(household_head__middle_name__icontains=query)
+                | Q(household_head__last_name__icontains=query)
+                | Q(memberships__resident__first_name__icontains=query)
+                | Q(memberships__resident__middle_name__icontains=query)
+                | Q(memberships__resident__last_name__icontains=query)
+                | Q(complete_address__icontains=query)
+                | Q(purok__icontains=query)
+                | Q(status__icontains=query)
+            ).distinct()
 
-    try:
-        page = max(1, int(page_raw))
-    except ValueError:
-        page = 1
+        paginator = HouseholdPagination()
+        page = paginator.paginate_queryset(households, request)
+        serializer = HouseholdListSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
 
-    try:
-        page_size = int(page_size_raw)
-    except ValueError:
-        page_size = 20
-    page_size = min(max(page_size, 1), 100)
-
-    households = Household.objects.select_related("household_head").prefetch_related("members").order_by(
-        "household_number"
-    )
-
-    if zone:
-        households = households.filter(household_head__zone=zone)
-
-    if q:
-        households = households.filter(
-            Q(household_number__icontains=q)
-            | Q(household_head__first_name__icontains=q)
-            | Q(household_head__middle_name__icontains=q)
-            | Q(household_head__last_name__icontains=q)
-            | Q(household_head__zone__icontains=q)
+    def post(self, request):
+        serializer = HouseholdWriteSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        household = serializer.save()
+        return Response(
+            HouseholdDetailSerializer(household, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
         )
 
-    paginator = Paginator(households, page_size)
-    page_obj = paginator.get_page(page)
 
-    results = []
-    for household in page_obj.object_list:
-        head = household.household_head
-        members = [member for member in household.members.all() if member.pk != household.household_head_id]
-        results.append(
+class HouseholdSummaryAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def get(self, request):
+        households = Household.objects.all()
+        by_purok = households.values('purok').annotate(total=Count('id')).order_by('purok')
+        return Response(
             {
-                "id": household.id,
-                "household_number": household.household_number,
-                "head_resident_id": head.id if head else None,
-                "head_full_name": head.full_name if head else "",
-                "zone": head.zone if head and head.zone else "Unassigned",
-                "member_count": len(members),
-                "house_ownership": household.house_ownership,
-                "total_monthly_income": str(household.total_monthly_income)
-                if household.total_monthly_income is not None
-                else None,
+                'total_households': households.count(),
+                'total_residents': Resident.objects.filter(is_active=True).count(),
+                'by_zone': [
+                    {'zone': row['purok'] or 'Unassigned', 'total': row['total']}
+                    for row in by_purok
+                ],
             }
         )
 
-    return JsonResponse(
-        {
-            "count": paginator.count,
-            "next": page + 1 if page_obj.has_next() else None,
-            "previous": page - 1 if page_obj.has_previous() else None,
-            "results": results,
-        }
-    )
+
+class HouseholdDetailAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def get_object(self, pk):
+        return get_object_or_404(household_queryset(), pk=pk)
+
+    def get(self, request, pk):
+        return Response(HouseholdDetailSerializer(self.get_object(pk), context={'request': request}).data)
+
+    def put(self, request, pk):
+        return self._update(request, pk, partial=False)
+
+    def patch(self, request, pk):
+        return self._update(request, pk, partial=True)
+
+    def _update(self, request, pk, partial):
+        household = self.get_object(pk)
+        serializer = HouseholdUpdateSerializer(
+            household,
+            data=request.data,
+            partial=partial,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        household = serializer.save()
+        household.refresh_from_db()
+        return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
+
+
+class HouseholdArchiveAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def post(self, request, pk):
+        household = get_object_or_404(Household, pk=pk)
+        requested_status = request.data.get('status', Household.Status.ARCHIVED)
+        allowed_statuses = {Household.Status.INACTIVE, Household.Status.ARCHIVED}
+        if requested_status not in allowed_statuses:
+            return Response(
+                {'status': 'Archive/deactivate status must be inactive or archived.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        household.status = requested_status
+        household.save(update_fields=['status', 'updated_at'])
+        return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
+
+
+class HouseholdMemberAddAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def post(self, request, pk):
+        household = get_object_or_404(Household, pk=pk)
+        resident = get_object_or_404(Resident, pk=request.data.get('resident_id'))
+        relationship = request.data.get('relationship_to_head', '').strip()
+        valid_relationships = {value for value, _ in HouseholdMembership.Relationship.choices}
+        if relationship not in valid_relationships or relationship == HouseholdMembership.Relationship.HEAD:
+            return Response(
+                {'relationship_to_head': 'Select a valid non-head relationship.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            membership = add_household_member(
+                household=household,
+                resident=resident,
+                relationship_to_head=relationship,
+                move=bool(request.data.get('move', False)),
+            )
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            HouseholdMemberSerializer(membership, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HouseholdMemberRemoveAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def delete(self, request, pk, resident_id):
+        household = get_object_or_404(Household, pk=pk)
+        resident = get_object_or_404(Resident, pk=resident_id)
+        try:
+            remove_household_member(household=household, resident=resident)
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class HouseholdChangeHeadAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def post(self, request, pk):
+        household = get_object_or_404(Household, pk=pk)
+        new_head = get_object_or_404(Resident, pk=request.data.get('resident_id'))
+        previous_relationship = request.data.get(
+            'previous_head_relationship', HouseholdMembership.Relationship.OTHER_RELATIVE
+        ).strip()
+        valid_relationships = {value for value, _ in HouseholdMembership.Relationship.choices}
+        if previous_relationship not in valid_relationships or previous_relationship == HouseholdMembership.Relationship.HEAD:
+            return Response(
+                {'previous_head_relationship': 'Select a valid non-head relationship.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            household = change_household_head(
+                household=household,
+                new_head=new_head,
+                previous_head_relationship=previous_relationship,
+            )
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+        return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
+
+
+class HouseholdStatisticsAPIView(APIView):
+    permission_classes = [HouseholdStaffPermission]
+
+    def get(self, request, pk):
+        household = get_object_or_404(household_queryset(), pk=pk)
+        return Response(household_statistics(household))
+
+
+households_list_api = HouseholdListCreateAPIView.as_view()
+households_summary_api = HouseholdSummaryAPIView.as_view()
