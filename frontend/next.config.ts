@@ -6,6 +6,18 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/inventory/summary",
+        destination: "http://web:8000/api/inventory/summary/",
+      },
+      {
+        source: "/api/inventory/assets",
+        destination: "http://web:8000/api/inventory/assets/",
+      },
+      {
+        source: "/inventory/items/add",
+        destination: "http://web:8000/inventory/items/add/",
+      },
+      {
         source: "/api/:path*",
         destination: "http://web:8000/api/:path*",
       },

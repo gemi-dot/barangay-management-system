@@ -42,6 +42,32 @@ class AssetEditViewTests(TestCase):
 		self.assertContains(response, 'Asset Update Form')
 		self.assertContains(response, self.asset.property_number)
 
+	def test_inventory_api_summary_and_asset_list_return_json_for_staff(self):
+		self.client.force_login(self.staff_user)
+
+		summary = self.client.get(reverse('inventory_api:summary'))
+		assets = self.client.get(reverse('inventory_api:assets'), {'page': 1, 'page_size': 20})
+
+		self.assertEqual(summary.status_code, 200)
+		self.assertEqual(summary['Content-Type'], 'application/json')
+		self.assertEqual(summary.json()['total_assets'], 2)
+		self.assertEqual(assets.status_code, 200)
+		self.assertEqual(assets['Content-Type'], 'application/json')
+		self.assertEqual(assets.json()['count'], 2)
+		self.assertEqual(
+			{item['property_number'] for item in assets.json()['results']},
+			{self.asset.property_number, self.other_asset.property_number},
+		)
+
+	def test_inventory_api_preserves_authentication_and_role_checks(self):
+		anonymous = self.client.get(reverse('inventory_api:summary'))
+		self.assertEqual(anonymous.status_code, 302)
+
+		self.client.force_login(self.user)
+		unauthorized = self.client.get(reverse('inventory_api:summary'))
+		self.assertEqual(unauthorized.status_code, 403)
+		self.assertEqual(unauthorized['Content-Type'], 'application/json')
+
 	def test_asset_edit_updates_condition_and_redirects_to_next_url(self):
 		self.client.force_login(self.user)
 
