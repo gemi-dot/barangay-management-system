@@ -3,8 +3,9 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from .family_services import create_reciprocal_relationship
@@ -159,6 +160,34 @@ class ResidentSecurityRegressionTests(TestCase):
 		self.assertEqual(payload['documents'][0]['tracking_number'], document.tracking_number)
 		self.assertEqual(payload['history'][0]['id'], log.id)
 		self.assertEqual(payload['qr_profile']['code'], self.linked_resident.qr_code)
+		self.assertEqual(payload['summary']['household_number'], 'PROFILE-HH-001')
+		self.assertTrue(payload['permissions']['actions']['manage_family'])
+		self.assertIn('personal', payload['permissions']['visible_tabs'])
+		self.assertEqual(payload['household']['head_resident_id'], self.linked_resident.id)
+		self.assertEqual(payload['household']['members'][0]['resident_id'], self.linked_resident.id)
+		self.assertEqual(payload['household_history'][0]['household_number'], 'PROFILE-HH-001')
+
+	def test_resident_profile_summary_reports_incomplete_data_without_new_schema(self):
+		self.linked_resident.contact_number = ''
+		self.linked_resident.house_number = None
+		self.linked_resident.save(update_fields=['contact_number', 'house_number'])
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get(f'/api/residents/{self.linked_resident.id}/detail/')
+
+		self.assertEqual(response.status_code, 200)
+		codes = {alert['code'] for alert in response.json()['alerts']}
+		self.assertIn('missing_household', codes)
+		self.assertIn('missing_contact', codes)
+		self.assertIn('incomplete_address', codes)
+
+	def test_resident_profile_detail_query_count_is_bounded(self):
+		self.client.force_login(self.staff_user)
+		with CaptureQueriesContext(connection) as queries:
+			response = self.client.get(f'/api/residents/{self.linked_resident.id}/detail/')
+
+		self.assertEqual(response.status_code, 200)
+		self.assertLessEqual(len(queries), 12)
 
 	def test_portal_api_requests_are_scoped_to_submitted_by(self):
 		own = DocumentRequest.objects.create(

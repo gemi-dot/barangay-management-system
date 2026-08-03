@@ -618,6 +618,7 @@ export type ResidentDetailResponse = {
     age: number;
     gender: "M" | "F";
     date_of_birth: string;
+    place_of_birth: string;
     civil_status: string;
     citizenship: string;
   };
@@ -642,7 +643,13 @@ export type ResidentDetailResponse = {
     employment_status: string | null;
     occupation: string;
     educational_attainment: string | null;
+    monthly_income: string | null;
     is_4ps_beneficiary: boolean;
+  };
+  identification: {
+    philhealth_number: string;
+    sss_gsis_number: string;
+    tin_number: string;
   };
   health: {
     blood_type: string;
@@ -670,6 +677,14 @@ export type ResidentDetailResponse = {
       resident_status: "active" | "inactive";
     }>;
   };
+  household_history: Array<{
+    household_id: number;
+    household_number: string;
+    relationship_to_head: string;
+    status: string;
+    joined_date: string;
+    left_date: string | null;
+  }>;
   family: {
     father_name: string;
     mother_name: string;
@@ -700,6 +715,22 @@ export type ResidentDetailResponse = {
   qr_profile: {
     code: string;
     image_url: string | null;
+  };
+  summary: {
+    household_number: string | null;
+    purok: string;
+    registered_voter: boolean;
+    special_classifications: number;
+  };
+  alerts: Array<{ code: string; message: string }>;
+  permissions: {
+    visible_tabs: Array<"overview" | "personal" | "household" | "family" | "documents" | "history" | "qr">;
+    actions: {
+      view_household: boolean;
+      manage_household: boolean;
+      manage_family: boolean;
+      view_qr: boolean;
+    };
   };
   system: {
     is_active: boolean;

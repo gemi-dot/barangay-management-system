@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.db.models import Q
 
 from .models import DocumentRequest, HouseholdMembership, Resident
+from .resident_profile_services import profile_alerts, profile_permissions, profile_summary
 
 
 class DynamicFieldsModelSerializer(serializers.ModelSerializer):
@@ -52,6 +53,7 @@ class ResidentDetailSerializer(DynamicFieldsModelSerializer):
             'full_name',
             'age',
             'date_of_birth',
+            'place_of_birth',
             'gender',
             'civil_status',
             'citizenship',
@@ -68,7 +70,11 @@ class ResidentDetailSerializer(DynamicFieldsModelSerializer):
             'voters_id',
             'employment_status',
             'occupation',
+            'monthly_income',
             'educational_attainment',
+            'philhealth_number',
+            'sss_gsis_number',
+            'tin_number',
             'blood_type',
             'allergies',
             'medical_conditions',
@@ -91,14 +97,20 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         detail = ResidentDetailSerializer(instance, context=self.context).data
-        active_membership = (
-            instance.household_memberships.filter(status=HouseholdMembership.Status.ACTIVE)
-            .select_related('household__household_head')
-            .first()
+        memberships = getattr(instance, 'profile_household_memberships', None)
+        if memberships is None:
+            memberships = list(instance.household_memberships.select_related('household__household_head'))
+        active_membership = next(
+            (item for item in memberships if item.status == HouseholdMembership.Status.ACTIVE), None
         )
         household_payload = None
         if active_membership:
             household = active_membership.household
+            household_members = getattr(household, 'profile_active_memberships', None)
+            if household_members is None:
+                household_members = household.memberships.filter(
+                    status=HouseholdMembership.Status.ACTIVE
+                ).select_related('resident')
             household_payload = {
                 'id': household.id,
                 'household_number': household.household_number,
@@ -115,9 +127,7 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                         'relationship_to_head': membership.relationship_to_head,
                         'resident_status': 'active' if membership.resident.is_active else 'inactive',
                     }
-                    for membership in household.memberships.filter(
-                        status=HouseholdMembership.Status.ACTIVE
-                    ).select_related('resident')
+                    for membership in household_members
                 ],
             }
 
@@ -138,6 +148,7 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 'age': detail['age'],
                 'gender': detail['gender'],
                 'date_of_birth': detail['date_of_birth'],
+                'place_of_birth': detail['place_of_birth'],
                 'civil_status': detail['civil_status'],
                 'citizenship': detail['citizenship'],
             },
@@ -162,7 +173,13 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 'employment_status': detail['employment_status'],
                 'occupation': detail['occupation'],
                 'educational_attainment': detail['educational_attainment'],
+                'monthly_income': detail['monthly_income'],
                 'is_4ps_beneficiary': detail['is_4ps_beneficiary'],
+            },
+            'identification': {
+                'philhealth_number': detail['philhealth_number'],
+                'sss_gsis_number': detail['sss_gsis_number'],
+                'tin_number': detail['tin_number'],
             },
             'health': {
                 'blood_type': detail['blood_type'],
@@ -175,6 +192,17 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 'is_indigenous': detail['is_indigenous'],
             },
             'household': household_payload,
+            'household_history': [
+                {
+                    'household_id': membership.household_id,
+                    'household_number': membership.household.household_number,
+                    'relationship_to_head': membership.relationship_to_head,
+                    'status': membership.status,
+                    'joined_date': membership.joined_date.isoformat(),
+                    'left_date': membership.left_date.isoformat() if membership.left_date else None,
+                }
+                for membership in memberships
+            ],
             'family': {
                 'father_name': instance.father_name,
                 'mother_name': instance.mother_name,
@@ -212,6 +240,9 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 'code': instance.qr_code,
                 'image_url': instance.qr_image.url if instance.qr_image else None,
             },
+            'summary': profile_summary(instance, active_membership),
+            'alerts': profile_alerts(instance, active_membership),
+            'permissions': profile_permissions(self.context['request'].user),
             'system': {
                 'is_active': detail['is_active'],
                 'date_registered': detail['date_registered'],

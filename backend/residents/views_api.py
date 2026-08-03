@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta
 from datetime import date
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, pagination, viewsets
@@ -24,7 +24,7 @@ from .family_services import (
     deactivate_reciprocal_relationship,
     family_tree_for,
 )
-from .models import DocumentRequest, FamilyRelationship, Household, Resident, ResidentServiceLog
+from .models import DocumentRequest, FamilyRelationship, Household, HouseholdMembership, Resident, ResidentServiceLog
 from .models import BarangayOfficeProfile
 from .serializers import (
     ResidentDetailEndpointSerializer,
@@ -84,6 +84,19 @@ class ResidentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Resident.objects.all()
+        if self.action == 'detail_view':
+            active_members = HouseholdMembership.objects.filter(
+                status=HouseholdMembership.Status.ACTIVE,
+            ).select_related('resident')
+            memberships = HouseholdMembership.objects.select_related(
+                'household__household_head',
+            ).prefetch_related(
+                Prefetch('household__memberships', queryset=active_members, to_attr='profile_active_memberships')
+            ).order_by('-joined_date', '-created_at')
+            return queryset.select_related('portal_user').prefetch_related(
+                Prefetch('household_memberships', queryset=memberships, to_attr='profile_household_memberships'),
+                Prefetch('service_logs', queryset=ResidentServiceLog.objects.select_related('logged_by').order_by('-created_at')),
+            )
         if self.action != 'list':
             return queryset
 

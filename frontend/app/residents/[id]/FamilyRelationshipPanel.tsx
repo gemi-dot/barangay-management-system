@@ -47,7 +47,7 @@ function TreeGroup({ title, nodes }: { title: string; nodes: FamilyResidentNode[
   return <div className="space-y-2"><p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p><div className="flex flex-wrap justify-center gap-3">{nodes.map((node) => <TreePerson key={`${title}-${node.resident_id}`} node={node} />)}</div></div>;
 }
 
-export function FamilyRelationshipPanel({ residentId }: { residentId: number }) {
+export function FamilyRelationshipPanel({ residentId, canManage }: { residentId: number; canManage: boolean }) {
   const [relationships, setRelationships] = useState<FamilyRelationshipRecord[]>([]);
   const [tree, setTree] = useState<FamilyTree | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +78,7 @@ export function FamilyRelationshipPanel({ residentId }: { residentId: number }) 
   }, [loadFamily]);
 
   useEffect(() => {
+    if (!canManage) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -86,7 +87,7 @@ export function FamilyRelationshipPanel({ residentId }: { residentId: number }) 
       } catch (err) { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to search residents."); }
     }, 250);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [residentId, residentSearch]);
+  }, [canManage, residentId, residentSearch]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -131,8 +132,8 @@ export function FamilyRelationshipPanel({ residentId }: { residentId: number }) 
       </div> : null}
     </SectionCard>
 
-    <section className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
-      <SectionCard title="Add relationship" description="Choose how this resident relates to the selected resident.">
+    <section className={`grid gap-4 ${canManage ? "xl:grid-cols-[1fr_1.2fr]" : ""}`}>
+      {canManage ? <SectionCard title="Add relationship" description="Choose how this resident relates to the selected resident.">
         <form onSubmit={handleCreate} className="space-y-4">
           <label className="block text-sm"><span className="mb-1 block font-medium">Search residents</span><SearchInput value={residentSearch} onChange={(event) => setResidentSearch(event.target.value)} placeholder="Search existing residents" /></label>
           <label className="block text-sm"><span className="mb-1 block font-medium">Related resident</span><select required value={targetResidentId} onChange={(event) => setTargetResidentId(event.target.value)} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"><option value="">Select resident</option>{residentOptions.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name || `${resident.last_name}, ${resident.first_name}`}</option>)}</select></label>
@@ -140,10 +141,10 @@ export function FamilyRelationshipPanel({ residentId }: { residentId: number }) 
           <label className="block text-sm"><span className="mb-1 block font-medium">Notes</span><textarea rows={2} maxLength={255} value={notes} onChange={(event) => setNotes(event.target.value)} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2" /></label>
           <PrimaryButton type="submit" disabled={busy} leftIcon={<Plus className="h-4 w-4" />}>{busy ? "Saving..." : "Add Reciprocal Relationship"}</PrimaryButton>
         </form>
-      </SectionCard>
+      </SectionCard> : null}
 
       <SectionCard title="Active relationships" description={`${relationships.length} linked relationship${relationships.length === 1 ? "" : "s"}.`}>
-        {relationships.length ? <div className="divide-y divide-slate-100">{relationships.map((relationship) => <article key={relationship.id} className="flex items-center justify-between gap-4 py-3"><div><div className="flex flex-wrap items-center gap-2"><Link href={`/residents/${relationship.resident.id}`} className="font-semibold text-blue-700 hover:underline">{relationship.resident.full_name}</Link><StatusBadge label={relationship.relationship_display} tone="default" /></div><p className="mt-1 text-xs text-slate-500">{relationship.notes || `Recorded by ${relationship.created_by || "staff"}`}</p></div><SecondaryButton onClick={() => setRemoveTarget(relationship)} disabled={busy} leftIcon={<Trash2 className="h-4 w-4" />}>Remove</SecondaryButton></article>)}</div> : <div className="py-8 text-center"><GitBranch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm text-slate-500">No structured family relationships yet.</p></div>}
+        {relationships.length ? <div className="divide-y divide-slate-100">{relationships.map((relationship) => <article key={relationship.id} className="flex items-center justify-between gap-4 py-3"><div><div className="flex flex-wrap items-center gap-2"><Link href={`/residents/${relationship.resident.id}`} className="font-semibold text-blue-700 hover:underline">{relationship.resident.full_name}</Link><StatusBadge label={relationship.relationship_display} tone="default" /></div><p className="mt-1 text-xs text-slate-500">{relationship.notes || `Recorded by ${relationship.created_by || "staff"}`}</p></div>{canManage ? <SecondaryButton onClick={() => setRemoveTarget(relationship)} disabled={busy} leftIcon={<Trash2 className="h-4 w-4" />}>Remove</SecondaryButton> : null}</article>)}</div> : <div className="py-8 text-center"><GitBranch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm text-slate-500">No structured family relationships yet.</p></div>}
       </SectionCard>
     </section>
 
