@@ -271,3 +271,4 @@ if not DEBUG:
 # Public base URL used when generating resident QR scan links.
 _default_site_base_url = f"http://{_detected_lan_ip}:8000" if _detected_lan_ip else 'http://127.0.0.1:8000'
 SITE_BASE_URL = os.getenv('SITE_BASE_URL', _default_site_base_url)
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')

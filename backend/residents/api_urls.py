@@ -9,6 +9,7 @@ from .views_api import (
 	QuickBirthdayCorrectionAPIView,
 	QuickGenderCorrectionAPIView,
 	QrResolveAPIView,
+	PublicQrVerificationAPIView,
 	ResidentViewSet,
 )
 
@@ -31,6 +32,8 @@ urlpatterns = [
 	path('office-profile/', OfficeProfileAPIView.as_view(), name='office-profile'),
 	path('qr/resolve', QrResolveAPIView.as_view(), name='qr-resolve-no-slash'),
 	path('qr/resolve/', QrResolveAPIView.as_view(), name='qr-resolve'),
+	path('qr/verify/<str:identifier>', PublicQrVerificationAPIView.as_view(), name='qr-public-verify-no-slash'),
+	path('qr/verify/<str:identifier>/', PublicQrVerificationAPIView.as_view(), name='qr-public-verify'),
 	path('quick-tools/gender-correction', QuickGenderCorrectionAPIView.as_view(), name='quick-gender-correction-no-slash'),
 	path('quick-tools/gender-correction/', QuickGenderCorrectionAPIView.as_view(), name='quick-gender-correction'),
 	path('quick-tools/birthday-correction', QuickBirthdayCorrectionAPIView.as_view(), name='quick-birthday-correction-no-slash'),

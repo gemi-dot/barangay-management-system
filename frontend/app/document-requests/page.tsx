@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCheck, ClipboardList, Download, FileClock, FilePlus2, Users } from "lucide-react";
 
@@ -226,7 +227,7 @@ export default function DocumentRequestsPage() {
                     className: "min-w-[240px]",
                     render: (row) => (
                       <div>
-                        <p className="font-medium text-gray-900">{row.full_name}</p>
+                        {row.resident_id ? <Link href={`/residents/${row.resident_id}?tab=documents`} className="font-medium text-blue-700 hover:underline">{row.full_name}</Link> : <p className="font-medium text-gray-900">{row.full_name}</p>}
                         <p>{row.contact_number}</p>
                         <p>{row.email || "-"}</p>
                       </div>
@@ -267,7 +268,8 @@ export default function DocumentRequestsPage() {
                     className: "min-w-[250px]",
                     render: (row) => (
                       <div className="flex flex-wrap gap-2">
-                        {QUICK_ACTIONS.map((action) => (
+                        {row.print_url ? <Link href={row.print_url} target="_blank" className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-50">Print</Link> : null}
+                        {QUICK_ACTIONS.filter((action) => row.available_transitions.includes(action.value)).map((action) => (
                           <SecondaryButton
                             key={action.value}
                             onClick={() => {

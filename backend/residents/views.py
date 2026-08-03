@@ -11,9 +11,11 @@ from datetime import timedelta
 from urllib.parse import urlencode
 from django.utils.http import url_has_allowed_host_and_scheme
 from accounts.roles import user_has_office_role
-from .models import Resident, DocumentRequest, BarangayOfficeProfile, ResidentServiceLog
+from .models import DocumentRequestStatusHistory, Resident, DocumentRequest, BarangayOfficeProfile, ResidentQrAuditEvent, ResidentQrIdentity, ResidentServiceLog
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
+from .document_services import create_resident_document_request, transition_document_request
+from django.core.exceptions import ValidationError
 from collections import defaultdict
 from django.db import transaction
 from django.db.models import Count, Q
@@ -557,15 +559,17 @@ def quick_create_document_request(request, resident_id):
         'business_clearance': 'Business clearance issuance.',
     }
 
-    document_request = DocumentRequest.objects.create(
-        full_name=resident.full_name,
-        contact_number=(resident.contact_number or 'N/A').strip()[:15],
-        email=(resident.email or '').strip(),
-        address=resident.complete_address[:255],
-        document_type=requested_type,
-        purpose=purpose_by_type.get(requested_type, 'Barangay document issuance.'),
-        status='processing',
-    )
+    try:
+        document_request = create_resident_document_request(
+            resident=resident,
+            document_type=requested_type,
+            purpose=purpose_by_type.get(requested_type, 'Barangay document issuance.'),
+            created_by=request.user,
+            source=DocumentRequest.RequestSource.STAFF,
+        )
+    except ValidationError as exc:
+        messages.error(request, ' '.join(exc.messages))
+        return redirect('residents:resident_quick_view', resident_id=resident_id)
 
     type_label = dict(DocumentRequest.DOCUMENT_TYPE_CHOICES).get(requested_type, 'Document')
     messages.success(
@@ -654,7 +658,15 @@ def request_document(request):
     if request.method == 'POST':
         form = DocumentRequestForm(request.POST)
         if form.is_valid():
-            document_request = form.save()
+            document_request = form.save(commit=False)
+            document_request.request_source = DocumentRequest.RequestSource.PUBLIC
+            document_request.save()
+            DocumentRequestStatusHistory.objects.create(
+                document_request=document_request,
+                from_status='',
+                to_status=document_request.status,
+                remarks='Request created from public form.',
+            )
             request.session['latest_document_tracking'] = document_request.tracking_number
             return redirect('residents:document_request_success')
     else:
@@ -722,17 +734,17 @@ def update_document_request_status(request, request_id):
     document_request = get_object_or_404(DocumentRequest, id=request_id)
     new_status = request.POST.get('status', '')
     remarks = request.POST.get('remarks', '').strip()
-    valid_statuses = {status for status, _ in DocumentRequest.STATUS_CHOICES}
-
-    if new_status not in valid_statuses:
-        messages.error(request, 'Invalid status selected.')
-        return redirect('residents:document_requests_queue')
-
     previous_status = document_request.status
-    document_request.status = new_status
-    document_request.remarks = remarks
-    document_request.processed_by = request.user
-    document_request.save()
+    try:
+        document_request = transition_document_request(
+            document=document_request,
+            new_status=new_status,
+            changed_by=request.user,
+            remarks=remarks,
+        )
+    except ValidationError as exc:
+        messages.error(request, ' '.join(exc.messages))
+        return redirect('residents:document_requests_queue')
 
     if previous_status != new_status and new_status in {'ready_for_pickup', 'released'}:
         notification_result = notify_status_update(document_request)
@@ -879,6 +891,16 @@ def barangay_id_sample(request, resident_id=None):
     resident = None
     if resident_id is not None:
         resident = get_object_or_404(Resident, id=resident_id)
+        identity = resident.qr_identities.filter(status=ResidentQrIdentity.Status.ACTIVE).first()
+        if identity:
+            ResidentQrAuditEvent.objects.create(
+                identity=identity,
+                resident=resident,
+                event_type=ResidentQrAuditEvent.EventType.PRINTED,
+                result='printed',
+                performed_by=request.user,
+                remarks='Barangay QR ID print view opened.',
+            )
 
     refresh_qr = request.GET.get('refresh_qr') == '1'
     if resident and refresh_qr:

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, FileText, GitBranch, History, Home, IdCard, QrCode, UserRound, Users } from "lucide-react";
 
@@ -13,6 +12,8 @@ import { resolveResidentProfileTab } from "@/lib/resident-profile-tabs.mjs";
 import { LocalDate } from "./LocalDate";
 import { LocalDateTime } from "./LocalDateTime";
 import { FamilyRelationshipPanel } from "./FamilyRelationshipPanel";
+import { ResidentDocumentsTab } from "./ResidentDocumentsTab";
+import { ResidentQrIdentityTab } from "./ResidentQrIdentityTab";
 
 type TabId = "overview" | "personal" | "household" | "family" | "documents" | "history" | "qr";
 
@@ -32,13 +33,6 @@ function display(value: string | number | null | undefined) {
 
 function DetailList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return <dl className="space-y-3 text-sm">{rows.map(([label, value]) => <div key={label} className="flex justify-between gap-4 border-b border-slate-100 pb-2 last:border-0"><dt className="text-slate-500">{label}</dt><dd className="text-right font-medium text-slate-900">{value}</dd></div>)}</dl>;
-}
-
-function documentTone(status: string) {
-  if (status === "released" || status === "ready_for_pickup") return "success" as const;
-  if (status === "rejected") return "danger" as const;
-  if (status === "processing") return "info" as const;
-  return "warning" as const;
 }
 
 export function ResidentProfileTabs({ resident, requestedTab }: { resident: ResidentDetailResponse; requestedTab?: string }) {
@@ -130,18 +124,13 @@ export function ResidentProfileTabs({ resident, requestedTab }: { resident: Resi
       <FamilyRelationshipPanel residentId={resident.identity.id} canManage={resident.permissions.actions.manage_family} />
     </div> : null}
 
-    {activeTab === "documents" ? <SectionCard title="Document requests" description="Requests explicitly submitted by or matching this resident record.">
-      {resident.documents.length ? <div className="divide-y divide-slate-100">{resident.documents.map((document) => <article key={document.id} className="grid gap-2 py-4 md:grid-cols-[1fr_auto] md:items-center"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-900">{document.document_type_display}</h3><StatusBadge label={document.status_display} tone={documentTone(document.status)} /></div><p className="mt-1 text-sm text-slate-600">{document.purpose}</p><p className="mt-1 text-xs text-slate-500">Tracking: {document.tracking_number}</p></div><LocalDateTime value={document.created_at} /></article>)}</div> : <p className="text-sm text-slate-500">No matching document requests were found.</p>}
-    </SectionCard> : null}
+    {activeTab === "documents" ? <ResidentDocumentsTab residentId={resident.identity.id} documents={resident.documents} canManage={resident.permissions.actions.manage_documents} /> : null}
 
     {activeTab === "history" ? <div className="space-y-4">
       <SectionCard title="Record timeline"><div className="space-y-4 border-l-2 border-slate-200 pl-5"><div><p className="font-semibold text-slate-900">Resident registered</p><LocalDateTime value={resident.system.date_registered} /></div><div><p className="font-semibold text-slate-900">Record last updated</p><LocalDateTime value={resident.system.updated_at} /></div></div></SectionCard>
       <SectionCard title="Service history">{resident.history.length ? <div className="divide-y divide-slate-100">{resident.history.map((item) => <article key={item.id} className="py-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-slate-900">{item.action_display}</h3><LocalDateTime value={item.created_at} /></div><p className="mt-1 text-sm text-slate-600">{display(item.notes)}</p><p className="mt-1 text-xs text-slate-500">Logged by: {item.logged_by || "System"}</p></article>)}</div> : <p className="text-sm text-slate-500">No service activity has been recorded.</p>}</SectionCard>
     </div> : null}
 
-    {activeTab === "qr" ? <section className="grid gap-4 md:grid-cols-[320px_1fr]">
-      <SectionCard title="Resident QR code"><div className="flex min-h-64 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">{resident.qr_profile.image_url ? <Image src={resident.qr_profile.image_url} alt={`QR code for ${resident.identity.full_name}`} width={240} height={240} className="h-60 w-60 object-contain" unoptimized /> : <p className="text-sm text-slate-500">QR image unavailable</p>}</div></SectionCard>
-      <SectionCard title="QR profile" description="Use this code with the existing staff QR workflow."><DetailList rows={[["Resident", resident.identity.full_name], ["Resident ID", resident.identity.id], ["QR code", resident.qr_profile.code], ["Record status", resident.system.is_active ? "Active" : "Inactive"]]} /><div className="mt-5"><Link href={`/residents/scan/${encodeURIComponent(resident.qr_profile.code)}`} className="inline-flex rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">Open QR workflow</Link></div></SectionCard>
-    </section> : null}
+    {activeTab === "qr" ? <ResidentQrIdentityTab resident={resident} /> : null}
   </>;
 }

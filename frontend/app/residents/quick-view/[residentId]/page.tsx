@@ -78,7 +78,13 @@ export default function ResidentQuickViewPage() {
     setMessage(null);
     setError(null);
     try {
-      const response = await createQuickResidentDocumentRequest(residentId, documentType);
+      const purpose = {
+        certificate_of_residency: "Barangay residency certificate issuance.",
+        certificate_of_indigency: "Barangay indigency certificate issuance.",
+        barangay_clearance: "Barangay clearance issuance.",
+        business_clearance: "Business clearance issuance.",
+      }[documentType];
+      const response = await createQuickResidentDocumentRequest(residentId, documentType, purpose);
       setMessage(`${response.document_type_display} request created: ${response.tracking_number}`);
       await loadQuickView();
     } catch (err) {

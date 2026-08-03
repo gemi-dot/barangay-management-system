@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.db.models import Q
 
-from .models import DocumentRequest, HouseholdMembership, Resident
+from .models import DocumentRequest, HouseholdMembership, Resident, ResidentQrIdentity
+from .document_services import available_document_transitions, document_print_path
 from .resident_profile_services import profile_alerts, profile_permissions, profile_summary
 
 
@@ -33,6 +34,7 @@ class ResidentListSerializer(DynamicFieldsModelSerializer):
             'gender',
             'precinct_number',
             'is_active',
+            'residency_status',
             'is_senior_citizen',
             'is_4ps_beneficiary',
         )
@@ -79,6 +81,7 @@ class ResidentDetailSerializer(DynamicFieldsModelSerializer):
             'allergies',
             'medical_conditions',
             'is_active',
+            'residency_status',
             'is_pwd',
             'pwd_type',
             'is_senior_citizen',
@@ -131,7 +134,7 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 ],
             }
 
-        document_filter = Q(full_name__iexact=instance.full_name)
+        document_filter = Q(resident=instance) | Q(resident__isnull=True, full_name__iexact=instance.full_name)
         if instance.portal_user_id:
             document_filter |= Q(submitted_by_id=instance.portal_user_id)
         documents = DocumentRequest.objects.filter(document_filter).distinct().order_by('-created_at')[:50]
@@ -222,6 +225,15 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                     'status_display': document.get_status_display(),
                     'created_at': document.created_at.isoformat(),
                     'updated_at': document.updated_at.isoformat(),
+                    'request_source': document.request_source,
+                    'request_source_display': document.get_request_source_display(),
+                    'processed_by': document.processed_by.get_full_name() if document.processed_by else '',
+                    'approved_at': document.approved_at.isoformat() if document.approved_at else None,
+                    'released_at': document.released_at.isoformat() if document.released_at else None,
+                    'document_number': document.tracking_number,
+                    'remarks': document.remarks,
+                    'available_transitions': available_document_transitions(document),
+                    'print_url': document_print_path(document),
                 }
                 for document in documents
             ],
@@ -239,18 +251,51 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
             'qr_profile': {
                 'code': instance.qr_code,
                 'image_url': instance.qr_image.url if instance.qr_image else None,
+                'identity': self._qr_identity(instance),
+                'history': self._qr_history(instance),
             },
             'summary': profile_summary(instance, active_membership),
             'alerts': profile_alerts(instance, active_membership),
             'permissions': profile_permissions(self.context['request'].user),
             'system': {
                 'is_active': detail['is_active'],
+                'residency_status': detail['residency_status'],
                 'date_registered': detail['date_registered'],
                 'created_at': detail['created_at'],
                 'updated_at': detail['updated_at'],
                 'qr_code': detail['qr_code'],
             },
         }
+
+    @staticmethod
+    def _qr_identity(instance):
+        identity = next(
+            (item for item in instance.qr_identities.all() if item.status == ResidentQrIdentity.Status.ACTIVE),
+            None,
+        )
+        if not identity:
+            return None
+        return {
+            'identifier': identity.identifier,
+            'status': identity.status,
+            'issued_at': identity.issued_at.isoformat(),
+            'issued_by': identity.issued_by.get_full_name() or identity.issued_by.username if identity.issued_by else '',
+        }
+
+    @staticmethod
+    def _qr_history(instance):
+        return [
+            {
+                'id': event.id,
+                'event_type': event.event_type,
+                'event_display': event.get_event_type_display(),
+                'result': event.result,
+                'remarks': event.remarks,
+                'performed_by': event.performed_by.get_full_name() or event.performed_by.username if event.performed_by else '',
+                'created_at': event.created_at.isoformat(),
+            }
+            for event in list(instance.qr_audit_events.all())[:100]
+        ]
 
 
 class ResidentSerializer(DynamicFieldsModelSerializer):

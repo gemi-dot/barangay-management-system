@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import DocumentRequestForm, ResidentRegistrationForm
-from .models import DocumentRequest, Resident
+from .models import DocumentRequest, DocumentRequestStatusHistory, Resident
 
 
 def _linked_resident(user):
@@ -112,11 +112,20 @@ def portal_request_create_api(request):
 
     document_request = form.save(commit=False)
     document_request.submitted_by = request.user
+    document_request.resident = _linked_resident(request.user)
+    document_request.request_source = DocumentRequest.RequestSource.PORTAL
     if not document_request.email:
         document_request.email = (request.user.email or "").strip()
     if not document_request.full_name.strip():
         document_request.full_name = request.user.get_full_name() or request.user.username
     document_request.save()
+    DocumentRequestStatusHistory.objects.create(
+        document_request=document_request,
+        from_status='',
+        to_status=document_request.status,
+        changed_by=request.user,
+        remarks='Request created from Resident Portal.',
+    )
 
     return JsonResponse(
         {

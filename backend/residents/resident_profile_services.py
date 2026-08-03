@@ -13,6 +13,8 @@ def profile_permissions(user):
             'manage_household': can_manage,
             'manage_family': can_manage,
             'view_qr': can_manage,
+            'manage_documents': can_manage,
+            'manage_qr': can_manage,
         },
     }
 

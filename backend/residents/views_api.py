@@ -24,7 +24,12 @@ from .family_services import (
     deactivate_reciprocal_relationship,
     family_tree_for,
 )
-from .models import DocumentRequest, FamilyRelationship, Household, HouseholdMembership, Resident, ResidentServiceLog
+from .models import DocumentRequest, FamilyRelationship, Household, HouseholdMembership, Resident, ResidentQrAuditEvent, ResidentQrIdentity, ResidentServiceLog
+from .document_services import (
+    available_document_transitions, create_resident_document_request, document_print_path,
+    resident_document_warnings, transition_document_request,
+)
+from .qr_services import issue_qr_identity, reissue_qr_identity, revoke_qr_identity, verification_result
 from .models import BarangayOfficeProfile
 from .serializers import (
     ResidentDetailEndpointSerializer,
@@ -96,6 +101,8 @@ class ResidentViewSet(viewsets.ModelViewSet):
             return queryset.select_related('portal_user').prefetch_related(
                 Prefetch('household_memberships', queryset=memberships, to_attr='profile_household_memberships'),
                 Prefetch('service_logs', queryset=ResidentServiceLog.objects.select_related('logged_by').order_by('-created_at')),
+                Prefetch('qr_identities', queryset=ResidentQrIdentity.objects.select_related('issued_by').order_by('-issued_at')),
+                Prefetch('qr_audit_events', queryset=ResidentQrAuditEvent.objects.select_related('performed_by').order_by('-created_at')),
             )
         if self.action != 'list':
             return queryset
@@ -313,28 +320,18 @@ class ResidentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='quick-document-request')
     def quick_document_request(self, request, pk=None):
         resident = self.get_object()
-        requested_type = (request.data.get('document_type') or 'certificate_of_residency').strip()
-        valid_types = {value for value, _ in DocumentRequest.DOCUMENT_TYPE_CHOICES}
-
-        if requested_type not in valid_types:
-            return Response({'detail': 'Invalid document type selected.'}, status=400)
-
-        purpose_by_type = {
-            'certificate_of_residency': 'Barangay residency certificate issuance.',
-            'certificate_of_indigency': 'Barangay indigency certificate issuance.',
-            'barangay_clearance': 'Barangay clearance issuance.',
-            'business_clearance': 'Business clearance issuance.',
-        }
-
-        doc = DocumentRequest.objects.create(
-            full_name=resident.full_name,
-            contact_number=(resident.contact_number or 'N/A').strip()[:15],
-            email=(resident.email or '').strip(),
-            address=resident.complete_address[:255],
-            document_type=requested_type,
-            purpose=purpose_by_type.get(requested_type, 'Barangay document issuance.'),
-            status='processing',
-        )
+        requested_type = (request.data.get('document_type') or '').strip()
+        try:
+            doc = create_resident_document_request(
+                resident=resident,
+                document_type=requested_type,
+                purpose=request.data.get('purpose'),
+                remarks=request.data.get('remarks', ''),
+                created_by=request.user,
+                source=DocumentRequest.RequestSource.PROFILE,
+            )
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=400)
 
         return Response(
             {
@@ -346,6 +343,44 @@ class ResidentViewSet(viewsets.ModelViewSet):
             },
             status=201,
         )
+
+    @action(detail=True, methods=['get'], url_path='document-requirements')
+    def document_requirements(self, request, pk=None):
+        resident = self.get_object()
+        return Response({
+            'resident': {
+                'full_name': resident.full_name,
+                'address': resident.complete_address,
+                'age': resident.age,
+                'civil_status': resident.civil_status,
+                'is_active': resident.is_active,
+            },
+            'warnings': resident_document_warnings(resident),
+            'document_types': [
+                {'value': value, 'label': label} for value, label in DocumentRequest.DOCUMENT_TYPE_CHOICES
+            ],
+        })
+
+    @action(detail=True, methods=['post'], url_path='qr/issue')
+    def issue_qr(self, request, pk=None):
+        identity, created = issue_qr_identity(resident=self.get_object(), user=request.user)
+        return Response({'identifier': identity.identifier, 'status': identity.status, 'created': created}, status=201 if created else 200)
+
+    @action(detail=True, methods=['post'], url_path='qr/reissue')
+    def reissue_qr(self, request, pk=None):
+        try:
+            identity = reissue_qr_identity(resident=self.get_object(), user=request.user, reason=request.data.get('reason'))
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=400)
+        return Response({'identifier': identity.identifier, 'status': identity.status}, status=201)
+
+    @action(detail=True, methods=['post'], url_path='qr/revoke')
+    def revoke_qr(self, request, pk=None):
+        try:
+            identity = revoke_qr_identity(resident=self.get_object(), user=request.user, reason=request.data.get('reason'))
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=400)
+        return Response({'identifier': identity.identifier, 'status': identity.status})
 
 
 class DashboardSummaryAPIView(APIView):
@@ -481,10 +516,28 @@ class DocumentRequestViewSet(viewsets.ViewSet):
             'created_at': doc.created_at.isoformat(),
             'updated_at': doc.updated_at.isoformat(),
             'processed_by': doc.processed_by.get_full_name() if doc.processed_by else '',
+            'resident_id': doc.resident_id,
+            'request_source': doc.request_source,
+            'request_source_display': doc.get_request_source_display(),
+            'approved_at': doc.approved_at.isoformat() if doc.approved_at else None,
+            'released_at': doc.released_at.isoformat() if doc.released_at else None,
+            'document_number': doc.tracking_number,
+            'available_transitions': available_document_transitions(doc),
+            'print_url': document_print_path(doc),
+            'status_history': [
+                {
+                    'from_status': item.from_status,
+                    'to_status': item.to_status,
+                    'remarks': item.remarks,
+                    'changed_by': item.changed_by.get_full_name() or item.changed_by.username if item.changed_by else '',
+                    'created_at': item.created_at.isoformat(),
+                }
+                for item in doc.status_history.all()
+            ],
         }
 
     def get_queryset(self):
-        queryset = DocumentRequest.objects.all().order_by('-created_at')
+        queryset = DocumentRequest.objects.select_related('processed_by', 'resident').prefetch_related('status_history__changed_by').order_by('-created_at')
         status_filter = self.request.query_params.get('status', '').strip()
         if status_filter:
             queryset = queryset.filter(status=status_filter)
@@ -505,16 +558,13 @@ class DocumentRequestViewSet(viewsets.ViewSet):
 
         new_status = (request.data.get('status') or '').strip()
         remarks = (request.data.get('remarks') or '').strip()
-        valid_statuses = {status for status, _ in DocumentRequest.STATUS_CHOICES}
-
-        if new_status not in valid_statuses:
-            return Response({'detail': 'Invalid status selected.'}, status=400)
-
-        doc.status = new_status
-        doc.remarks = remarks
-        doc.processed_by = request.user
-        doc.save(update_fields=['status', 'remarks', 'processed_by', 'updated_at'])
-        doc.refresh_from_db(fields=['updated_at'])
+        try:
+            doc = transition_document_request(
+                document=doc, new_status=new_status, changed_by=request.user, remarks=remarks
+            )
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=400)
+        doc = DocumentRequest.objects.select_related('processed_by', 'resident').prefetch_related('status_history__changed_by').get(pk=doc.pk)
 
         return Response(self._serialize_doc(doc))
 
@@ -579,8 +629,8 @@ class QrResolveAPIView(APIView):
                 }
             )
 
-        resident = Resident.objects.filter(qr_code=code).first()
-        if resident is None:
+        result = verification_result(code, user=request.user, source='staff')
+        if result['status'] == 'unknown':
             return Response(
                 {
                     'status': 'not_found',
@@ -590,6 +640,8 @@ class QrResolveAPIView(APIView):
                 }
             )
 
+        identity = ResidentQrIdentity.objects.select_related('resident').get(identifier=code)
+        resident = identity.resident
         ResidentServiceLog.objects.create(
             resident=resident,
             logged_by=request.user,
@@ -603,8 +655,16 @@ class QrResolveAPIView(APIView):
                 'raw_value': raw_value,
                 'normalized_code': code,
                 'resident_id': resident.id,
+                'verification_status': result['status'],
             }
         )
+
+
+class PublicQrVerificationAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, identifier):
+        return Response(verification_result(_normalize_qr_value(identifier), source='public'))
 
 
 class QuickGenderCorrectionAPIView(APIView):

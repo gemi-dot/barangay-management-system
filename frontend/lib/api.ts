@@ -297,6 +297,15 @@ export type StaffDocumentRequest = {
   created_at: string;
   updated_at: string;
   processed_by: string;
+  resident_id: number | null;
+  request_source: string;
+  request_source_display: string;
+  approved_at: string | null;
+  released_at: string | null;
+  document_number: string;
+  available_transitions: string[];
+  print_url: string | null;
+  status_history: Array<{ from_status: string; to_status: string; remarks: string; changed_by: string; created_at: string }>;
 };
 
 export type DocumentRequestTracking = {
@@ -703,6 +712,15 @@ export type ResidentDetailResponse = {
     status_display: string;
     created_at: string;
     updated_at: string;
+    request_source: string;
+    request_source_display: string;
+    processed_by: string;
+    approved_at: string | null;
+    released_at: string | null;
+    document_number: string;
+    remarks: string;
+    available_transitions: string[];
+    print_url: string | null;
   }>;
   history: Array<{
     id: number;
@@ -715,6 +733,21 @@ export type ResidentDetailResponse = {
   qr_profile: {
     code: string;
     image_url: string | null;
+    identity: null | {
+      identifier: string;
+      status: "active" | "revoked" | "reissued";
+      issued_at: string;
+      issued_by: string;
+    };
+    history: Array<{
+      id: number;
+      event_type: string;
+      event_display: string;
+      result: string;
+      remarks: string;
+      performed_by: string;
+      created_at: string;
+    }>;
   };
   summary: {
     household_number: string | null;
@@ -730,10 +763,13 @@ export type ResidentDetailResponse = {
       manage_household: boolean;
       manage_family: boolean;
       view_qr: boolean;
+      manage_documents: boolean;
+      manage_qr: boolean;
     };
   };
   system: {
     is_active: boolean;
+    residency_status: "active" | "inactive" | "transferred" | "deceased" | "archived";
     date_registered: string;
     created_at: string;
     updated_at: string;
@@ -1773,6 +1809,8 @@ export async function logResidentVisitToday(
 export async function createQuickResidentDocumentRequest(
   residentId: number | string,
   documentType: string,
+  purpose: string,
+  remarks = "",
 ): Promise<{
   detail: string;
   tracking_number: string;
@@ -1788,7 +1826,7 @@ export async function createQuickResidentDocumentRequest(
       "Content-Type": "application/json",
       "X-CSRFToken": csrfToken,
     },
-    body: JSON.stringify({ document_type: documentType }),
+    body: JSON.stringify({ document_type: documentType, purpose, remarks }),
   });
 
   return parseJsonResponse<{
@@ -1796,6 +1834,50 @@ export async function createQuickResidentDocumentRequest(
     tracking_number: string;
     document_type_display: string;
   }>(res, "Quick document request");
+}
+
+export type ResidentDocumentRequirements = {
+  resident: { full_name: string; address: string; age: number; civil_status: string; is_active: boolean };
+  warnings: string[];
+  document_types: Array<{ value: string; label: string }>;
+};
+
+export async function getResidentDocumentRequirements(residentId: number | string) {
+  const res = await fetch(`${getApiBaseUrl()}/residents/${residentId}/document-requirements/`, {
+    credentials: "include", cache: "no-store",
+  });
+  return parseJsonResponse<ResidentDocumentRequirements>(res, "Resident document requirements");
+}
+
+async function runResidentQrAction(residentId: number | string, action: "issue" | "reissue" | "revoke", reason = "") {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}/residents/${residentId}/qr/${action}/`, {
+    method: "POST", credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+    body: JSON.stringify({ reason }),
+  });
+  return parseJsonResponse<{ identifier: string; status: string; created?: boolean }>(res, `QR ${action}`);
+}
+
+export const issueResidentQr = (residentId: number | string) => runResidentQrAction(residentId, "issue");
+export const reissueResidentQr = (residentId: number | string, reason: string) => runResidentQrAction(residentId, "reissue", reason);
+export const revokeResidentQr = (residentId: number | string, reason: string) => runResidentQrAction(residentId, "revoke", reason);
+
+export type PublicResidentVerification = {
+  status: "valid" | "unknown" | "revoked" | "reissued" | "inactive_resident" | "transferred_resident" | "deceased_resident" | "archived_resident";
+  valid: boolean;
+  identifier?: string;
+  resident_name?: string;
+  barangay?: string;
+  residency_status?: string;
+  qr_status?: string;
+  issued_at?: string;
+};
+
+export async function verifyPublicResidentQr(identifier: string) {
+  const res = await fetch(`${getApiBaseUrl()}/qr/verify/${encodeURIComponent(identifier)}/`, { cache: "no-store" });
+  return parseJsonResponse<PublicResidentVerification>(res, "Public QR verification");
 }
 
 export async function getQuickGenderCorrection(

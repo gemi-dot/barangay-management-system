@@ -3,7 +3,6 @@ from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 from django.core.validators import RegexValidator
 from django.core.files.base import ContentFile
-from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from urllib.parse import urljoin
@@ -47,6 +46,13 @@ class Precinct(models.Model):
 
 
 class Resident(models.Model):
+    class ResidencyStatus(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        INACTIVE = 'inactive', 'Inactive'
+        TRANSFERRED = 'transferred', 'Transferred'
+        DECEASED = 'deceased', 'Deceased'
+        ARCHIVED = 'archived', 'Archived'
+
     CIVIL_STATUS_CHOICES = [
         ('single', 'Single'),
         ('married', 'Married'),
@@ -165,6 +171,9 @@ class Resident(models.Model):
     qr_image = models.ImageField(upload_to='resident_qr_codes/', blank=True, null=True, editable=False)
     date_registered = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
+    residency_status = models.CharField(
+        max_length=20, choices=ResidencyStatus.choices, default=ResidencyStatus.ACTIVE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -210,8 +219,8 @@ class Resident(models.Model):
         raise IntegrityError('Could not generate a unique QR code for resident.')
 
     def _qr_payload(self):
-        scan_path = reverse('residents:scan_resident_qr', args=[self.qr_code])
-        base_url = getattr(settings, 'SITE_BASE_URL', '').strip()
+        scan_path = f'/verify/resident/{self.qr_code}'
+        base_url = getattr(settings, 'FRONTEND_URL', '').strip()
 
         if base_url:
             return urljoin(f"{base_url.rstrip('/')}/", scan_path.lstrip('/'))
@@ -467,6 +476,13 @@ class ResidentServiceLog(models.Model):
 
 
 class DocumentRequest(models.Model):
+    class RequestSource(models.TextChoices):
+        LEGACY = 'legacy', 'Legacy'
+        PUBLIC = 'public', 'Public Form'
+        PORTAL = 'portal', 'Resident Portal'
+        STAFF = 'staff', 'Staff Module'
+        PROFILE = 'profile', 'Resident Profile'
+
     DOCUMENT_TYPE_CHOICES = [
         ('barangay_clearance', 'Barangay Clearance'),
         ('certificate_of_residency', 'Certificate of Residency'),
@@ -480,6 +496,7 @@ class DocumentRequest(models.Model):
         ('ready_for_pickup', 'Ready for Pickup'),
         ('released', 'Released'),
         ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
     ]
 
     tracking_number = models.CharField(max_length=20, unique=True, editable=False)
@@ -492,6 +509,16 @@ class DocumentRequest(models.Model):
         null=True,
         blank=True,
         related_name='resident_document_requests',
+    )
+    resident = models.ForeignKey(
+        Resident, on_delete=models.PROTECT, null=True, blank=True, related_name='document_requests'
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_document_requests',
+    )
+    request_source = models.CharField(
+        max_length=20, choices=RequestSource.choices, default=RequestSource.LEGACY
     )
     address = models.CharField(max_length=255)
     document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
@@ -506,6 +533,8 @@ class DocumentRequest(models.Model):
         blank=True,
         related_name='processed_document_requests'
     )
+    approved_at = models.DateTimeField(blank=True, null=True)
+    released_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -550,6 +579,82 @@ class DocumentRequest(models.Model):
                     raise
 
         raise IntegrityError('Unable to generate a unique tracking number after multiple attempts.')
+
+
+class DocumentRequestStatusHistory(models.Model):
+    document_request = models.ForeignKey(
+        DocumentRequest, on_delete=models.CASCADE, related_name='status_history'
+    )
+    from_status = models.CharField(max_length=20, blank=True)
+    to_status = models.CharField(max_length=20, choices=DocumentRequest.STATUS_CHOICES)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class ResidentQrIdentity(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        REVOKED = 'revoked', 'Revoked'
+        REISSUED = 'reissued', 'Reissued'
+
+    resident = models.ForeignKey(Resident, on_delete=models.PROTECT, related_name='qr_identities')
+    identifier = models.CharField(max_length=16, unique=True, db_index=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    issued_at = models.DateTimeField(default=timezone.now)
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='issued_qr_identities',
+    )
+    status_changed_at = models.DateTimeField(blank=True, null=True)
+    status_changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='changed_qr_identities',
+    )
+    reason = models.CharField(max_length=255, blank=True)
+    superseded_by = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='supersedes'
+    )
+
+    class Meta:
+        ordering = ['-issued_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['resident'], condition=Q(status='active'), name='unique_active_qr_identity_per_resident'
+            ),
+        ]
+
+
+class ResidentQrAuditEvent(models.Model):
+    class EventType(models.TextChoices):
+        ISSUED = 'issued', 'Issued'
+        VERIFIED = 'verified', 'Verified'
+        FAILED_VERIFICATION = 'failed_verification', 'Failed Verification'
+        REISSUED = 'reissued', 'Reissued'
+        REVOKED = 'revoked', 'Revoked'
+        PRINTED = 'printed', 'Printed'
+
+    identity = models.ForeignKey(
+        ResidentQrIdentity, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_events'
+    )
+    resident = models.ForeignKey(
+        Resident, on_delete=models.SET_NULL, null=True, blank=True, related_name='qr_audit_events'
+    )
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    result = models.CharField(max_length=30, blank=True)
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    remarks = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class BarangayOfficeProfile(models.Model):
