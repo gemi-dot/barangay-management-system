@@ -185,13 +185,16 @@ export default function HouseholdsPage() {
             </FilterBar>
           </SectionCard>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-            <div className="space-y-4">
-              <DataTable
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+            <div className="min-w-0 space-y-4">
+              <div className="min-w-0 w-full overflow-x-auto">
+                <DataTable
+                  tableClassName="min-w-[1000px]"
                 columns={[
                   {
                     key: "household",
                     header: "Household #",
+                    className: "min-w-[130px] whitespace-nowrap",
                     render: (row) =>
                       row.head_resident_id ? (
                         <Link className="font-medium text-zinc-900 hover:underline" href={`/residents/${row.head_resident_id}`}>
@@ -204,26 +207,31 @@ export default function HouseholdsPage() {
                   {
                     key: "head",
                     header: "Head",
+                    className: "min-w-[220px] whitespace-nowrap",
                     render: (row) => row.head_full_name,
                   },
                   {
                     key: "zone",
                     header: "Purok",
+                    className: "min-w-[150px] whitespace-nowrap",
                     render: (row) => row.zone,
                   },
                   {
                     key: "members",
                     header: "Members",
+                    className: "min-w-[110px] whitespace-nowrap",
                     render: (row) => row.member_count,
                   },
                   {
                     key: "ownership",
                     header: "Ownership",
+                    className: "min-w-[150px]",
                     render: (row) => row.house_ownership,
                   },
                   {
                     key: "income",
                     header: "Income",
+                    className: "min-w-[170px] whitespace-nowrap",
                     render: (row) => row.total_monthly_income ?? "-",
                   },
                 ]}
@@ -232,7 +240,8 @@ export default function HouseholdsPage() {
                 loading={loading}
                 emptyTitle="No households found"
                 emptyDescription="No households match your current search and zone filters."
-              />
+                />
+              </div>
 
               <SectionCard>
                 <div className="flex items-center justify-between text-sm">
@@ -255,15 +264,19 @@ export default function HouseholdsPage() {
               </SectionCard>
             </div>
 
-            <StatisticsSidebar
-              title="Statistics Sidebar"
-              stats={[
-                { label: "Active Zone Filter", value: zone || "All zones" },
-                { label: "Search Term", value: query || "None" },
-                { label: "Rows Loaded", value: String(rows.length) },
-                { label: "Total Pages", value: String(totalPages) },
-              ]}
-            />
+            <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+              <StatisticsSidebar
+                title="Statistics Sidebar"
+                stats={[
+                  { label: "Active Zone Filter", value: zone || "All zones" },
+                  { label: "Search Term", value: query || "None" },
+                  { label: "Rows Loaded", value: String(rows.length) },
+                  { label: "Total Pages", value: String(totalPages) },
+                ]}
+                statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+                statCardClassName="min-w-0"
+              />
+            </div>
           </section>
         </>
       ) : null}

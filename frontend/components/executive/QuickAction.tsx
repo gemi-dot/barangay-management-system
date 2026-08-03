@@ -7,7 +7,7 @@ type QuickActionProps = {
   href: string;
   icon: LucideIcon;
   disabled?: boolean;
-  tone?: "blue" | "emerald" | "amber" | "slate";
+  tone?: "blue" | "emerald" | "amber" | "slate" | "red";
 };
 
 function toneClass(tone: QuickActionProps["tone"]) {
@@ -18,6 +18,8 @@ function toneClass(tone: QuickActionProps["tone"]) {
       return "from-amber-600 to-orange-500";
     case "slate":
       return "from-slate-700 to-slate-500";
+    case "red":
+      return "from-rose-700 to-red-500";
     default:
       return "from-blue-700 to-cyan-500";
   }

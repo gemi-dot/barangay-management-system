@@ -262,7 +262,7 @@ export default function ResidentsPage() {
               ? true
               : false,
         ordering: "last_name",
-      });
+      }, { credentials: "include" });
 
       if (requestId !== requestIdRef.current) {
         return;
@@ -303,12 +303,14 @@ export default function ResidentsPage() {
   }, [searchInput]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void reloadResidents({
       targetPage: page,
       targetSearchQuery: searchQuery,
       targetZone: zone,
       targetStatus: status,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, searchQuery, status, zone, authLoading, session?.is_authenticated]);
 
   function resetForm() {
@@ -551,16 +553,19 @@ export default function ResidentsPage() {
 
       {error ? <ErrorState message={error} /> : null}
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-        <div className="space-y-4">
-          <DataTable
-            columns={tableColumns}
-            rows={residents}
-            rowKey={(resident) => resident.id}
-            loading={loading}
-            emptyTitle="No residents found"
-            emptyDescription="No residents found for the current filters."
-          />
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+        <div className="min-w-0 space-y-4">
+          <div className="min-w-0 w-full overflow-x-auto">
+            <DataTable
+              tableClassName="min-w-[1000px]"
+              columns={tableColumns}
+              rows={residents}
+              rowKey={(resident) => resident.id}
+              loading={loading}
+              emptyTitle="No residents found"
+              emptyDescription="No residents found for the current filters."
+            />
+          </div>
 
           <SectionCard>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -585,15 +590,19 @@ export default function ResidentsPage() {
           </SectionCard>
         </div>
 
-        <StatisticsSidebar
-          title="Statistics Sidebar"
-          stats={[
-            { label: "Current Search", value: searchQuery || "All residents" },
-            { label: "Status Filter", value: status },
-            { label: "Zone Filter", value: zone === "all" ? "All purok" : zone },
-            { label: "Visible Rows", value: String(residents.length), note: "Rows loaded for current page." },
-          ]}
-        />
+        <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+          <StatisticsSidebar
+            title="Statistics Sidebar"
+            stats={[
+              { label: "Current Search", value: searchQuery || "All residents" },
+              { label: "Status Filter", value: status },
+              { label: "Zone Filter", value: zone === "all" ? "All purok" : zone },
+              { label: "Visible Rows", value: String(residents.length), note: "Rows loaded for current page." },
+            ]}
+            statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+            statCardClassName="min-w-0"
+          />
+        </div>
       </section>
 
       {isFormOpen && (

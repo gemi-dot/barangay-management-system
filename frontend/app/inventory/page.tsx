@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
-import { Archive, ClipboardList, Download, PlusCircle, ScanLine } from "lucide-react";
+import { ClipboardList, Download, PlusCircle, ScanLine } from "lucide-react";
 
 import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
 import { ExportButtons } from "@/components/enterprise/ExportButtons";
@@ -421,33 +421,40 @@ export default function InventoryPage() {
             </FilterBar>
           </SectionCard>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-            <div className="space-y-4">
-              <DataTable
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+            <div className="min-w-0 space-y-4">
+              <div className="min-w-0 w-full overflow-x-auto">
+                <DataTable
+                  tableClassName="min-w-[1050px]"
                 columns={[
                   {
                     key: "property",
                     header: "Property #",
+                    className: "min-w-[150px] whitespace-nowrap",
                     render: (asset) => <span className="font-medium">{asset.property_number}</span>,
                   },
                   {
                     key: "description",
                     header: "Description",
+                    className: "min-w-[260px]",
                     render: (asset) => asset.description,
                   },
                   {
                     key: "category",
                     header: "Category",
+                    className: "min-w-[170px]",
                     render: (asset) => asset.category,
                   },
                   {
                     key: "status",
                     header: "Status",
+                    className: "min-w-[140px] whitespace-nowrap",
                     render: (asset) => <StatusBadge label={asset.status} tone="info" />,
                   },
                   {
                     key: "location",
                     header: "Location",
+                    className: "min-w-[170px]",
                     render: (asset) => asset.location,
                   },
                 ]}
@@ -456,7 +463,8 @@ export default function InventoryPage() {
                 loading={loading}
                 emptyTitle="No assets found"
                 emptyDescription="No inventory assets match your current search and status filters."
-              />
+                />
+              </div>
 
               <SectionCard>
                 <div className="flex items-center justify-between text-sm">
@@ -479,15 +487,19 @@ export default function InventoryPage() {
               </SectionCard>
             </div>
 
-            <StatisticsSidebar
-              title="Statistics Sidebar"
-              stats={[
-                { label: "Search Term", value: search || "None" },
-                { label: "Status Filter", value: status || "All statuses" },
-                { label: "Visible Rows", value: String(assets.length) },
-                { label: "Asset Totals", value: String(summary?.total_assets ?? 0), note: "Total from summary endpoint." },
-              ]}
-            />
+            <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+              <StatisticsSidebar
+                title="Statistics Sidebar"
+                stats={[
+                  { label: "Search Term", value: search || "None" },
+                  { label: "Status Filter", value: status || "All statuses" },
+                  { label: "Visible Rows", value: String(assets.length) },
+                  { label: "Asset Totals", value: String(summary?.total_assets ?? 0), note: "Total from summary endpoint." },
+                ]}
+                statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+                statCardClassName="min-w-0"
+              />
+            </div>
           </section>
         </>
       ) : null}

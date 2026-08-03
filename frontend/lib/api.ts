@@ -1,11 +1,20 @@
+function normalizeApiBaseUrl(apiBaseUrl: string, variableName: string): string {
+  const trimmedBaseUrl = apiBaseUrl.trim();
+  if (!trimmedBaseUrl) {
+    throw new Error(`${variableName} is not configured.`);
+  }
+
+  const normalizedBase = trimmedBaseUrl.replace(/\/+$/, "");
+  return /\/api$/i.test(normalizedBase) ? normalizedBase : `${normalizedBase}/api`;
+}
+
 function getApiBaseUrl(): string {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (!apiBaseUrl) {
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
   }
 
-  const normalizedBase = apiBaseUrl.replace(/\/+$/, "");
-  return /\/api$/i.test(normalizedBase) ? normalizedBase : `${normalizedBase}/api`;
+  return normalizeApiBaseUrl(apiBaseUrl, "NEXT_PUBLIC_API_BASE_URL");
 }
 
 function getBackendBaseUrl(): string {
@@ -573,6 +582,7 @@ export type ResidentDetailResponse = {
 
 export async function getResidents(): Promise<ResidentListItem[]> {
   const response = await fetch(`${getApiBaseUrl()}/residents/`, {
+    credentials: "include",
     cache: "no-store",
   });
   const data = await parseJsonResponse<ResidentListItem[] | PaginatedResponse<ResidentListItem>>(
@@ -586,8 +596,15 @@ export async function getResidents(): Promise<ResidentListItem[]> {
 
 export async function getResidentDetail(
   id: string | number,
+  requestOptions: Pick<RequestInit, "headers"> & { apiBaseUrl: string },
 ): Promise<ResidentDetailResponse | null> {
-  const response = await fetch(`${getApiBaseUrl()}/residents/${id}/detail/`, {
+  const apiBaseUrl = normalizeApiBaseUrl(
+    requestOptions.apiBaseUrl,
+    "INTERNAL_API_BASE_URL",
+  );
+  const response = await fetch(`${apiBaseUrl}/residents/${id}/detail/`, {
+    headers: requestOptions.headers,
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -600,6 +617,7 @@ export async function getResidentDetail(
 
 export async function getResidentsPaginated(
   query: ResidentsQuery = {},
+  requestOptions: Pick<RequestInit, "credentials"> = { credentials: "include" },
 ): Promise<PaginatedResponse<ResidentListItem>> {
   const params = new URLSearchParams();
 
@@ -631,7 +649,7 @@ export async function getResidentsPaginated(
   }
 
   const url = `${getApiBaseUrl()}/residents/${params.size ? `?${params.toString()}` : ""}`;
-  const res = await fetchWithTimeout(url, { cache: "no-store" });
+  const res = await fetchWithTimeout(url, { ...requestOptions, cache: "no-store" });
 
   return parseJsonResponse<PaginatedResponse<ResidentListItem>>(res, "Residents API");
 }
@@ -737,6 +755,7 @@ export async function setResidentActive(
 
 export async function getResidentById(id: number | string): Promise<Record<string, unknown>> {
   const res = await fetch(`${getApiBaseUrl()}/residents/${id}/`, {
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -1291,6 +1310,7 @@ export type DashboardSummary = {
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const res = await fetch(`${getApiBaseUrl()}/dashboard/summary/`, {
+    credentials: "include",
     cache: "no-store",
   });
   return parseJsonResponse<DashboardSummary>(res, "Dashboard summary API");

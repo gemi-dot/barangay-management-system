@@ -7,7 +7,7 @@ type ModuleQuickActionItem = {
   description: string;
   href: string;
   icon: LucideIcon;
-  tone?: "blue" | "emerald" | "amber" | "slate";
+  tone?: "blue" | "emerald" | "amber" | "slate" | "red";
   disabled?: boolean;
 };
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Download, HeartPulse, ScanLine, Users } from "lucide-react";
+import { Download, HeartPulse, ScanLine, Users } from "lucide-react";
 
 import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
 import { ExportButtons } from "@/components/enterprise/ExportButtons";
@@ -170,33 +170,43 @@ export default function ReportsPage() {
             </div>
           </SectionCard>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-            <DataTable
-              columns={[
-                {
-                  key: "name",
-                  header: "Name",
-                  render: (voter) => [voter.first_name, voter.middle_name, voter.last_name].filter(Boolean).join(" "),
-                },
-                { key: "zone", header: "Purok", render: (voter) => voter.zone || "-" },
-                { key: "precinct", header: "Precinct", render: (voter) => voter.precinct_number || "-" },
-                { key: "gender", header: "Gender", render: (voter) => voter.gender || "-" },
-              ]}
-              rows={filteredVoters}
-              rowKey={(voter) => voter.id}
-              emptyTitle="No voter rows"
-              emptyDescription="No voters matched your search query."
-            />
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+            <div className="min-w-0">
+              <div className="min-w-0 w-full overflow-x-auto">
+                <DataTable
+                  tableClassName="min-w-[1000px]"
+                  columns={[
+                    {
+                      key: "name",
+                      header: "Name",
+                      className: "min-w-[230px]",
+                      render: (voter) => [voter.first_name, voter.middle_name, voter.last_name].filter(Boolean).join(" "),
+                    },
+                    { key: "zone", header: "Purok", className: "min-w-[150px] whitespace-nowrap", render: (voter) => voter.zone || "-" },
+                    { key: "precinct", header: "Precinct", className: "min-w-[150px] whitespace-nowrap", render: (voter) => voter.precinct_number || "-" },
+                    { key: "gender", header: "Gender", className: "min-w-[140px] whitespace-nowrap", render: (voter) => voter.gender || "-" },
+                  ]}
+                  rows={filteredVoters}
+                  rowKey={(voter) => voter.id}
+                  emptyTitle="No voter rows"
+                  emptyDescription="No voters matched your search query."
+                />
+              </div>
+            </div>
 
-            <StatisticsSidebar
-              title="Statistics Sidebar"
-              stats={[
-                { label: "Search Term", value: search || "None" },
-                { label: "Visible Voters", value: String(filteredVoters.length) },
-                { label: "Total Precincts", value: String(dataset?.byPrecinct.length ?? 0) },
-                { label: "Total Puroks", value: String(dataset?.byPurok.length ?? 0) },
-              ]}
-            />
+            <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+              <StatisticsSidebar
+                title="Statistics Sidebar"
+                stats={[
+                  { label: "Search Term", value: search || "None" },
+                  { label: "Visible Voters", value: String(filteredVoters.length) },
+                  { label: "Total Precincts", value: String(dataset?.byPrecinct.length ?? 0) },
+                  { label: "Total Puroks", value: String(dataset?.byPurok.length ?? 0) },
+                ]}
+                statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+                statCardClassName="min-w-0"
+              />
+            </div>
           </section>
         </>
       )}

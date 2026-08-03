@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { ContentContainer } from "@/components/layout/ContentContainer";
@@ -24,7 +25,11 @@ function displayText(value: string | number | null | undefined) {
 
 export default async function ResidentDetailPage({ params }: ResidentDetailPageProps) {
   const { id } = await params;
-  const resident = await getResidentDetail(id);
+  const cookieHeader = (await cookies()).toString();
+  const resident = await getResidentDetail(id, {
+    apiBaseUrl: process.env.INTERNAL_API_BASE_URL || "",
+    headers: { cookie: cookieHeader },
+  });
 
   if (!resident) {
     notFound();

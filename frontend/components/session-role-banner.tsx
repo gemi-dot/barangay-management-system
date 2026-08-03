@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useSessionAuth } from "@/components/session-context";
 
 export function SessionRoleBanner() {
@@ -31,7 +33,11 @@ export function SessionRoleBanner() {
 
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
-      Not signed in. Use the top navigation to sign in for staff-only actions.
+      Not signed in.{" "}
+      <Link href="/login" className="font-semibold underline">
+        Sign in
+      </Link>{" "}
+      for staff-only actions.
     </div>
   );
 }

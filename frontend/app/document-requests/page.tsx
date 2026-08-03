@@ -208,18 +208,22 @@ export default function DocumentRequestsPage() {
             </FilterBar>
           </SectionCard>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-            <div className="space-y-4">
-              <DataTable
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+            <div className="min-w-0 space-y-4">
+              <div className="min-w-0 w-full overflow-x-auto">
+                <DataTable
+                  tableClassName="min-w-[1100px]"
                 columns={[
                   {
                     key: "tracking",
                     header: "Tracking #",
+                    className: "min-w-[170px] whitespace-nowrap",
                     render: (row) => <span className="font-medium text-gray-900">{row.tracking_number}</span>,
                   },
                   {
                     key: "resident",
                     header: "Resident",
+                    className: "min-w-[240px]",
                     render: (row) => (
                       <div>
                         <p className="font-medium text-gray-900">{row.full_name}</p>
@@ -231,6 +235,7 @@ export default function DocumentRequestsPage() {
                   {
                     key: "document",
                     header: "Document",
+                    className: "min-w-[220px]",
                     render: (row) => (
                       <div>
                         <p className="font-medium text-gray-900">{row.document_type_display}</p>
@@ -241,6 +246,7 @@ export default function DocumentRequestsPage() {
                   {
                     key: "status",
                     header: "Status",
+                    className: "min-w-[220px]",
                     render: (row) => (
                       <div>
                         <p className="font-medium text-gray-900">{row.status_display}</p>
@@ -252,11 +258,13 @@ export default function DocumentRequestsPage() {
                   {
                     key: "submitted",
                     header: "Submitted",
+                    className: "min-w-[190px] whitespace-nowrap",
                     render: (row) => new Date(row.created_at).toLocaleString(),
                   },
                   {
                     key: "actions",
                     header: "Actions",
+                    className: "min-w-[250px]",
                     render: (row) => (
                       <div className="flex flex-wrap gap-2">
                         {QUICK_ACTIONS.map((action) => (
@@ -280,7 +288,8 @@ export default function DocumentRequestsPage() {
                 loading={loading}
                 emptyTitle="No requests found"
                 emptyDescription="No document requests found for the selected filter."
-              />
+                />
+              </div>
 
               <SectionCard>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -305,15 +314,19 @@ export default function DocumentRequestsPage() {
               </SectionCard>
             </div>
 
-            <StatisticsSidebar
-              title="Statistics Sidebar"
-              stats={[
-                { label: "Status Filter", value: status || "All statuses" },
-                { label: "Queue Rows", value: String(rows.length) },
-                { label: "Total Queue", value: String(count) },
-                { label: "Pending Actions", value: String(rows.filter((row) => row.status === "pending").length) },
-              ]}
-            />
+            <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+              <StatisticsSidebar
+                title="Statistics Sidebar"
+                stats={[
+                  { label: "Status Filter", value: status || "All statuses" },
+                  { label: "Queue Rows", value: String(rows.length) },
+                  { label: "Total Queue", value: String(count) },
+                  { label: "Pending Actions", value: String(rows.filter((row) => row.status === "pending").length) },
+                ]}
+                statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+                statCardClassName="min-w-0"
+              />
+            </div>
           </section>
         </>
       ) : null}

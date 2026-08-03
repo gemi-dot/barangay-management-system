@@ -193,10 +193,8 @@ export default function Home() {
   const [errors, setErrors] = useState<string[]>([]);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -277,6 +275,7 @@ export default function Home() {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDashboard("initial");
   }, [loadDashboard]);
 
@@ -554,9 +553,7 @@ export default function Home() {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
                 <dt className="text-blue-100">Current Time</dt>
-                <dd className="font-semibold text-white" suppressHydrationWarning>
-                  {mounted ? formatTime(now) : "--:--:--"}
-                </dd>
+                <dd className="font-semibold text-white" suppressHydrationWarning>{formatTime(now)}</dd>
               </div>
               <div>
                 <dt className="text-blue-100">Last Updated</dt>
@@ -736,7 +733,7 @@ export default function Home() {
           database={environment === "Production" ? "Managed Production Database" : "SQLite (Development)"}
           environment={environment}
           lastRefresh={formatDateTime(lastRefreshedAt)}
-          currentTime={mounted ? formatTime(now) : "--:--:--"}
+          currentTime={formatTime(now)}
           apiConnectivity={errors.length === 0 ? "Connected" : "Partial connectivity"}
         />
       </section>

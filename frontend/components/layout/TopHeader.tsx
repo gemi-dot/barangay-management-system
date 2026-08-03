@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, LogOut } from "lucide-react";
+import { LogIn, LogOut, Menu } from "lucide-react";
 
 import { useSessionAuth } from "@/components/session-context";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
@@ -37,14 +37,20 @@ export function TopHeader({ onMenuClick }: TopHeaderProps) {
           <span className="hidden text-sm text-[var(--color-text-secondary)] md:inline">
             {session?.full_name || session?.username || "Guest"}
           </span>
-          <SecondaryButton
-            onClick={() => {
-              void logout();
-            }}
-            leftIcon={<LogOut className="h-4 w-4" />}
-          >
-            Logout
-          </SecondaryButton>
+          {session?.is_authenticated ? (
+            <SecondaryButton
+              onClick={() => {
+                void logout();
+              }}
+              leftIcon={<LogOut className="h-4 w-4" />}
+            >
+              Logout
+            </SecondaryButton>
+          ) : (
+            <Link href="/login">
+              <SecondaryButton leftIcon={<LogIn className="h-4 w-4" />}>Sign in</SecondaryButton>
+            </Link>
+          )}
         </div>
       </div>
     </header>

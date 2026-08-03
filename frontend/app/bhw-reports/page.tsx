@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, FileText, HeartPulse, Users, Stethoscope } from "lucide-react";
+import { Download, HeartPulse, Users, Stethoscope } from "lucide-react";
 
 import { ExecutivePageHeader } from "@/components/enterprise/ExecutivePageHeader";
 import { ExportButtons } from "@/components/enterprise/ExportButtons";

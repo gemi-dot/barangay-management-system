@@ -168,8 +168,9 @@ export default function SettingsPage() {
         <StatCard label="Profile Updated" value={savedProfile.updated_at ? 1 : 0} icon={Users} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-        <SectionCard title="Office Profile" description="These values are used by the resident portal and printable certificate screens.">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+        <div className="min-w-0">
+          <SectionCard title="Office Profile" description="These values are used by the resident portal and printable certificate screens.">
           <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
             Last saved: {savedProfile.updated_at ? new Date(savedProfile.updated_at).toLocaleString() : "Never"}
           </div>
@@ -283,17 +284,22 @@ export default function SettingsPage() {
               </div>
             </form>
           )}
-        </SectionCard>
+          </SectionCard>
+        </div>
 
-        <StatisticsSidebar
-          title="Statistics Sidebar"
-          stats={[
-            { label: "Staff Access", value: canWrite ? "Enabled" : "Disabled" },
-            { label: "Office Name", value: profile.office_name || "Not set" },
-            { label: "Barangay", value: profile.barangay || "Not set" },
-            { label: "Unsaved Changes", value: hasChanges ? "Yes" : "No" },
-          ]}
-        />
+        <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+          <StatisticsSidebar
+            title="Statistics Sidebar"
+            stats={[
+              { label: "Staff Access", value: canWrite ? "Enabled" : "Disabled" },
+              { label: "Office Name", value: profile.office_name || "Not set" },
+              { label: "Barangay", value: profile.barangay || "Not set" },
+              { label: "Unsaved Changes", value: hasChanges ? "Yes" : "No" },
+            ]}
+            statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+            statCardClassName="min-w-0"
+          />
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">

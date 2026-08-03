@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { cn } from "@/lib/cn";
 
 type DataTableColumn<T> = {
   key: string;
@@ -17,6 +18,9 @@ type DataTableProps<T> = {
   emptyTitle?: string;
   emptyDescription?: string;
   rowKey: (row: T) => string | number;
+  className?: string;
+  scrollContainerClassName?: string;
+  tableClassName?: string;
 };
 
 export function DataTable<T>({
@@ -26,11 +30,14 @@ export function DataTable<T>({
   emptyTitle = "No records",
   emptyDescription = "There are no rows to display for this view.",
   rowKey,
+  className,
+  scrollContainerClassName,
+  tableClassName,
 }: DataTableProps<T>) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
+    <div className={cn("overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]", className)}>
+      <div className={cn("w-full overflow-x-auto", scrollContainerClassName)}>
+        <table className={cn("min-w-full", tableClassName)}>
           <thead className="bg-slate-100">
             <tr>
               {columns.map((column) => (

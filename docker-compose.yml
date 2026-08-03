@@ -16,7 +16,32 @@ services:
     ports:
       - "8000:8000"
 
+    env_file:
+      - .env
+
     environment:
       PYTHONUNBUFFERED: "1"
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web,frontend
+
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: barangay_ims_frontend
+
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api
+      INTERNAL_API_BASE_URL: http://web:8000/api
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      - web
 
     restart: unless-stopped

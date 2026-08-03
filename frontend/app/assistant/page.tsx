@@ -97,8 +97,8 @@ export default function AssistantPage() {
         <StatCard label="User Questions" value={messages.filter((message) => message.role === "user").length} icon={Sparkles} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_330px]">
-        <div className="space-y-4">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+        <div className="min-w-0 space-y-4">
           <SectionCard title="Assistant Conversation" description="Ask questions and receive FAQ-guided responses.">
             <div className="max-h-[24rem] space-y-3 overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
               {messages.map((message, index) => (
@@ -131,29 +131,36 @@ export default function AssistantPage() {
           </SectionCard>
 
           <SectionCard title="Conversation Table" description="Responsive tabular view of the current conversation.">
-            <DataTable
-              columns={[
-                { key: "index", header: "#", render: (row) => row.id },
-                { key: "role", header: "Role", render: (row) => row.role },
-                { key: "text", header: "Message", render: (row) => row.text },
-              ]}
-              rows={messageRows}
-              rowKey={(row) => row.id}
-              emptyTitle="No conversation yet"
-              emptyDescription="Start by asking the assistant a question."
-            />
+            <div className="min-w-0 w-full overflow-x-auto">
+              <DataTable
+                tableClassName="min-w-[980px]"
+                columns={[
+                  { key: "index", header: "#", className: "min-w-[90px] whitespace-nowrap", render: (row) => row.id },
+                  { key: "role", header: "Role", className: "min-w-[140px] whitespace-nowrap", render: (row) => row.role },
+                  { key: "text", header: "Message", className: "min-w-[700px]", render: (row) => row.text },
+                ]}
+                rows={messageRows}
+                rowKey={(row) => row.id}
+                emptyTitle="No conversation yet"
+                emptyDescription="Start by asking the assistant a question."
+              />
+            </div>
           </SectionCard>
         </div>
 
-        <StatisticsSidebar
-          title="Statistics Sidebar"
-          stats={[
-            { label: "Pending Send", value: loading ? "Yes" : "No" },
-            { label: "Last Input", value: input || "None" },
-            { label: "Assistant Lines", value: String(messages.filter((message) => message.role === "assistant").length) },
-            { label: "User Lines", value: String(messages.filter((message) => message.role === "user").length) },
-          ]}
-        />
+        <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+          <StatisticsSidebar
+            title="Statistics Sidebar"
+            stats={[
+              { label: "Pending Send", value: loading ? "Yes" : "No" },
+              { label: "Last Input", value: input || "None" },
+              { label: "Assistant Lines", value: String(messages.filter((message) => message.role === "assistant").length) },
+              { label: "User Lines", value: String(messages.filter((message) => message.role === "user").length) },
+            ]}
+            statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+            statCardClassName="min-w-0"
+          />
+        </div>
       </section>
     </ContentContainer>
   );
