@@ -85,13 +85,14 @@ class HouseholdDetailSerializer(serializers.ModelSerializer):
     head_of_household = serializers.SerializerMethodField()
     members = serializers.SerializerMethodField()
     statistics = serializers.SerializerMethodField()
+    eligible_new_heads = serializers.SerializerMethodField()
 
     class Meta:
         model = Household
         fields = (
             'id', 'household_number', 'head_of_household', 'complete_address', 'purok',
             'status', 'notes', 'house_ownership', 'total_monthly_income', 'created_at',
-            'updated_at', 'members', 'statistics',
+            'updated_at', 'members', 'eligible_new_heads', 'statistics',
         )
 
     def get_head_of_household(self, obj):
@@ -105,6 +106,14 @@ class HouseholdDetailSerializer(serializers.ModelSerializer):
         memberships = obj.memberships.filter(status=HouseholdMembership.Status.ACTIVE).select_related('resident')
         return HouseholdMemberSerializer(memberships, many=True, context=self.context).data
 
+    def get_eligible_new_heads(self, obj):
+        memberships = (
+            obj.memberships
+            .filter(status=HouseholdMembership.Status.ACTIVE, resident__is_active=True)
+            .exclude(resident_id=obj.household_head_id)
+            .select_related('resident')
+        )
+        return HouseholdMemberSerializer(memberships, many=True, context=self.context).data
 
     def get_statistics(self, obj):
         return household_statistics(obj)

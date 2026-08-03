@@ -99,8 +99,14 @@ def remove_household_member(*, household, resident):
 def change_household_head(*, household, new_head, previous_head_relationship):
     household = Household.objects.select_for_update().get(pk=household.pk)
     if household.household_head_id == new_head.pk:
-        return household
+        raise ValidationError({'new_head': 'Select a different active household member as the new head.'})
 
+    valid_relationships = {
+        value for value, _ in HouseholdMembership.Relationship.choices
+        if value != HouseholdMembership.Relationship.HEAD
+    }
+    if previous_head_relationship not in valid_relationships:
+        raise ValidationError({'previous_head_relationship': 'Select a valid non-head relationship.'})
 
     Resident.objects.select_for_update().filter(pk__in=[household.household_head_id, new_head.pk]).count()
     new_membership = (
@@ -114,6 +120,8 @@ def change_household_head(*, household, new_head, previous_head_relationship):
     )
     if not new_membership:
         raise ValidationError({'new_head': 'The new household head must already be an active member of this household.'})
+    if not new_head.is_active:
+        raise ValidationError({'new_head': 'The new household head must be an active resident.'})
 
     previous_membership = HouseholdMembership.objects.select_for_update().get(
         household=household,

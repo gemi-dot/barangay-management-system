@@ -488,6 +488,7 @@ export type HouseholdDetail = {
   created_at: string;
   updated_at: string;
   members: HouseholdMember[];
+  eligible_new_heads: HouseholdMember[];
   statistics: HouseholdStatistics;
 };
 

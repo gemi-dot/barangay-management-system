@@ -11,6 +11,8 @@ from io import BytesIO
 import uuid
 import qrcode
 
+from .name_utils import format_resident_full_name
+
 # Create your models here.
 
 class Precinct(models.Model):
@@ -172,7 +174,7 @@ class Resident(models.Model):
         verbose_name_plural = 'Residents'
     
     def __str__(self):
-        return f"{self.last_name}, {self.first_name} {self.middle_name}"
+        return self.full_name
 
     def save(self, *args, **kwargs):
         # Keep emergency contact fields readable in admin/list views.
@@ -235,9 +237,12 @@ class Resident(models.Model):
     
     @property
     def full_name(self):
-        middle = f" {self.middle_name}" if self.middle_name else ""
-        suffix = f" {self.suffix}" if self.suffix else ""
-        return f"{self.first_name}{middle} {self.last_name}{suffix}"
+        return format_resident_full_name(
+            self.first_name,
+            self.middle_name,
+            self.last_name,
+            self.suffix,
+        )
     
     @property
     def age(self):

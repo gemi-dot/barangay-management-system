@@ -1,11 +1,13 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
-from .household_services import create_household
+from .household_services import change_household_head, create_household
 from .models import (
 	DocumentRequest,
 	Household,
@@ -335,6 +337,110 @@ class HouseholdModuleApiTests(TestCase):
 			household.memberships.get(resident=self.head).relationship_to_head,
 			HouseholdMembership.Relationship.PARENT,
 		)
+		self.assertEqual(
+			household.memberships.filter(
+				status=HouseholdMembership.Status.ACTIVE,
+				relationship_to_head=HouseholdMembership.Relationship.HEAD,
+			).count(),
+			1,
+		)
+		self.assertEqual(
+			household.memberships.filter(
+				resident=self.member,
+				status=HouseholdMembership.Status.ACTIVE,
+			).count(),
+			1,
+		)
+
+	def test_eligible_new_heads_exclude_current_head_and_inactive_members(self):
+		household = self.make_household()
+		self.post_json(
+			f'/api/households/{household.id}/members/',
+			{'resident_id': self.member.id, 'relationship_to_head': 'child'},
+		)
+		self.post_json(
+			f'/api/households/{household.id}/members/',
+			{'resident_id': self.adult.id, 'relationship_to_head': 'parent'},
+		)
+		household.memberships.filter(resident=self.adult).update(
+			status=HouseholdMembership.Status.INACTIVE,
+		)
+
+		response = self.client.get(f'/api/households/{household.id}/')
+
+		self.assertEqual(response.status_code, 200)
+		candidate_ids = {item['resident_id'] for item in response.json()['eligible_new_heads']}
+		self.assertEqual(candidate_ids, {self.member.id})
+		self.assertNotIn(self.head.id, candidate_ids)
+		self.assertNotIn(self.adult.id, candidate_ids)
+
+	def test_inactive_resident_cannot_become_head(self):
+		household = self.make_household()
+		self.post_json(
+			f'/api/households/{household.id}/members/',
+			{'resident_id': self.member.id, 'relationship_to_head': 'child'},
+		)
+		self.member.is_active = False
+		self.member.save(update_fields=['is_active'])
+
+		response = self.post_json(
+			f'/api/households/{household.id}/change-head/',
+			{'resident_id': self.member.id, 'previous_head_relationship': 'parent'},
+		)
+
+		self.assertEqual(response.status_code, 400)
+		household.refresh_from_db()
+		self.assertEqual(household.household_head_id, self.head.id)
+
+	def test_database_prevents_duplicate_active_head(self):
+		household = self.make_household()
+		membership = HouseholdMembership.objects.create(
+			household=household,
+			resident=self.member,
+			relationship_to_head=HouseholdMembership.Relationship.CHILD,
+		)
+
+		with self.assertRaises(IntegrityError), transaction.atomic():
+			membership.relationship_to_head = HouseholdMembership.Relationship.HEAD
+			membership.save(update_fields=['relationship_to_head'])
+
+		membership.refresh_from_db()
+		self.assertEqual(membership.relationship_to_head, HouseholdMembership.Relationship.CHILD)
+
+	def test_change_head_rolls_back_all_changes_when_final_save_fails(self):
+		household = self.make_household()
+		member_membership = HouseholdMembership.objects.create(
+			household=household,
+			resident=self.member,
+			relationship_to_head=HouseholdMembership.Relationship.CHILD,
+		)
+
+		with patch.object(Household, 'save', side_effect=RuntimeError('forced failure')):
+			with self.assertRaisesRegex(RuntimeError, 'forced failure'):
+				change_household_head(
+					household=household,
+					new_head=self.member,
+					previous_head_relationship=HouseholdMembership.Relationship.PARENT,
+				)
+
+		household.refresh_from_db()
+		member_membership.refresh_from_db()
+		previous_membership = household.memberships.get(resident=self.head)
+		self.assertEqual(household.household_head_id, self.head.id)
+		self.assertEqual(previous_membership.relationship_to_head, HouseholdMembership.Relationship.HEAD)
+		self.assertEqual(member_membership.relationship_to_head, HouseholdMembership.Relationship.CHILD)
+
+	def test_full_name_formatter_removes_trailing_separators(self):
+		resident = self.make_resident(
+			first_name='GEMI,',
+			middle_name='GLORIA;',
+			last_name='IRONG,',
+			suffix='',
+		)
+
+		self.assertEqual(resident.full_name, 'GEMI GLORIA IRONG')
+		self.assertEqual(str(resident), 'GEMI GLORIA IRONG')
+
 	def test_cannot_remove_head_but_can_remove_ordinary_member(self):
 		household = self.make_household()
 		remove_head = self.client.delete(f'/api/households/{household.id}/members/{self.head.id}/')

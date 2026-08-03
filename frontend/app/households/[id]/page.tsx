@@ -31,6 +31,7 @@ import {
   type HouseholdMember,
   type ResidentListItem,
 } from "@/lib/api";
+import { canSubmitHeadChange } from "@/lib/household-head-workflow.mjs";
 
 const PUROKS = ["Purok Talisay", "Purok Malunggay", "Purok Mancinitas", "Purok Narra", "Purok Kulo", "Purok Ipil-ipil", "Purok Tugas"];
 const RELATIONSHIPS = [
@@ -65,6 +66,8 @@ export default function HouseholdDetailPage() {
   const [removeTarget, setRemoveTarget] = useState<HouseholdMember | null>(null);
   const [newHeadId, setNewHeadId] = useState("");
   const [previousHeadRelationship, setPreviousHeadRelationship] = useState("parent");
+  const [headConfirmationOpen, setHeadConfirmationOpen] = useState(false);
+  const [headChangeError, setHeadChangeError] = useState<string | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
 
   const loadHousehold = useCallback(async () => {
@@ -112,9 +115,14 @@ export default function HouseholdDetailPage() {
   }, [canWrite, residentSearch]);
 
   const headCandidates = useMemo(
-    () => household?.members.filter((member) => member.resident_id !== household.head_of_household.resident_id && member.status === "active") ?? [],
+    () => household?.eligible_new_heads ?? [],
     [household],
   );
+  const selectedHead = useMemo(
+    () => headCandidates.find((member) => member.resident_id === Number(newHeadId)) ?? null,
+    [headCandidates, newHeadId],
+  );
+  const canChangeHead = canSubmitHeadChange(selectedHead, memberBusy);
 
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,16 +166,21 @@ export default function HouseholdDetailPage() {
 
   async function handleChangeHead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const residentId = Number(newHeadId);
-    if (!residentId) { setError("Select a new household head."); return; }
-    setMemberBusy(true); setError(null); setSuccess(null);
-    try {
-      await changeHouseholdHead(householdId, { resident_id: residentId, previous_head_relationship: previousHeadRelationship });
-      setNewHeadId(""); setSuccess("Household head changed."); await loadHousehold();
-    } catch (err) { setError(err instanceof Error ? err.message : "Failed to change household head."); }
-    finally { setMemberBusy(false); }
+    if (!selectedHead) { setHeadChangeError("Select a valid active household member."); return; }
+    setHeadChangeError(null);
+    setHeadConfirmationOpen(true);
   }
 
+  async function confirmChangeHead() {
+    if (!selectedHead || memberBusy) return;
+    const residentId = selectedHead.resident_id;
+    setMemberBusy(true); setHeadChangeError(null); setError(null); setSuccess(null);
+    try {
+      await changeHouseholdHead(householdId, { resident_id: residentId, previous_head_relationship: previousHeadRelationship });
+      setHeadConfirmationOpen(false); setNewHeadId(""); setSuccess("Household head changed."); await loadHousehold();
+    } catch (err) { setHeadChangeError(err instanceof Error ? err.message : "Failed to change household head."); setHeadConfirmationOpen(false); }
+    finally { setMemberBusy(false); }
+  }
 
   async function confirmArchive() {
     setSaving(true); setError(null);
@@ -222,9 +235,10 @@ export default function HouseholdDetailPage() {
           <SectionCard title="Change household head" description="The new head must already be an active member.">
             <form onSubmit={handleChangeHead} className="space-y-4">
               <div className="rounded-lg bg-slate-50 p-3 text-sm"><span className="text-slate-500">Current head</span><p className="font-semibold text-slate-900">{household.head_of_household.full_name}</p></div>
-              <label className="block text-sm"><span className="mb-1 block font-medium">New head</span><select value={newHeadId} onChange={(event) => setNewHeadId(event.target.value)} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"><option value="">Select active member</option>{headCandidates.map((member) => <option key={member.id} value={member.resident_id}>{member.full_name}</option>)}</select></label>
+              <label className="block text-sm"><span className="mb-1 block font-medium">New head</span><select value={newHeadId} onChange={(event) => { setNewHeadId(event.target.value); setHeadChangeError(null); }} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2"><option value="">Select active member</option>{headCandidates.map((member) => <option key={member.id} value={member.resident_id}>{member.full_name}</option>)}</select></label>
               <label className="block text-sm"><span className="mb-1 block font-medium">Previous head&apos;s new relationship</span><select value={previousHeadRelationship} onChange={(event) => setPreviousHeadRelationship(event.target.value)} className="w-full rounded-md border border-[var(--color-border)] px-3 py-2">{RELATIONSHIPS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <PrimaryButton type="submit" disabled={memberBusy || !newHeadId} leftIcon={<Crown className="h-4 w-4" />}>Change Head</PrimaryButton>
+              {headChangeError ? <ErrorState message={headChangeError} /> : null}
+              <PrimaryButton type="submit" disabled={!canChangeHead} leftIcon={<Crown className="h-4 w-4" />}>{memberBusy ? "Processing..." : "Change Head"}</PrimaryButton>
             </form>
           </SectionCard>
         </section>
@@ -256,6 +270,7 @@ export default function HouseholdDetailPage() {
       </> : null}
 
       <ConfirmationModal open={Boolean(removeTarget)} title="Remove household member" message={removeTarget ? `Remove ${removeTarget.full_name} from this household? Their membership history will be retained.` : ""} onCancel={() => setRemoveTarget(null)} onConfirm={() => void confirmRemove()} confirming={memberBusy} confirmLabel="Remove Member" />
+      <ConfirmationModal open={headConfirmationOpen} title="Change household head" message={selectedHead && household ? `Make ${selectedHead.full_name} the new head of ${household.household_number}? The current head, ${household.head_of_household.full_name}, will become ${previousHeadRelationship.replaceAll("_", " ")}.` : ""} onCancel={() => setHeadConfirmationOpen(false)} onConfirm={() => void confirmChangeHead()} confirming={memberBusy} confirmLabel="Change Head" />
       <ConfirmationModal open={archiveOpen} title="Archive household" message="Archive this household? Membership history and resident records will be preserved." onCancel={() => setArchiveOpen(false)} onConfirm={() => void confirmArchive()} confirming={saving} confirmLabel="Archive Household" />
     </ContentContainer>
   );
