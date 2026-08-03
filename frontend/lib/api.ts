@@ -1,12 +1,4 @@
-function normalizeApiBaseUrl(apiBaseUrl: string, variableName: string): string {
-  const trimmedBaseUrl = apiBaseUrl.trim();
-  if (!trimmedBaseUrl) {
-    throw new Error(`${variableName} is not configured.`);
-  }
-
-  const normalizedBase = trimmedBaseUrl.replace(/\/+$/, "");
-  return /\/api$/i.test(normalizedBase) ? normalizedBase : `${normalizedBase}/api`;
-}
+import { normalizeApiBaseUrl, portalRequestCreateUrl } from "./api-url.mjs";
 
 function getApiBaseUrl(): string {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
@@ -39,20 +31,41 @@ function looksLikeHtml(contentType: string, payload: string) {
 async function parseJsonResponse<T>(response: Response, context: string): Promise<T> {
   const contentType = response.headers.get("content-type") || "";
   const payload = await response.text();
+  const endpoint = response.url || "unknown endpoint";
+  const isHtml = looksLikeHtml(contentType, payload);
 
   if (!response.ok) {
-    const htmlHint = looksLikeHtml(contentType, payload)
-      ? " (received HTML; check endpoint path and NEXT_PUBLIC_API_BASE_URL)"
-      : "";
-    const details = summarizePayload(payload);
+    if (isHtml) {
+      console.error(`${context} received HTML from ${endpoint}`, {
+        status: response.status,
+        contentType,
+        responsePreview: summarizePayload(payload),
+      });
+      throw new Error(
+        `${context} failed: ${response.status} at ${endpoint} (received HTML; check the API endpoint and NEXT_PUBLIC_API_BASE_URL).`,
+      );
+    }
+
+    let details = summarizePayload(payload);
+    try {
+      const parsed = JSON.parse(payload) as { detail?: string; errors?: unknown };
+      details = parsed.detail || (parsed.errors ? JSON.stringify(parsed.errors) : details);
+    } catch {
+      // Keep the compact plain-text response as a fallback diagnostic.
+    }
     throw new Error(
-      `${context} failed: ${response.status}${htmlHint}${details ? ` ${details}` : ""}`,
+      `${context} failed: ${response.status} at ${endpoint}${details ? `: ${details}` : ""}`,
     );
   }
 
-  if (looksLikeHtml(contentType, payload)) {
+  if (isHtml) {
+    console.error(`${context} expected JSON but received HTML from ${endpoint}`, {
+      status: response.status,
+      contentType,
+      responsePreview: summarizePayload(payload),
+    });
     throw new Error(
-      `${context} returned HTML instead of JSON. Check endpoint path and NEXT_PUBLIC_API_BASE_URL.`,
+      `${context} returned HTML instead of JSON from ${endpoint}. Check the API endpoint and NEXT_PUBLIC_API_BASE_URL.`,
     );
   }
 
@@ -1258,7 +1271,7 @@ export async function createPortalRequest(payload: {
   await ensureCsrfCookie();
   const csrfToken = readCookie("csrftoken");
 
-  const res = await fetch(`${getApiBaseUrl()}/portal/requests/create/`, {
+  const res = await fetch(portalRequestCreateUrl(getApiBaseUrl()), {
     method: "POST",
     credentials: "include",
     headers: {

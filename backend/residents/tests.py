@@ -210,6 +210,61 @@ class ResidentSecurityRegressionTests(TestCase):
 		created = DocumentRequest.objects.get(tracking_number=tracking_number)
 		self.assertEqual(created.submitted_by_id, self.regular_user.id)
 
+		requests_response = self.client.get('/api/portal/requests/')
+		self.assertEqual(requests_response.status_code, 200)
+		self.assertIn(
+			tracking_number,
+			[item['tracking_number'] for item in requests_response.json()['results']],
+		)
+
+		dashboard_response = self.client.get('/api/portal/dashboard/')
+		self.assertEqual(dashboard_response.status_code, 200)
+		self.assertEqual(dashboard_response.json()['counts']['total_requests'], 1)
+		self.assertEqual(dashboard_response.json()['counts']['pending_requests'], 1)
+
+	def test_portal_request_create_without_trailing_slash_returns_json(self):
+		self.client.force_login(self.regular_user)
+		response = self.client.post(
+			'/api/portal/requests/create',
+			data=json.dumps(
+				{
+					'full_name': 'Nina Dela Cruz',
+					'contact_number': '09171234567',
+					'email': 'nina@example.com',
+					'address': 'Purok Kulo',
+					'document_type': 'certificate_of_residency',
+					'purpose': 'Employment requirement',
+				}
+			),
+			content_type='application/json',
+		)
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(response['Content-Type'], 'application/json')
+
+	def test_portal_request_invalid_payload_returns_json_400(self):
+		self.client.force_login(self.regular_user)
+		response = self.client.post(
+			'/api/portal/requests/create/',
+			data=json.dumps({'document_type': 'not-a-document-type'}),
+			content_type='application/json',
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response['Content-Type'], 'application/json')
+		self.assertIn('errors', response.json())
+
+	def test_portal_request_unauthorized_returns_json_401(self):
+		response = self.client.post(
+			'/api/portal/requests/create/',
+			data=json.dumps({}),
+			content_type='application/json',
+		)
+
+		self.assertEqual(response.status_code, 401)
+		self.assertEqual(response['Content-Type'], 'application/json')
+		self.assertIn('detail', response.json())
+
 	def test_portal_dashboard_links_only_explicit_portal_user(self):
 		self.client.force_login(self.regular_user)
 		response = self.client.get('/api/portal/dashboard/')

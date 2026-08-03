@@ -1,6 +1,6 @@
 import json
+from functools import wraps
 
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
@@ -14,6 +14,16 @@ def _linked_resident(user):
 
 def _my_requests(user):
     return DocumentRequest.objects.filter(submitted_by=user).order_by("-created_at")
+
+
+def api_login_required(view_func):
+    @wraps(view_func)
+    def wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
+        return view_func(request, *args, **kwargs)
+
+    return wrapped
 
 
 @require_POST
@@ -35,7 +45,7 @@ def portal_register_api(request):
 
 
 @require_GET
-@login_required
+@api_login_required
 
 def portal_dashboard_api(request):
     resident = _linked_resident(request.user)
@@ -66,7 +76,7 @@ def portal_dashboard_api(request):
 
 
 @require_GET
-@login_required
+@api_login_required
 
 def portal_requests_api(request):
     requests = _my_requests(request.user)
@@ -88,7 +98,7 @@ def portal_requests_api(request):
 
 
 @require_POST
-@login_required
+@api_login_required
 
 def portal_request_create_api(request):
     try:

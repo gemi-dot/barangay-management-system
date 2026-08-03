@@ -5,8 +5,12 @@ from . import views_portal_api
 app_name = "resident_portal_api"
 
 urlpatterns = [
+    path("register", views_portal_api.portal_register_api, name="register_no_slash"),
     path("register/", views_portal_api.portal_register_api, name="register"),
+    path("dashboard", views_portal_api.portal_dashboard_api, name="dashboard_no_slash"),
     path("dashboard/", views_portal_api.portal_dashboard_api, name="dashboard"),
+    path("requests", views_portal_api.portal_requests_api, name="requests_no_slash"),
     path("requests/", views_portal_api.portal_requests_api, name="requests"),
+    path("requests/create", views_portal_api.portal_request_create_api, name="request_create_no_slash"),
     path("requests/create/", views_portal_api.portal_request_create_api, name="request_create"),
 ]
