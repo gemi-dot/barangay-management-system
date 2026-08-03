@@ -11,8 +11,14 @@ backend/.venv/
 
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
+*$py.class
+
+########################
+# Python Build
+########################
+*.egg-info/
+dist/
+build/
 
 ########################
 # Django
@@ -20,12 +26,7 @@ __pycache__/
 *.sqlite3
 *.sqlite
 
-# Collectstatic output
 backend/staticfiles/
-
-########################
-# Media Uploads
-########################
 backend/media/
 
 ########################
@@ -42,16 +43,19 @@ node_modules/
 .next/
 frontend/node_modules/
 frontend/.next/
+frontend/.turbo/
 
 ########################
-# macOS
+# macOS / Windows
 ########################
 .DS_Store
+Thumbs.db
 
 ########################
-# VS Code
+# VS Code / IDE
 ########################
 .vscode/
+.idea/
 
 ########################
 # Logs
@@ -59,28 +63,31 @@ frontend/.next/
 *.log
 
 ########################
-# Python test cache
+# Python Cache
 ########################
 .pytest_cache/
 .mypy_cache/
+.coverage
+htmlcov/
 
 ########################
-# Temporary Data Files
+# Docker
+########################
+docker-compose.override.yml
+
+########################
+# Temporary Data
 ########################
 data/*.csv
 !data/.gitkeep
 
-########################
-# Offline Export Bundles
-########################
 offline_exports/
 
 ########################
-# Backup Files
+# Backups
 ########################
 *.backup
 *.bak
 
-# Database backups
 backups/*
 !backups/.gitkeep
