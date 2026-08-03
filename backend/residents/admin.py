@@ -6,6 +6,7 @@ from django.urls import path, reverse
 from .models import (
     BarangayOfficeProfile,
     DocumentRequest,
+    FamilyRelationship,
     Household,
     HouseholdMembership,
     Precinct,
@@ -69,11 +70,21 @@ class ResidentAdmin(admin.ModelAdmin):
     qr_preview.short_description = 'QR Preview'
 
 
-
 class HouseholdMembershipInline(admin.TabularInline):
     model = HouseholdMembership
     extra = 0
     autocomplete_fields = ['resident']
+
+
+@admin.register(FamilyRelationship)
+class FamilyRelationshipAdmin(admin.ModelAdmin):
+    list_display = ['from_resident', 'relationship_type', 'to_resident', 'status', 'created_by', 'created_at']
+    list_filter = ['relationship_type', 'status', 'created_at']
+    search_fields = [
+        'from_resident__first_name', 'from_resident__last_name',
+        'to_resident__first_name', 'to_resident__last_name',
+    ]
+    readonly_fields = ['pair_id', 'created_at', 'updated_at']
 
 
 @admin.register(Household)

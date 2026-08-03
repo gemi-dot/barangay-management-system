@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 from datetime import date
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -18,7 +19,12 @@ from bhw_reports.models import (
     SariSariStoreReport,
 )
 
-from .models import DocumentRequest, Household, Resident, ResidentServiceLog
+from .family_services import (
+    create_reciprocal_relationship,
+    deactivate_reciprocal_relationship,
+    family_tree_for,
+)
+from .models import DocumentRequest, FamilyRelationship, Household, Resident, ResidentServiceLog
 from .models import BarangayOfficeProfile
 from .serializers import (
     ResidentDetailEndpointSerializer,
@@ -129,6 +135,96 @@ class ResidentViewSet(viewsets.ModelViewSet):
             context=self.get_serializer_context(),
         )
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='family-relationships')
+    def family_relationships(self, request, pk=None):
+        resident = self.get_object()
+        if request.method == 'GET':
+            relationships = resident.family_relationships_from.filter(
+                status=FamilyRelationship.Status.ACTIVE
+            ).select_related('to_resident', 'created_by')
+            return Response(
+                {
+                    'results': [
+                        {
+                            'id': relationship.id,
+                            'pair_id': str(relationship.pair_id),
+                            'relationship_type': relationship.relationship_type,
+                            'relationship_display': relationship.get_relationship_type_display(),
+                            'resident': {
+                                'id': relationship.to_resident_id,
+                                'full_name': relationship.to_resident.full_name,
+                                'gender': relationship.to_resident.gender,
+                                'age': relationship.to_resident.age,
+                                'is_active': relationship.to_resident.is_active,
+                            },
+                            'notes': relationship.notes,
+                            'created_by': relationship.created_by.username if relationship.created_by else '',
+                            'created_at': relationship.created_at.isoformat(),
+                        }
+                        for relationship in relationships
+                    ]
+                }
+            )
+
+        to_resident = Resident.objects.filter(pk=request.data.get('to_resident_id')).first()
+        if not to_resident:
+            return Response({'to_resident_id': 'Select a valid resident.'}, status=400)
+        relationship_type = (request.data.get('relationship_type') or '').strip()
+        notes = (request.data.get('notes') or '').strip()
+        try:
+            relationship = create_reciprocal_relationship(
+                from_resident=resident,
+                to_resident=to_resident,
+                relationship_type=relationship_type,
+                notes=notes,
+                created_by=request.user,
+            )
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=400)
+        return Response(
+            {
+                'id': relationship.id,
+                'pair_id': str(relationship.pair_id),
+                'relationship_type': relationship.relationship_type,
+                'relationship_display': relationship.get_relationship_type_display(),
+                'resident': {
+                    'id': relationship.to_resident_id,
+                    'full_name': relationship.to_resident.full_name,
+                    'gender': relationship.to_resident.gender,
+                    'age': relationship.to_resident.age,
+                    'is_active': relationship.to_resident.is_active,
+                },
+                'notes': relationship.notes,
+                'created_by': request.user.username,
+                'created_at': relationship.created_at.isoformat(),
+            },
+            status=201,
+        )
+
+    @action(
+        detail=True,
+        methods=['delete'],
+        url_path=r'family-relationships/(?P<relationship_id>[^/.]+)',
+    )
+    def remove_family_relationship(self, request, pk=None, relationship_id=None):
+        resident = self.get_object()
+        relationship = FamilyRelationship.objects.filter(
+            pk=relationship_id,
+            from_resident=resident,
+            status=FamilyRelationship.Status.ACTIVE,
+        ).first()
+        if not relationship:
+            return Response({'detail': 'Active relationship not found.'}, status=404)
+        try:
+            deactivate_reciprocal_relationship(relationship=relationship, resident=resident)
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=400)
+        return Response(status=204)
+
+    @action(detail=True, methods=['get'], url_path='family-tree')
+    def family_tree(self, request, pk=None):
+        return Response(family_tree_for(self.get_object()))
 
     @action(detail=True, methods=['get'], url_path='quick-view')
     def quick_view(self, request, pk=None):

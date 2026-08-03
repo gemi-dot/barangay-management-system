@@ -380,6 +380,62 @@ class HouseholdMembership(models.Model):
     def __str__(self):
         return f"{self.resident.full_name} in {self.household.household_number}"
 
+
+class FamilyRelationship(models.Model):
+    class RelationshipType(models.TextChoices):
+        PARENT = 'parent', 'Parent'
+        CHILD = 'child', 'Child'
+        SPOUSE = 'spouse', 'Spouse'
+        SIBLING = 'sibling', 'Sibling'
+        GUARDIAN = 'guardian', 'Guardian'
+        WARD = 'ward', 'Ward'
+
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        INACTIVE = 'inactive', 'Inactive'
+
+    pair_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
+    from_resident = models.ForeignKey(
+        Resident,
+        on_delete=models.CASCADE,
+        related_name='family_relationships_from',
+    )
+    to_resident = models.ForeignKey(
+        Resident,
+        on_delete=models.CASCADE,
+        related_name='family_relationships_to',
+    )
+    relationship_type = models.CharField(max_length=20, choices=RelationshipType.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    notes = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_family_relationships',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['from_resident_id', 'relationship_type', 'to_resident__last_name']
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(from_resident=models.F('to_resident')),
+                name='family_relationship_no_self_link',
+            ),
+            models.UniqueConstraint(
+                fields=['from_resident', 'to_resident'],
+                condition=Q(status='active'),
+                name='unique_active_family_relationship_pair',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.from_resident.full_name} - {self.get_relationship_type_display()} - {self.to_resident.full_name}"
+
+
 class ResidentServiceLog(models.Model):
     ACTION_SCANNED_QR = 'scanned_qr'
     ACTION_VISITED_TODAY = 'visited_today'

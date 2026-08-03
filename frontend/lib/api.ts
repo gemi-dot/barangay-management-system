@@ -697,6 +697,45 @@ export type ResidentDetailResponse = {
   };
 };
 
+export type FamilyRelationshipType = "parent" | "child" | "spouse" | "sibling" | "guardian" | "ward";
+
+export type FamilyResidentNode = {
+  resident_id: number;
+  full_name: string;
+  gender: "M" | "F";
+  age: number;
+  is_active: boolean;
+  relationship_id?: number;
+  relationship_type?: FamilyRelationshipType;
+};
+
+export type FamilyRelationshipRecord = {
+  id: number;
+  pair_id: string;
+  relationship_type: FamilyRelationshipType;
+  relationship_display: string;
+  resident: {
+    id: number;
+    full_name: string;
+    gender: "M" | "F";
+    age: number;
+    is_active: boolean;
+  };
+  notes: string;
+  created_by: string;
+  created_at: string;
+};
+
+export type FamilyTree = {
+  resident: FamilyResidentNode;
+  parents: FamilyResidentNode[];
+  guardians: FamilyResidentNode[];
+  spouses: FamilyResidentNode[];
+  siblings: FamilyResidentNode[];
+  children: FamilyResidentNode[];
+  wards: FamilyResidentNode[];
+};
+
 export async function getResidents(): Promise<ResidentListItem[]> {
   const response = await fetch(`${getApiBaseUrl()}/residents/`, {
     credentials: "include",
@@ -730,6 +769,57 @@ export async function getResidentDetail(
   }
 
   return parseJsonResponse<ResidentDetailResponse>(response, "Failed to load resident detail");
+}
+
+export async function getFamilyRelationships(
+  residentId: number | string,
+): Promise<FamilyRelationshipRecord[]> {
+  const res = await fetch(`${getApiBaseUrl()}/residents/${residentId}/family-relationships/`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const payload = await parseJsonResponse<{ results: FamilyRelationshipRecord[] }>(res, "Family relationships");
+  return payload.results;
+}
+
+export async function getFamilyTree(residentId: number | string): Promise<FamilyTree> {
+  const res = await fetch(`${getApiBaseUrl()}/residents/${residentId}/family-tree/`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return parseJsonResponse<FamilyTree>(res, "Family tree");
+}
+
+export async function createFamilyRelationship(
+  residentId: number | string,
+  payload: { to_resident_id: number; relationship_type: FamilyRelationshipType; notes?: string },
+): Promise<FamilyRelationshipRecord> {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}/residents/${residentId}/family-relationships/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonResponse<FamilyRelationshipRecord>(res, "Create family relationship");
+}
+
+export async function removeFamilyRelationship(
+  residentId: number | string,
+  relationshipId: number | string,
+): Promise<void> {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}/residents/${residentId}/family-relationships/${relationshipId}/`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "X-CSRFToken": csrfToken },
+  });
+  if (!res.ok) {
+    const payload = await res.text();
+    throw new Error(`Remove family relationship failed: ${res.status}${payload ? ` ${summarizePayload(payload)}` : ""}`);
+  }
 }
 
 export async function getResidentsPaginated(

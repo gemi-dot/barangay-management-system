@@ -7,9 +7,11 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
+from .family_services import create_reciprocal_relationship
 from .household_services import change_household_head, create_household
 from .models import (
 	DocumentRequest,
+	FamilyRelationship,
 	Household,
 	HouseholdMembership,
 	Resident,
@@ -217,6 +219,117 @@ class ResidentSecurityRegressionTests(TestCase):
 		self.assertIsNotNone(payload['resident'])
 		self.assertEqual(payload['resident']['id'], self.linked_resident.id)
 		self.assertNotEqual(payload['resident']['id'], self.unlinked_name_match_resident.id)
+
+
+class FamilyRelationshipEngineTests(TestCase):
+	def setUp(self):
+		group, _ = Group.objects.get_or_create(name='Secretary')
+		self.user = get_user_model().objects.create_user(
+			username='family-staff', password='testpass123', is_staff=True
+		)
+		self.user.groups.add(group)
+		self.resident = self.make_resident('Alex', 'Santos', '1990-01-01')
+		self.parent = self.make_resident('Rosa', 'Santos', '1965-01-01', gender='F')
+		self.child = self.make_resident('Mika', 'Santos', '2015-01-01', gender='F')
+		self.other = self.make_resident('Nico', 'Reyes', '1992-01-01')
+		self.client.force_login(self.user)
+
+	def make_resident(self, first_name, last_name, date_of_birth, gender='M', **extra):
+		return Resident.objects.create(
+			first_name=first_name,
+			last_name=last_name,
+			date_of_birth=date_of_birth,
+			gender=gender,
+			**extra,
+		)
+
+	def post_relationship(self, resident, target, relationship_type):
+		return self.client.post(
+			f'/api/residents/{resident.id}/family-relationships/',
+			data=json.dumps({
+				'to_resident_id': target.id,
+				'relationship_type': relationship_type,
+			}),
+			content_type='application/json',
+		)
+
+	def test_parent_child_relationship_is_created_reciprocally(self):
+		response = self.post_relationship(self.parent, self.child, 'parent')
+		self.assertEqual(response.status_code, 201)
+		forward = FamilyRelationship.objects.get(from_resident=self.parent, to_resident=self.child)
+		reverse = FamilyRelationship.objects.get(from_resident=self.child, to_resident=self.parent)
+		self.assertEqual(forward.relationship_type, 'parent')
+		self.assertEqual(reverse.relationship_type, 'child')
+		self.assertEqual(forward.pair_id, reverse.pair_id)
+
+	def test_symmetric_and_guardian_relationships_are_reciprocal(self):
+		spouse = self.post_relationship(self.resident, self.other, 'spouse')
+		self.assertEqual(spouse.status_code, 201)
+		self.assertEqual(
+			FamilyRelationship.objects.get(from_resident=self.other, to_resident=self.resident).relationship_type,
+			'spouse',
+		)
+		guardian = self.post_relationship(self.parent, self.child, 'guardian')
+		self.assertEqual(guardian.status_code, 201)
+		self.assertEqual(
+			FamilyRelationship.objects.get(from_resident=self.child, to_resident=self.parent).relationship_type,
+			'ward',
+		)
+
+	def test_self_duplicate_conflicting_and_inactive_relationships_are_rejected(self):
+		self.assertEqual(self.post_relationship(self.resident, self.resident, 'sibling').status_code, 400)
+		self.assertEqual(self.post_relationship(self.resident, self.other, 'sibling').status_code, 201)
+		self.assertEqual(self.post_relationship(self.resident, self.other, 'sibling').status_code, 400)
+		self.assertEqual(self.post_relationship(self.resident, self.other, 'guardian').status_code, 400)
+		self.child.is_active = False
+		self.child.save(update_fields=['is_active'])
+		self.assertEqual(self.post_relationship(self.parent, self.child, 'parent').status_code, 400)
+
+	def test_parent_child_cycle_is_rejected(self):
+		self.assertEqual(self.post_relationship(self.parent, self.resident, 'parent').status_code, 201)
+		self.assertEqual(self.post_relationship(self.resident, self.child, 'parent').status_code, 201)
+		cycle = self.post_relationship(self.child, self.parent, 'parent')
+		self.assertEqual(cycle.status_code, 400)
+		self.assertIn('cycle', str(cycle.json()).lower())
+
+	def test_deleting_relationship_deactivates_both_reciprocal_rows(self):
+		created = self.post_relationship(self.resident, self.other, 'sibling')
+		relationship_id = created.json()['id']
+		response = self.client.delete(
+			f'/api/residents/{self.resident.id}/family-relationships/{relationship_id}/'
+		)
+		self.assertEqual(response.status_code, 204)
+		self.assertEqual(
+			FamilyRelationship.objects.filter(status=FamilyRelationship.Status.INACTIVE).count(), 2
+		)
+
+	def test_tree_api_groups_relationships_around_resident(self):
+		create_reciprocal_relationship(
+			from_resident=self.parent, to_resident=self.resident,
+			relationship_type='parent', created_by=self.user,
+		)
+		create_reciprocal_relationship(
+			from_resident=self.resident, to_resident=self.child,
+			relationship_type='parent', created_by=self.user,
+		)
+		response = self.client.get(f'/api/residents/{self.resident.id}/family-tree/')
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['parents'][0]['resident_id'], self.parent.id)
+		self.assertEqual(response.json()['children'][0]['resident_id'], self.child.id)
+
+	def test_relationship_apis_require_staff_and_public_qr_does_not_expose_family(self):
+		self.client.logout()
+		family_response = self.client.get(f'/api/residents/{self.resident.id}/family-tree/')
+		self.assertIn(family_response.status_code, {401, 403})
+		qr_response = self.client.post(
+			'/api/qr/resolve/',
+			data=json.dumps({'qr_input': self.resident.qr_code}),
+			content_type='application/json',
+		)
+		self.assertIn(qr_response.status_code, {401, 403})
+		self.assertNotIn('family', qr_response.content.decode().lower())
+
+
 class HouseholdModuleApiTests(TestCase):
 	def setUp(self):
 		self.user_model = get_user_model()

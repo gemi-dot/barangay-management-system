@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { ResidentDetailResponse } from "@/lib/api";
 import { LocalDate } from "./LocalDate";
 import { LocalDateTime } from "./LocalDateTime";
+import { FamilyRelationshipPanel } from "./FamilyRelationshipPanel";
 
 type TabId = "overview" | "household" | "family" | "documents" | "history" | "qr";
 
@@ -89,6 +90,7 @@ export function ResidentProfileTabs({ resident }: { resident: ResidentDetailResp
         <SectionCard title="Legacy family information" description="Existing text fields retained for reference; these are not linked records."><DetailList rows={[["Father", display(resident.family.father_name)], ["Mother", display(resident.family.mother_name)], ["Spouse", display(resident.family.spouse_name)]]} /></SectionCard>
         <SectionCard title="Emergency contact"><DetailList rows={[["Name", display(resident.family.emergency_contact_name)], ["Contact number", display(resident.family.emergency_contact_number)], ["Relationship", display(resident.family.emergency_contact_relationship)]]} /></SectionCard>
       </section>
+      <FamilyRelationshipPanel residentId={resident.identity.id} />
     </div> : null}
 
     {activeTab === "documents" ? <SectionCard title="Document requests" description="Requests explicitly submitted by or matching this resident record.">
