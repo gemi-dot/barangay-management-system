@@ -22,7 +22,7 @@ router.register("document-requests", DocumentRequestViewSet, basename="document-
 
 urlpatterns = [
 	path('residents', ResidentViewSet.as_view({'get': 'list', 'post': 'create'}), name='resident-list-no-slash'),
-	path('document-requests', DocumentRequestViewSet.as_view({'get': 'list', 'post': 'create'}), name='document-request-list-no-slash'),
+	path('document-requests', DocumentRequestViewSet.as_view({'get': 'list'}), name='document-request-list-no-slash'),
 	path('dashboard/summary', DashboardSummaryAPIView.as_view(), name='dashboard-summary-no-slash'),
 	path('dashboard/summary/', DashboardSummaryAPIView.as_view(), name='dashboard-summary'),
 	path('document-requests/track', DocumentRequestTrackAPIView.as_view(), name='document-request-track-no-slash'),

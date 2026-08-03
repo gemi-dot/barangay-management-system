@@ -221,6 +221,93 @@ class ResidentSecurityRegressionTests(TestCase):
 		self.assertNotEqual(payload['resident']['id'], self.unlinked_name_match_resident.id)
 
 
+class DocumentRequestApiRegressionTests(TestCase):
+	def setUp(self):
+		secretary_group, _ = Group.objects.get_or_create(name='Secretary')
+		self.staff_user = get_user_model().objects.create_user(
+			username='document-request-staff',
+			password='testpass123',
+			is_staff=True,
+		)
+		self.staff_user.groups.add(secretary_group)
+
+	def make_request(self, **overrides):
+		defaults = {
+			'full_name': 'Unlinked Resident',
+			'contact_number': '09171234567',
+			'email': '',
+			'address': 'Purok Talisay',
+			'document_type': 'barangay_clearance',
+			'purpose': 'Employment requirement',
+		}
+		defaults.update(overrides)
+		return DocumentRequest.objects.create(**defaults)
+
+	def test_document_request_list_uses_correct_slash_and_no_slash_paths(self):
+		self.assertEqual(reverse('document-request-list-no-slash'), '/api/document-requests')
+		self.assertEqual(reverse('document-requests-list'), '/api/document-requests/')
+		self.client.force_login(self.staff_user)
+
+		for path in ('/api/document-requests', '/api/document-requests/'):
+			with self.subTest(path=path):
+				response = self.client.get(path, {'page': 1, 'page_size': 20})
+				self.assertEqual(response.status_code, 200)
+				self.assertEqual(response['Content-Type'], 'application/json')
+
+	def test_document_request_list_returns_empty_paginated_result(self):
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get('/api/document-requests', {'page': 1, 'page_size': 20})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['count'], 0)
+		self.assertEqual(response.json()['results'], [])
+
+	def test_document_request_list_requires_authorized_staff(self):
+		anonymous = self.client.get('/api/document-requests')
+		self.assertIn(anonymous.status_code, {401, 403})
+
+		regular_user = get_user_model().objects.create_user(
+			username='document-request-regular', password='testpass123'
+		)
+		self.client.force_login(regular_user)
+		unauthorized = self.client.get('/api/document-requests')
+		self.assertEqual(unauthorized.status_code, 403)
+
+	def test_document_request_list_handles_missing_user_and_resident_links(self):
+		document_request = self.make_request(submitted_by=None, processed_by=None)
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get('/api/document-requests')
+
+		self.assertEqual(response.status_code, 200)
+		result = response.json()['results'][0]
+		self.assertEqual(result['id'], document_request.id)
+		self.assertEqual(result['full_name'], 'Unlinked Resident')
+		self.assertEqual(result['processed_by'], '')
+
+	def test_status_update_and_public_tracking_still_work(self):
+		document_request = self.make_request()
+		self.client.force_login(self.staff_user)
+		updated = self.client.post(
+			f'/api/document-requests/{document_request.id}/status/',
+			data=json.dumps({'status': 'processing', 'remarks': 'Validated'}),
+			content_type='application/json',
+		)
+		self.assertEqual(updated.status_code, 200)
+		self.assertEqual(updated.json()['status'], 'processing')
+		self.assertEqual(updated.json()['processed_by'], self.staff_user.get_full_name())
+
+		self.client.logout()
+		tracked = self.client.get(
+			'/api/document-requests/track/',
+			{'tracking_number': document_request.tracking_number},
+		)
+		self.assertEqual(tracked.status_code, 200)
+		self.assertEqual(tracked.json()['tracking_number'], document_request.tracking_number)
+		self.assertEqual(tracked.json()['status'], 'processing')
+
+
 class FamilyRelationshipEngineTests(TestCase):
 	def setUp(self):
 		group, _ = Group.objects.get_or_create(name='Secretary')
