@@ -107,7 +107,11 @@ function formatDateTime(value: string | null) {
   }).format(date);
 }
 
-function formatTime(value: Date) {
+function formatTime(value: Date | null) {
+  if (!value) {
+    return "Loading...";
+  }
+
   return new Intl.DateTimeFormat("en-PH", {
     hour: "2-digit",
     minute: "2-digit",
@@ -192,7 +196,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -553,7 +557,7 @@ export default function Home() {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
                 <dt className="text-blue-100">Current Time</dt>
-                <dd className="font-semibold text-white" suppressHydrationWarning>{formatTime(now)}</dd>
+                <dd className="font-semibold text-white">{formatTime(now)}</dd>
               </div>
               <div>
                 <dt className="text-blue-100">Last Updated</dt>
