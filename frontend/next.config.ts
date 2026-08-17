@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
         destination: `${djangoBaseUrl}/inventory/items/add/`,
       },
       {
+        source: "/api/:path*/",
+        destination: `${djangoBaseUrl}/api/:path*/`,
+      },
+      {
         source: "/api/:path*",
         destination: `${djangoBaseUrl}/api/:path*`,
       },
