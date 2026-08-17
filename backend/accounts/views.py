@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
+from .capabilities import capabilities_for_user, roles_for_user
 from .roles import OFFICE_ROLE_NAMES, user_has_office_role
 
 
@@ -17,6 +18,24 @@ def _safe_next_url(request, fallback='/'):
     ):
         return candidate
     return fallback
+
+
+def _authorization_payload(user):
+    is_authenticated = bool(user.is_authenticated)
+    roles = roles_for_user(user)
+    capabilities = sorted(capabilities_for_user(user))
+    office_roles = [role for role in roles if role in OFFICE_ROLE_NAMES]
+    return {
+        'is_authenticated': is_authenticated,
+        'is_staff': bool(is_authenticated and user.is_staff),
+        'is_superuser': bool(is_authenticated and user.is_superuser),
+        'has_office_role': bool(is_authenticated and user_has_office_role(user)),
+        'office_roles': office_roles,
+        'roles': roles,
+        'capabilities': capabilities,
+        'username': user.username if is_authenticated else '',
+        'full_name': user.get_full_name() if is_authenticated else '',
+    }
 
 
 def login_view(request):
@@ -43,16 +62,7 @@ def logout_view(request):
 @require_GET
 def session_view(request):
     user = request.user
-    is_authenticated = bool(user.is_authenticated)
-
-    return JsonResponse({
-        'is_authenticated': is_authenticated,
-        'is_staff': bool(is_authenticated and user.is_staff),
-        'has_office_role': bool(is_authenticated and user_has_office_role(user)),
-        'office_roles': list(user.groups.filter(name__in=OFFICE_ROLE_NAMES).values_list('name', flat=True)) if is_authenticated else [],
-        'username': user.username if is_authenticated else '',
-        'full_name': user.get_full_name() if is_authenticated else '',
-    })
+    return JsonResponse(_authorization_payload(user))
 
 
 @require_POST
@@ -67,10 +77,7 @@ def api_login_view(request):
     login(request, user)
     return JsonResponse({
         'detail': 'Login successful.',
-        'is_staff': bool(user.is_staff),
-        'has_office_role': user_has_office_role(user),
-        'office_roles': list(user.groups.filter(name__in=OFFICE_ROLE_NAMES).values_list('name', flat=True)),
-        'username': user.username,
+        **_authorization_payload(user),
     })
 
 

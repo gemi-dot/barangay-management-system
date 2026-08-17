@@ -16,12 +16,14 @@ import {
   logoutSession,
   type SessionInfo,
 } from "@/lib/api";
+import { hasOperationalCapability, sessionCan } from "@/lib/auth-capabilities.mjs";
 
 type SessionContextValue = {
   session: SessionInfo | null;
   loading: boolean;
   error: string | null;
   canWrite: boolean;
+  can: (capability: string) => boolean;
   refreshSession: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -108,18 +110,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  const can = useCallback(
+    (capability: string) => sessionCan(session, capability),
+    [session],
+  );
+
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
       loading,
       error,
-      canWrite: Boolean(session?.is_authenticated && (session.is_staff || session.has_office_role)),
+      canWrite: hasOperationalCapability(session),
+      can,
       refreshSession,
       login,
       logout,
       clearError,
     }),
-    [session, loading, error, refreshSession, login, logout, clearError],
+    [session, loading, error, can, refreshSession, login, logout, clearError],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

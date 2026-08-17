@@ -181,9 +181,11 @@ export type ResidentUpsertPayload = {
 export type SessionInfo = {
   is_authenticated: boolean;
   is_staff: boolean;
-  is_superuser?: boolean;
-  has_office_role?: boolean;
-  office_roles?: string[];
+  is_superuser: boolean;
+  has_office_role: boolean;
+  office_roles: string[];
+  roles: string[];
+  capabilities: string[];
   username: string;
   full_name: string;
 };

@@ -1,13 +1,13 @@
+from .capabilities import (
+    ALL_CAPABILITIES,
+    OFFICE_ROLE_NAMES,
+    capabilities_for_user,
+)
+
+
 ROLE_SECRETARY = 'Secretary'
 ROLE_BHW = 'BHW'
 ROLE_CAPTAIN = 'Captain'
-
-OFFICE_ROLE_NAMES = (
-    ROLE_SECRETARY,
-    ROLE_BHW,
-    ROLE_CAPTAIN,
-)
-
 
 def user_has_any_role(user, role_names):
     if not user or not user.is_authenticated:
@@ -20,4 +20,5 @@ def user_has_any_role(user, role_names):
 
 
 def user_has_office_role(user):
-    return user_has_any_role(user, OFFICE_ROLE_NAMES)
+    """Compatibility bridge for views awaiting action-level capability checks."""
+    return bool(capabilities_for_user(user).intersection(ALL_CAPABILITIES))
