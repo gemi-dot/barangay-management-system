@@ -11,6 +11,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 from django.utils.http import url_has_allowed_host_and_scheme
 from accounts.roles import user_has_office_role
+from accounts.capabilities import RESIDENT_EDIT, RESIDENT_VIEW_BASIC, RESIDENT_VIEW_SENSITIVE, user_has_capability
 from .models import DocumentRequestStatusHistory, Resident, DocumentRequest, BarangayOfficeProfile, ResidentQrAuditEvent, ResidentQrIdentity, ResidentServiceLog
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
@@ -347,9 +348,9 @@ def scan_test_page(request):
 
 @login_required
 def quick_gender_correction(request):
-    denied_response = _require_staff_or_respond(request)
-    if denied_response is not None:
-        return denied_response
+    required_capability = RESIDENT_EDIT if request.method == 'POST' else RESIDENT_VIEW_BASIC
+    if not user_has_capability(request.user, required_capability):
+        return render(request, 'residents/access_denied.html', status=403)
 
     zone_filter = (
         request.GET.get('zone')
@@ -432,9 +433,9 @@ def quick_gender_correction(request):
 
 @login_required
 def quick_birthday_correction(request):
-    denied_response = _require_staff_or_respond(request)
-    if denied_response is not None:
-        return denied_response
+    required_capability = RESIDENT_EDIT if request.method == 'POST' else RESIDENT_VIEW_BASIC
+    if not user_has_capability(request.user, required_capability):
+        return render(request, 'residents/access_denied.html', status=403)
 
     zone_filter = (
         request.GET.get('zone')
@@ -499,10 +500,10 @@ def quick_birthday_correction(request):
     return render(request, 'residents/quick_birthday_correction.html', context)
 
 
+@login_required
 def resident_quick_view(request, resident_id):
-    denied_response = _require_staff_or_respond(request)
-    if denied_response is not None:
-        return denied_response
+    if not user_has_capability(request.user, RESIDENT_VIEW_SENSITIVE):
+        return render(request, 'residents/access_denied.html', status=403)
 
     resident = get_object_or_404(Resident, id=resident_id)
     recent_logs = resident.service_logs.select_related('logged_by')[:8]
@@ -512,10 +513,10 @@ def resident_quick_view(request, resident_id):
     })
 
 
+@login_required
 def resident_service_log_action(request, resident_id):
-    denied_response = _require_staff_or_respond(request)
-    if denied_response is not None:
-        return denied_response
+    if not user_has_capability(request.user, RESIDENT_EDIT):
+        return render(request, 'residents/access_denied.html', status=403)
 
     if request.method != 'POST':
         return redirect('residents:resident_quick_view', resident_id=resident_id)

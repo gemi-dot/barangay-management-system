@@ -23,13 +23,16 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   createResident,
+  deleteResident,
   getResidentById,
   getResidentsPaginated,
-  setResidentActive,
   type ResidentListItem,
+  type ResidentLifecycleAction,
   type ResidentUpsertPayload,
+  transitionResidentLifecycle,
   updateResident,
 } from "@/lib/api";
+import { availableResidentLifecycleActions, residentPermissions } from "@/lib/resident-authorization.mjs";
 
 const PAGE_SIZE = 20;
 const ZONE_OPTIONS = [
@@ -144,10 +147,14 @@ export default function ResidentsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [pendingStatusResident, setPendingStatusResident] = useState<ResidentListItem | null>(null);
+  const [pendingLifecycle, setPendingLifecycle] = useState<{
+    resident: ResidentListItem;
+    action: ResidentLifecycleAction | "delete";
+  } | null>(null);
   const requestIdRef = useRef(0);
 
-  const { session, loading: authLoading, canWrite } = useSessionAuth();
+  const { session, loading: authLoading, canWrite, can } = useSessionAuth();
+  const permissions = useMemo(() => residentPermissions(can), [can]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(count / PAGE_SIZE));
@@ -184,7 +191,7 @@ export default function ResidentsPage() {
         header: "Status",
         render: (resident: ResidentListItem) =>
           resident.is_active === false ? (
-            <StatusBadge label="Inactive" tone="warning" />
+            <StatusBadge label={resident.residency_status || "Inactive"} tone="warning" />
           ) : (
             <StatusBadge label="Active" tone="success" />
           ),
@@ -194,7 +201,7 @@ export default function ResidentsPage() {
         header: "Actions",
         render: (resident: ResidentListItem) => (
           <div className="flex flex-wrap gap-2">
-            {canWrite ? (
+            {permissions.edit ? (
               <SecondaryButton
                 onClick={() => {
                   void openEditForm(resident);
@@ -204,24 +211,24 @@ export default function ResidentsPage() {
                 Edit
               </SecondaryButton>
             ) : null}
-            {canWrite ? (
-              <SecondaryButton
-                onClick={() => {
-                  setPendingStatusResident(resident);
-                }}
-                className="px-2 py-1 text-xs"
-              >
-                {resident.is_active === false ? "Reactivate" : "Deactivate"}
-              </SecondaryButton>
-            ) : null}
-            <Link href={`/residents/${resident.id}`} className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-slate-50">
+            {(() => {
+              const actions = availableResidentLifecycleActions(resident, permissions);
+              return <>
+                {actions.archive ? <SecondaryButton onClick={() => setPendingLifecycle({ resident, action: "archive" })} className="px-2 py-1 text-xs">Archive</SecondaryButton> : null}
+                {actions.transfer ? <SecondaryButton onClick={() => setPendingLifecycle({ resident, action: "transfer" })} className="px-2 py-1 text-xs">Transfer</SecondaryButton> : null}
+                {actions.deceased ? <SecondaryButton onClick={() => setPendingLifecycle({ resident, action: "mark-deceased" })} className="px-2 py-1 text-xs">Mark deceased</SecondaryButton> : null}
+                {actions.restore ? <SecondaryButton onClick={() => setPendingLifecycle({ resident, action: "restore" })} className="px-2 py-1 text-xs">Restore</SecondaryButton> : null}
+                {actions.delete ? <SecondaryButton onClick={() => setPendingLifecycle({ resident, action: "delete" })} className="px-2 py-1 text-xs">Delete permanently</SecondaryButton> : null}
+              </>;
+            })()}
+            {permissions.viewSensitive ? <Link href={`/residents/${resident.id}`} className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-slate-50">
               View
-            </Link>
+            </Link> : null}
           </div>
         ),
       },
     ];
-  }, [canWrite]);
+  }, [permissions]);
 
   type ResidentsLoadOptions = {
     targetPage?: number;
@@ -237,7 +244,7 @@ export default function ResidentsPage() {
     targetStatus = status,
   }: ResidentsLoadOptions = {}) {
     // Keep signed-out residents view clean and avoid noisy "Failed to fetch" banners.
-    if (!authLoading && !session?.is_authenticated) {
+    if (!authLoading && !permissions.viewBasic) {
       setResidents([]);
       setCount(0);
       setLoading(false);
@@ -357,8 +364,9 @@ export default function ResidentsPage() {
   async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!canWrite) {
-      setSubmitError("Staff login is required for write actions.");
+    const requiredPermission = editingResidentId ? permissions.edit : permissions.create;
+    if (!requiredPermission) {
+      setSubmitError("You do not have permission to save this resident record.");
       return;
     }
 
@@ -411,15 +419,17 @@ export default function ResidentsPage() {
     }
   }
 
-  async function handleToggleActive(resident: ResidentListItem) {
-    if (!canWrite) {
-      return;
-    }
-
-    const nextState = resident.is_active === false;
+  async function handleLifecycleAction(
+    resident: ResidentListItem,
+    action: ResidentLifecycleAction | "delete",
+  ) {
     try {
-      await setResidentActive(resident.id, nextState);
-      setSubmitSuccess(nextState ? "Resident reactivated successfully." : "Resident deactivated successfully.");
+      if (action === "delete") {
+        await deleteResident(resident.id);
+      } else {
+        await transitionResidentLifecycle(resident.id, action);
+      }
+      setSubmitSuccess(action === "delete" ? "Resident permanently deleted." : `Resident ${action.replace("mark-", "").replace("-", " ")} completed.`);
       await refreshCurrentPage();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update resident status.";
@@ -438,8 +448,8 @@ export default function ResidentsPage() {
         badges={(
           <>
             {authLoading ? <StatusBadge label="Checking session..." /> : null}
-            {!authLoading && canWrite ? <StatusBadge label={`Staff session active (${session?.username})`} tone="success" /> : null}
-            {!authLoading && session?.is_authenticated && !canWrite ? <StatusBadge label="Logged in read-only" tone="warning" /> : null}
+            {!authLoading && permissions.viewBasic ? <StatusBadge label={`Resident access active (${session?.username})`} tone="success" /> : null}
+            {!authLoading && session?.is_authenticated && !permissions.viewBasic ? <StatusBadge label="Resident access unavailable" tone="warning" /> : null}
             {!authLoading && !session?.is_authenticated ? <StatusBadge label="Not logged in" tone="warning" /> : null}
           </>
         )}
@@ -458,7 +468,7 @@ export default function ResidentsPage() {
               })}
               disabled={loading}
             />
-            {canWrite ? <PrimaryButton onClick={openCreateForm}>Add resident</PrimaryButton> : null}
+            {permissions.create ? <PrimaryButton onClick={openCreateForm}>Add resident</PrimaryButton> : null}
           </div>
         )}
       />
@@ -470,15 +480,15 @@ export default function ResidentsPage() {
         <StatCard label="Purok In View" value={new Set(residents.map((item) => getResidentPurok(item))).size} icon={House} />
       </section>
 
-      {!session?.is_authenticated && !authLoading ? (
-        <SectionCard title="Staff sign-in for write actions" description="Use the top navigation sign-in to enable create, edit, deactivate, and reactivate." className="border-amber-200 bg-amber-50" />
+      {!permissions.viewBasic && !authLoading ? (
+        <SectionCard title="Resident access required" description="Your account does not have permission to view the resident registry." className="border-amber-200 bg-amber-50" />
       ) : null}
 
       {submitSuccess ? <StatusBadge label={submitSuccess} tone="success" /> : null}
 
       <ModuleQuickActions
         actions={[
-          { label: "Register Resident", description: "Open resident create dialog", href: "/residents", icon: UserPlus, tone: "blue", disabled: !canWrite },
+          { label: "Register Resident", description: "Open resident create dialog", href: "/residents", icon: UserPlus, tone: "blue", disabled: !permissions.create },
           { label: "Create Household", description: "Proceed to household management", href: "/households", icon: House, tone: "emerald", disabled: !canWrite },
           { label: "Visitor Reports", description: "Review daily visitor operations", href: "/reports/today-visitors", icon: ScanLine, tone: "amber" },
           { label: "Export Registry", description: "Download current filtered resident list", href: "/residents", icon: FileSpreadsheet, tone: "slate" },
@@ -804,15 +814,15 @@ export default function ResidentsPage() {
         </div>
       )}
       <ConfirmationModal
-        open={Boolean(pendingStatusResident)}
-        title={pendingStatusResident?.is_active === false ? "Reactivate resident" : "Deactivate resident"}
-        message={pendingStatusResident ? `Are you sure you want to ${pendingStatusResident.is_active === false ? "reactivate" : "deactivate"} ${getResidentName(pendingStatusResident)}?` : ""}
-        onCancel={() => setPendingStatusResident(null)}
+        open={Boolean(pendingLifecycle)}
+        title={pendingLifecycle ? `${pendingLifecycle.action === "delete" ? "Delete permanently" : pendingLifecycle.action.replace("mark-", "").replace("-", " ")} resident` : "Resident lifecycle action"}
+        message={pendingLifecycle ? `Are you sure you want to ${pendingLifecycle.action.replace("mark-", "").replace("-", " ")} ${getResidentName(pendingLifecycle.resident)}?` : ""}
+        onCancel={() => setPendingLifecycle(null)}
         onConfirm={() => {
-          if (pendingStatusResident) {
-            void handleToggleActive(pendingStatusResident);
+          if (pendingLifecycle) {
+            void handleLifecycleAction(pendingLifecycle.resident, pendingLifecycle.action);
           }
-          setPendingStatusResident(null);
+          setPendingLifecycle(null);
         }}
       />
     </ContentContainer>

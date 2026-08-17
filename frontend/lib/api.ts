@@ -141,6 +141,7 @@ export type ResidentListItem = {
   zone?: string;
   precinct_number?: string;
   is_active?: boolean;
+  residency_status?: "active" | "inactive" | "transferred" | "deceased" | "archived";
   gender?: "M" | "F";
 };
 
@@ -933,6 +934,7 @@ export async function getResidentsPaginated(
         "gender",
         "precinct_number",
         "is_active",
+        "residency_status",
       ].join(","),
     );
   }
@@ -1035,11 +1037,35 @@ export async function updateResident(
   return parseJsonResponse<ResidentListItem>(res, "Update resident");
 }
 
-export async function setResidentActive(
+export type ResidentLifecycleAction = "archive" | "restore" | "transfer" | "mark-deceased";
+
+export async function transitionResidentLifecycle(
   id: number | string,
-  isActive: boolean,
+  action: ResidentLifecycleAction,
 ): Promise<ResidentListItem> {
-  return updateResident(id, { is_active: isActive });
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}/residents/${id}/${action}/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+    body: "{}",
+  });
+  return parseJsonResponse<ResidentListItem>(res, "Resident lifecycle transition");
+}
+
+export async function deleteResident(id: number | string): Promise<void> {
+  await ensureCsrfCookie();
+  const csrfToken = readCookie("csrftoken");
+  const res = await fetch(`${getApiBaseUrl()}/residents/${id}/`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "X-CSRFToken": csrfToken },
+  });
+  if (!res.ok) {
+    const payload = await res.text();
+    throw new Error(`Delete resident failed: ${res.status}${payload ? ` ${summarizePayload(payload)}` : ""}`);
+  }
 }
 
 export async function getResidentById(id: number | string): Promise<Record<string, unknown>> {

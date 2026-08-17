@@ -6,6 +6,16 @@ from .document_services import available_document_transitions, document_print_pa
 from .resident_profile_services import profile_alerts, profile_permissions, profile_summary
 
 
+RESIDENT_SYSTEM_MANAGED_FIELDS = frozenset({
+    'is_active',
+    'residency_status',
+    'qr_code',
+    'qr_image',
+    'portal_user',
+    'date_registered',
+})
+
+
 class DynamicFieldsModelSerializer(serializers.ModelSerializer):
     """Allows response field projection via a `fields` kwarg."""
 
@@ -299,6 +309,16 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
 
 
 class ResidentSerializer(DynamicFieldsModelSerializer):
+    def to_internal_value(self, data):
+        protected_fields = sorted(RESIDENT_SYSTEM_MANAGED_FIELDS.intersection(data.keys()))
+        if protected_fields:
+            raise serializers.ValidationError({
+                field: 'This field is system-managed and cannot be changed through ordinary resident editing.'
+                for field in protected_fields
+            })
+        return super().to_internal_value(data)
+
     class Meta:
         model = Resident
         fields = "__all__"
+        read_only_fields = tuple(RESIDENT_SYSTEM_MANAGED_FIELDS)

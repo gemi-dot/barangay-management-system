@@ -10,6 +10,18 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from accounts.capabilities import (
+    RESIDENT_CREATE,
+    RESIDENT_DELETE,
+    RESIDENT_EDIT,
+    RESIDENT_LIFECYCLE_ARCHIVE,
+    RESIDENT_LIFECYCLE_DECEASED,
+    RESIDENT_LIFECYCLE_TRANSFER,
+    RESIDENT_RESTORE,
+    RESIDENT_VIEW_BASIC,
+    RESIDENT_VIEW_SENSITIVE,
+)
+from accounts.permissions import CapabilityPermission
 from accounts.roles import user_has_office_role
 
 from bhw_reports.models import (
@@ -57,7 +69,32 @@ class ResidentViewSet(viewsets.ModelViewSet):
     queryset = Resident.objects.all()
     serializer_class = ResidentSerializer
     pagination_class = ResidentPagination
-    permission_classes = [StaffWritePermission]
+    permission_classes = [CapabilityPermission]
+    capability_by_action = {
+        'list': RESIDENT_VIEW_BASIC,
+        'retrieve': RESIDENT_VIEW_SENSITIVE,
+        'detail_view': RESIDENT_VIEW_SENSITIVE,
+        'quick_view': RESIDENT_VIEW_SENSITIVE,
+        'create': RESIDENT_CREATE,
+        'update': RESIDENT_EDIT,
+        'partial_update': RESIDENT_EDIT,
+        'destroy': RESIDENT_DELETE,
+        'archive': RESIDENT_LIFECYCLE_ARCHIVE,
+        'restore': RESIDENT_RESTORE,
+        'transfer': RESIDENT_LIFECYCLE_TRANSFER,
+        'mark_deceased': RESIDENT_LIFECYCLE_DECEASED,
+        'service_log_action': RESIDENT_EDIT,
+    }
+    deferred_actions = {
+        'family_relationships',
+        'remove_family_relationship',
+        'family_tree',
+        'quick_document_request',
+        'document_requirements',
+        'issue_qr',
+        'reissue_qr',
+        'revoke_qr',
+    }
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -86,6 +123,14 @@ class ResidentViewSet(viewsets.ModelViewSet):
         'updated_at',
     ]
     ordering = ['last_name', 'first_name']
+
+    def get_permissions(self):
+        if self.action in self.deferred_actions:
+            return [StaffWritePermission()]
+        return super().get_permissions()
+
+    def get_required_capability(self, request):
+        return self.capability_by_action.get(self.action)
 
     def get_queryset(self):
         queryset = Resident.objects.all()
@@ -382,6 +427,53 @@ class ResidentViewSet(viewsets.ModelViewSet):
             return Response(exc.message_dict, status=400)
         return Response({'identifier': identity.identifier, 'status': identity.status})
 
+    def _apply_lifecycle(self, *, resident, residency_status, is_active):
+        resident.residency_status = residency_status
+        resident.is_active = is_active
+        resident.save(update_fields=['residency_status', 'is_active', 'updated_at'])
+        return Response(ResidentDetailSerializer(resident, context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=['post'], url_path='archive')
+    def archive(self, request, pk=None):
+        resident = self.get_object()
+        if resident.residency_status == Resident.ResidencyStatus.DECEASED:
+            return Response({'detail': 'A deceased resident cannot be archived.'}, status=400)
+        return self._apply_lifecycle(
+            resident=resident,
+            residency_status=Resident.ResidencyStatus.ARCHIVED,
+            is_active=False,
+        )
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        resident = self.get_object()
+        if resident.residency_status == Resident.ResidencyStatus.DECEASED:
+            return Response({'detail': 'A deceased resident cannot be restored through this action.'}, status=400)
+        return self._apply_lifecycle(
+            resident=resident,
+            residency_status=Resident.ResidencyStatus.ACTIVE,
+            is_active=True,
+        )
+
+    @action(detail=True, methods=['post'], url_path='transfer')
+    def transfer(self, request, pk=None):
+        resident = self.get_object()
+        if resident.residency_status == Resident.ResidencyStatus.DECEASED:
+            return Response({'detail': 'A deceased resident cannot be transferred.'}, status=400)
+        return self._apply_lifecycle(
+            resident=resident,
+            residency_status=Resident.ResidencyStatus.TRANSFERRED,
+            is_active=False,
+        )
+
+    @action(detail=True, methods=['post'], url_path='mark-deceased')
+    def mark_deceased(self, request, pk=None):
+        return self._apply_lifecycle(
+            resident=self.get_object(),
+            residency_status=Resident.ResidencyStatus.DECEASED,
+            is_active=False,
+        )
+
 
 class DashboardSummaryAPIView(APIView):
     """Single payload for dashboard cards and chart widgets."""
@@ -670,7 +762,10 @@ class PublicQrVerificationAPIView(APIView):
 class QuickGenderCorrectionAPIView(APIView):
     """Staff tool to fetch/update DOB and gender by zone."""
 
-    permission_classes = [StaffOnlyPermission]
+    permission_classes = [CapabilityPermission]
+
+    def get_required_capability(self, request):
+        return RESIDENT_EDIT if request.method == 'POST' else RESIDENT_VIEW_BASIC
 
     @staticmethod
     def _zone_queryset(zone_filter):
@@ -768,7 +863,10 @@ class QuickGenderCorrectionAPIView(APIView):
 class QuickBirthdayCorrectionAPIView(APIView):
     """Staff tool to fetch/update DOB by zone."""
 
-    permission_classes = [StaffOnlyPermission]
+    permission_classes = [CapabilityPermission]
+
+    def get_required_capability(self, request):
+        return RESIDENT_EDIT if request.method == 'POST' else RESIDENT_VIEW_BASIC
 
     @staticmethod
     def _zone_queryset(zone_filter):
