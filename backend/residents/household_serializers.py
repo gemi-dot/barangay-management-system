@@ -135,6 +135,13 @@ class HouseholdWriteSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {'household_number': {'required': False, 'allow_blank': True}}
 
+    def validate(self, attrs):
+        if 'status' in attrs:
+            raise serializers.ValidationError(
+                {'status': 'Use the archive endpoint to change household status.'}
+            )
+        return attrs
+
     def create(self, validated_data):
         household_head = validated_data.pop('household_head')
         try:
@@ -157,4 +164,4 @@ class HouseholdUpdateSerializer(HouseholdWriteSerializer):
             raise serializers.ValidationError(
                 {'household_head_id': 'Use the change-head endpoint to change the household head.'}
             )
-        return attrs
+        return super().validate(attrs)

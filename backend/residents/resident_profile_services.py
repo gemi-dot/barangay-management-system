@@ -1,17 +1,25 @@
-from accounts.roles import user_has_office_role
+from accounts.capabilities import (
+    FAMILY_MANAGE,
+    FAMILY_VIEW,
+    HOUSEHOLD_MANAGE,
+    HOUSEHOLD_VIEW,
+    capabilities_for_user,
+)
 
 
 PROFILE_TABS = ('overview', 'personal', 'household', 'family', 'documents', 'history', 'qr')
 
 
 def profile_permissions(user):
-    can_manage = user_has_office_role(user)
+    capabilities = capabilities_for_user(user)
+    can_manage = bool(capabilities)
     return {
         'visible_tabs': list(PROFILE_TABS) if can_manage else [],
         'actions': {
-            'view_household': can_manage,
-            'manage_household': can_manage,
-            'manage_family': can_manage,
+            'view_household': HOUSEHOLD_VIEW in capabilities,
+            'manage_household': HOUSEHOLD_MANAGE in capabilities,
+            'view_family': FAMILY_VIEW in capabilities,
+            'manage_family': FAMILY_MANAGE in capabilities,
             'view_qr': can_manage,
             'manage_documents': can_manage,
             'manage_qr': can_manage,

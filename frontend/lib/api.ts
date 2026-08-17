@@ -764,6 +764,7 @@ export type ResidentDetailResponse = {
     actions: {
       view_household: boolean;
       manage_household: boolean;
+      view_family: boolean;
       manage_family: boolean;
       view_qr: boolean;
       manage_documents: boolean;
@@ -1558,6 +1559,15 @@ export function setHouseholdArchived(
     "POST",
     { status },
     "Change household status",
+  );
+}
+
+export function reactivateHousehold(id: number | string) {
+  return householdJsonMutation<HouseholdDetail>(
+    `/households/${id}/reactivate/`,
+    "POST",
+    {},
+    "Reactivate household",
   );
 }
 

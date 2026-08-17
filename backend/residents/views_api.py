@@ -11,6 +11,8 @@ from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from accounts.capabilities import (
+    FAMILY_MANAGE,
+    FAMILY_VIEW,
     RESIDENT_CREATE,
     RESIDENT_DELETE,
     RESIDENT_EDIT,
@@ -84,11 +86,10 @@ class ResidentViewSet(viewsets.ModelViewSet):
         'transfer': RESIDENT_LIFECYCLE_TRANSFER,
         'mark_deceased': RESIDENT_LIFECYCLE_DECEASED,
         'service_log_action': RESIDENT_EDIT,
+        'remove_family_relationship': FAMILY_MANAGE,
+        'family_tree': FAMILY_VIEW,
     }
     deferred_actions = {
-        'family_relationships',
-        'remove_family_relationship',
-        'family_tree',
         'quick_document_request',
         'document_requirements',
         'issue_qr',
@@ -130,6 +131,8 @@ class ResidentViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_required_capability(self, request):
+        if self.action == 'family_relationships':
+            return FAMILY_MANAGE if request.method == 'POST' else FAMILY_VIEW
         return self.capability_by_action.get(self.action)
 
     def get_queryset(self):

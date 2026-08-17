@@ -30,11 +30,13 @@ import {
   type HouseholdSummary,
   type ResidentListItem,
 } from "@/lib/api";
+import { householdPermissions } from "@/lib/household-authorization.mjs";
 
 const PAGE_SIZE = 20;
 
 export default function HouseholdsPage() {
-  const { canWrite } = useSessionAuth();
+  const { can } = useSessionAuth();
+  const permissions = useMemo(() => householdPermissions(can), [can]);
 
   const [summary, setSummary] = useState<HouseholdSummary | null>(null);
   const [rows, setRows] = useState<HouseholdListItem[]>([]);
@@ -65,7 +67,7 @@ export default function HouseholdsPage() {
     let cancelled = false;
 
     async function loadHouseholds() {
-      if (!canWrite) {
+      if (!permissions.view) {
         setSummary(null);
         setRows([]);
         setCount(0);
@@ -108,10 +110,10 @@ export default function HouseholdsPage() {
     return () => {
       cancelled = true;
     };
-  }, [canWrite, page, query, refreshTick, status, zone]);
+  }, [page, permissions.view, query, refreshTick, status, zone]);
 
   useEffect(() => {
-    if (!createOpen || !canWrite) return;
+    if (!createOpen || !permissions.manage) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -131,7 +133,7 @@ export default function HouseholdsPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [canWrite, createOpen, residentSearch]);
+  }, [createOpen, permissions.manage, residentSearch]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -174,10 +176,10 @@ export default function HouseholdsPage() {
         subtitle="Households Module"
         title="Household Executive Workspace"
         description="Advanced household registry with operational KPIs, filtering, exports, and cross-module quick actions."
-        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        badges={permissions.manage ? <StatusBadge label="Household management enabled" tone="success" /> : permissions.view ? <StatusBadge label="Household view access" tone="default" /> : <StatusBadge label="No household access" tone="warning" />}
         actions={(
           <div className="flex flex-wrap gap-2">
-            {canWrite ? <PrimaryButton onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>New Household</PrimaryButton> : null}
+            {permissions.manage ? <PrimaryButton onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>New Household</PrimaryButton> : null}
             <ExportButtons
               rows={rows}
               fileName="households-export.csv"
@@ -196,17 +198,17 @@ export default function HouseholdsPage() {
         )}
       />
 
-      {!canWrite ? (
+      {!permissions.view ? (
         <SectionCard
           title="Restricted module"
-          description="Staff login is required to access households data."
+          description="Your account does not have permission to view household data."
           className="border-amber-200 bg-amber-50"
         />
       ) : null}
 
       {error ? <ErrorState message={error} /> : null}
 
-      {canWrite ? (
+      {permissions.view ? (
         <>
           <ModuleQuickActions
             actions={[

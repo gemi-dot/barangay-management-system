@@ -2,11 +2,11 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import pagination, status
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.roles import user_has_office_role
+from accounts.capabilities import HOUSEHOLD_CHANGE_HEAD, HOUSEHOLD_MANAGE, HOUSEHOLD_VIEW
+from accounts.permissions import CapabilityPermission
 
 from .household_serializers import (
     HouseholdDetailSerializer,
@@ -24,9 +24,12 @@ from .household_services import (
 from .models import Household, HouseholdMembership, Resident
 
 
-class HouseholdStaffPermission(BasePermission):
-    def has_permission(self, request, view):
-        return user_has_office_role(request.user)
+class HouseholdCapabilityAPIView(APIView):
+    permission_classes = [CapabilityPermission]
+    capability_by_method = {}
+
+    def get_required_capability(self, request):
+        return self.capability_by_method.get(request.method)
 
 
 class HouseholdPagination(pagination.PageNumberPagination):
@@ -41,8 +44,8 @@ def household_queryset():
     )
 
 
-class HouseholdListCreateAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdListCreateAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'GET': HOUSEHOLD_VIEW, 'POST': HOUSEHOLD_MANAGE}
 
     def get(self, request):
         households = household_queryset().order_by('household_number')
@@ -83,8 +86,8 @@ class HouseholdListCreateAPIView(APIView):
         )
 
 
-class HouseholdSummaryAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdSummaryAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'GET': HOUSEHOLD_VIEW}
 
     def get(self, request):
         households = Household.objects.all()
@@ -101,8 +104,12 @@ class HouseholdSummaryAPIView(APIView):
         )
 
 
-class HouseholdDetailAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdDetailAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {
+        'GET': HOUSEHOLD_VIEW,
+        'PUT': HOUSEHOLD_MANAGE,
+        'PATCH': HOUSEHOLD_MANAGE,
+    }
 
     def get_object(self, pk):
         return get_object_or_404(household_queryset(), pk=pk)
@@ -130,8 +137,8 @@ class HouseholdDetailAPIView(APIView):
         return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
 
 
-class HouseholdArchiveAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdArchiveAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'POST': HOUSEHOLD_MANAGE}
 
     def post(self, request, pk):
         household = get_object_or_404(Household, pk=pk)
@@ -147,8 +154,28 @@ class HouseholdArchiveAPIView(APIView):
         return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
 
 
-class HouseholdMemberAddAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdReactivateAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'POST': HOUSEHOLD_MANAGE}
+
+    def post(self, request, pk):
+        household = get_object_or_404(Household, pk=pk)
+        eligible_statuses = {
+            Household.Status.INACTIVE,
+            Household.Status.ARCHIVED,
+            Household.Status.TRANSFERRED,
+        }
+        if household.status not in eligible_statuses:
+            return Response(
+                {'status': 'Only inactive, archived, or transferred households can be reactivated.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        household.status = Household.Status.ACTIVE
+        household.save(update_fields=['status', 'updated_at'])
+        return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
+
+
+class HouseholdMemberAddAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'POST': HOUSEHOLD_MANAGE}
 
     def post(self, request, pk):
         household = get_object_or_404(Household, pk=pk)
@@ -175,8 +202,8 @@ class HouseholdMemberAddAPIView(APIView):
         )
 
 
-class HouseholdMemberRemoveAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdMemberRemoveAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'DELETE': HOUSEHOLD_MANAGE}
 
     def delete(self, request, pk, resident_id):
         household = get_object_or_404(Household, pk=pk)
@@ -188,8 +215,8 @@ class HouseholdMemberRemoveAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class HouseholdChangeHeadAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdChangeHeadAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'POST': HOUSEHOLD_CHANGE_HEAD}
 
     def post(self, request, pk):
         household = get_object_or_404(Household, pk=pk)
@@ -214,8 +241,8 @@ class HouseholdChangeHeadAPIView(APIView):
         return Response(HouseholdDetailSerializer(household, context={'request': request}).data)
 
 
-class HouseholdStatisticsAPIView(APIView):
-    permission_classes = [HouseholdStaffPermission]
+class HouseholdStatisticsAPIView(HouseholdCapabilityAPIView):
+    capability_by_method = {'GET': HOUSEHOLD_VIEW}
 
     def get(self, request, pk):
         household = get_object_or_404(household_queryset(), pk=pk)

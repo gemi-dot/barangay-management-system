@@ -14,6 +14,8 @@ urlpatterns = [
     path("<int:pk>/", views_household_api.HouseholdDetailAPIView.as_view(), name="detail"),
     path("<int:pk>/archive", views_household_api.HouseholdArchiveAPIView.as_view(), name="archive-no-slash"),
     path("<int:pk>/archive/", views_household_api.HouseholdArchiveAPIView.as_view(), name="archive"),
+    path("<int:pk>/reactivate", views_household_api.HouseholdReactivateAPIView.as_view(), name="reactivate-no-slash"),
+    path("<int:pk>/reactivate/", views_household_api.HouseholdReactivateAPIView.as_view(), name="reactivate"),
     path("<int:pk>/members", views_household_api.HouseholdMemberAddAPIView.as_view(), name="add-member-no-slash"),
     path("<int:pk>/members/", views_household_api.HouseholdMemberAddAPIView.as_view(), name="add-member"),
     path(
