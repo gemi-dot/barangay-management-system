@@ -1,5 +1,15 @@
 import type { NextConfig } from "next";
 
+// Django backend address.
+//
+// Local Mac development:
+//   http://127.0.0.1:8000
+//
+// Docker can override this with:
+//   INTERNAL_DJANGO_URL=http://web:8000
+const djangoBaseUrl =
+  process.env.INTERNAL_DJANGO_URL || "http://127.0.0.1:8000";
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   skipTrailingSlashRedirect: true,
@@ -7,39 +17,47 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/inventory/summary",
-        destination: "http://web:8000/api/inventory/summary/",
+        destination: `${djangoBaseUrl}/api/inventory/summary/`,
       },
       {
         source: "/api/inventory/assets",
-        destination: "http://web:8000/api/inventory/assets/",
+        destination: `${djangoBaseUrl}/api/inventory/assets/`,
+      },
+      {
+        source: "/api/reports/today-visitors",
+        destination: `${djangoBaseUrl}/api/reports/today-visitors/`,
+      },
+      {
+        source: "/api/bhw-reports/summary",
+        destination: `${djangoBaseUrl}/api/bhw-reports/summary/`,
       },
       {
         source: "/inventory/items/add",
-        destination: "http://web:8000/inventory/items/add/",
+        destination: `${djangoBaseUrl}/inventory/items/add/`,
       },
       {
         source: "/api/:path*",
-        destination: "http://web:8000/api/:path*",
+        destination: `${djangoBaseUrl}/api/:path*`,
       },
       {
         source: "/accounts/api/:path*",
-        destination: "http://web:8000/accounts/api/:path*",
+        destination: `${djangoBaseUrl}/accounts/api/:path*`,
       },
       {
         source: "/assistant/api/:path*",
-        destination: "http://web:8000/assistant/api/:path*",
+        destination: `${djangoBaseUrl}/assistant/api/:path*`,
       },
       {
         source: "/inventory/items/:path*",
-        destination: "http://web:8000/inventory/items/:path*",
+        destination: `${djangoBaseUrl}/inventory/items/:path*`,
       },
       {
         source: "/static/:path*",
-        destination: "http://web:8000/static/:path*",
+        destination: `${djangoBaseUrl}/static/:path*`,
       },
       {
         source: "/media/:path*",
-        destination: "http://web:8000/media/:path*",
+        destination: `${djangoBaseUrl}/media/:path*`,
       },
     ];
   },
