@@ -12,6 +12,16 @@ for (const role of ["Secretary", "BHW", "Captain"]) {
   });
 }
 
+test("authoritative superuser status takes precedence over every assigned office role", () => {
+  const session = {
+    is_superuser: true,
+    office_roles: ["Secretary", "BHW", "Captain"],
+  };
+
+  assert.equal(operationalAccessLabel(session), "Superuser access");
+  assert.equal(operationalIdentityLabel(session), "Superuser");
+});
+
 test("an authenticated capability holder without a known office role gets generic authorized wording", () => {
   assert.equal(operationalAccessLabel({ office_roles: [] }), "Authorized access");
   assert.equal(operationalIdentityLabel({ office_roles: [] }), "authorized user");
