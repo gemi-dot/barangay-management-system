@@ -266,7 +266,7 @@ export default function HouseholdDetailPage() {
           </SectionCard> : null}
         </section>
 
-        <SectionCard title="Household members" description="Active household membership and staff-relevant resident information.">
+        <SectionCard title="Household members" description="Active household membership and operationally relevant resident information.">
           <DataTable
             rows={household.members}
             rowKey={(member) => member.id}

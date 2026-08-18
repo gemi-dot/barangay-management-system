@@ -43,7 +43,7 @@ export function QuickAction({
           <Lock className="h-4 w-4 text-slate-500" aria-hidden="true" />
         </div>
         <h4 className="mt-3 text-sm font-semibold text-slate-900">{label}</h4>
-        <p className="mt-1 text-xs text-slate-600">Staff sign-in required</p>
+        <p className="mt-1 text-xs text-slate-600">Authorized sign-in required</p>
       </div>
     );
   }

@@ -25,7 +25,7 @@ export function DashboardQuickActions({ actions, canWrite }: DashboardQuickActio
         </div>
         {!canWrite && (
           <p className="text-xs font-medium text-amber-700">
-            Some actions require staff privileges.
+            Some actions require specific operational capabilities.
           </p>
         )}
       </div>
@@ -48,7 +48,7 @@ export function DashboardQuickActions({ actions, canWrite }: DashboardQuickActio
                   </div>
                 </div>
                 <h3 className="mt-3 text-sm font-semibold text-slate-800">{action.label}</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-600">Staff access required</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">Authorized access required</p>
               </div>
             );
           }

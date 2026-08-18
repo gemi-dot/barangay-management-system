@@ -63,13 +63,13 @@ export default function SeniorCitizensReportPage() {
       <PageHeader
         eyebrow="Reports"
         title="Senior Citizens Report"
-        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        meta={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
       />
 
       {!canWrite ? (
         <SectionCard
           title="Restricted report"
-          description="Staff login is required to access this report."
+          description="Authorized access is required to view this report."
           className="border-amber-200 bg-amber-50"
         />
       ) : null}

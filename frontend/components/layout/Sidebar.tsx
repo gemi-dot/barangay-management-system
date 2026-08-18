@@ -7,7 +7,8 @@ import { PoweredBy } from "@/components/branding/PoweredBy";
 import { useSessionAuth } from "@/components/session-context";
 import { cn } from "@/lib/cn";
 import type { OfficeRole } from "@/lib/design-tokens";
-import { NAVIGATION_ITEMS } from "@/lib/navigation";
+import { hasNavigationAccess } from "@/lib/navigation-access.mjs";
+import { NAVIGATION_ITEMS, type NavigationItem } from "@/lib/navigation";
 
 type SidebarProps = {
   onNavigate?: () => void;
@@ -35,14 +36,6 @@ function toOfficeRoles(session: ReturnType<typeof useSessionAuth>["session"]): O
   return [...roles];
 }
 
-function hasAccess(requiredRoles: OfficeRole[] | undefined, userRoles: OfficeRole[]) {
-  if (!requiredRoles || requiredRoles.length === 0) {
-    return true;
-  }
-
-  return requiredRoles.some((role) => userRoles.includes(role));
-}
-
 function isActive(pathname: string, matchPaths: string[]) {
   return matchPaths.some((path) => {
     if (path === "/") {
@@ -55,8 +48,9 @@ function isActive(pathname: string, matchPaths: string[]) {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const { session } = useSessionAuth();
+  const { session, can } = useSessionAuth();
   const userRoles = toOfficeRoles(session);
+  const canAccessItem = (item: NavigationItem) => hasNavigationAccess(item, userRoles, can);
 
   return (
     <aside className="h-full w-[var(--sidebar-width)] border-r border-[var(--color-border)] bg-[var(--color-nav-bg)] text-[var(--color-nav-text)]">
@@ -67,7 +61,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAVIGATION_ITEMS.filter((item) => hasAccess(item.roles, userRoles)).map((item) => {
+          {NAVIGATION_ITEMS.filter(canAccessItem).map((item) => {
             const active = isActive(pathname, item.matchPaths);
             const Icon = item.icon;
 

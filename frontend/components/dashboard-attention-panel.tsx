@@ -35,7 +35,7 @@ export function DashboardAttentionPanel({ items, loading = false }: DashboardAtt
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Attention Required</p>
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">Items needing staff action</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900">Items needing authorized action</h2>
         </div>
       </div>
 

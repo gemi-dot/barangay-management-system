@@ -204,7 +204,7 @@ export default function InventoryPage() {
         subtitle="Inventory Module"
         title="Inventory Executive Workspace"
         description="Enterprise asset registry with inspection visibility, quick filters, and export-ready tabular reporting."
-        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        badges={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
         actions={
           <ExportButtons
             rows={assets}
@@ -225,7 +225,7 @@ export default function InventoryPage() {
       {!canWrite ? (
         <SectionCard
           title="Restricted module"
-          description="Staff login is required to access inventory records."
+          description="Authorized access is required to view inventory records."
           className="border-amber-200 bg-amber-50"
         />
       ) : null}

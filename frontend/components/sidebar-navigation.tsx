@@ -196,7 +196,7 @@ export function SidebarNavigation({
                 {session?.full_name || session?.username || "Guest"}
               </p>
               <p className="text-xs text-slate-500">
-                {canWrite ? "Staff access enabled" : "Read-only access"}
+                {canWrite ? "Operational access enabled" : "Read-only access"}
               </p>
             </div>
 

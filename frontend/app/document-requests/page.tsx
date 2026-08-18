@@ -134,7 +134,7 @@ export default function DocumentRequestsPage() {
         subtitle="Document Services"
         title="Document Requests Executive Workspace"
         description="Operational queue for document requests with status actions, exports, and service-level visibility."
-        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        badges={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
         actions={
           <ExportButtons
             rows={rows}
@@ -155,7 +155,7 @@ export default function DocumentRequestsPage() {
       {!canWrite ? (
         <SectionCard
           title="Restricted module"
-          description="Staff login is required to access document request queue data."
+          description="Authorized access is required to view document request queue data."
           className="border-amber-200 bg-amber-50"
         />
       ) : null}

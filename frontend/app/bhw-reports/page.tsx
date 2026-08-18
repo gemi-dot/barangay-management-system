@@ -130,7 +130,7 @@ export default function BhwReportsPage() {
         subtitle="BHW Reports"
         title="BHW Executive Workspace"
         description="Community health reporting command center for senior, 4Ps, pregnancy, and health records with enterprise operations visibility."
-        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        badges={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
         actions={
           <ExportButtons
             rows={
@@ -156,7 +156,7 @@ export default function BhwReportsPage() {
       {!canWrite ? (
         <SectionCard
           title="Restricted module"
-          description="Staff login is required to access BHW reports."
+          description="Authorized access is required to view BHW reports."
           className="border-amber-200 bg-amber-50"
         />
       ) : null}

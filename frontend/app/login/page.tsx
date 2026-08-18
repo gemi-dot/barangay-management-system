@@ -34,7 +34,7 @@ export default function LoginPage() {
   return (
     <ContentContainer>
       <div className="mx-auto max-w-sm">
-        <SectionCard title="Sign in" description="Sign in with your staff account to access Barangay IMS.">
+        <SectionCard title="Sign in" description="Sign in with your authorized account to access Barangay IMS.">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <label htmlFor="username" className="text-sm font-medium text-[var(--color-text-secondary)]">

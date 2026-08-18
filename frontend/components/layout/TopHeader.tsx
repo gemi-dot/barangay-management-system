@@ -5,6 +5,7 @@ import { LogIn, LogOut, Menu } from "lucide-react";
 
 import { useSessionAuth } from "@/components/session-context";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { operationalAccessLabel } from "@/lib/operational-access.mjs";
 
 type TopHeaderProps = {
   onMenuClick: () => void;
@@ -32,7 +33,7 @@ export function TopHeader({ onMenuClick }: TopHeaderProps) {
 
         <div className="flex items-center gap-2">
           <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 sm:inline-flex">
-            {canWrite ? "Staff access" : "Read-only"}
+            {canWrite ? operationalAccessLabel(session) : "Read-only access"}
           </span>
           <span className="hidden text-sm text-[var(--color-text-secondary)] md:inline">
             {session?.full_name || session?.username || "Guest"}

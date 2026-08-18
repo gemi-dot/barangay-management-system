@@ -51,7 +51,7 @@ export function DashboardDocumentQueue({ requests, loading = false, canWrite }: 
 
       {!canWrite ? (
         <div className="mt-4 rounded-[1rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Staff login is required to view document service queue records.
+          Authorized access is required to view document service queue records.
         </div>
       ) : loading ? (
         <div className="mt-4 space-y-2">

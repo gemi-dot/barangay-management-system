@@ -120,10 +120,10 @@ export default function SettingsPage() {
       <SessionRoleBanner />
 
       <ExecutivePageHeader
-        subtitle="Staff Administration"
+        subtitle="System Administration"
         title="Administration Executive Workspace"
-        description="Manage office profile, institutional branding, and staff-facing system defaults with enterprise-grade controls."
-        badges={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        description="Manage office profile, institutional branding, and operational system defaults with enterprise-grade controls."
+        badges={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
         actions={
           <ExportButtons
             rows={[profile]}
@@ -145,7 +145,7 @@ export default function SettingsPage() {
       {!canWrite ? (
         <SectionCard
           title="Restricted module"
-          description="Staff login is required to edit system settings."
+          description="Authorized access is required to edit system settings."
           className="border-amber-200 bg-amber-50"
         />
       ) : null}
@@ -291,7 +291,7 @@ export default function SettingsPage() {
           <StatisticsSidebar
             title="Statistics Sidebar"
             stats={[
-              { label: "Staff Access", value: canWrite ? "Enabled" : "Disabled" },
+              { label: "Operational Access", value: canWrite ? "Enabled" : "Disabled" },
               { label: "Office Name", value: profile.office_name || "Not set" },
               { label: "Barangay", value: profile.barangay || "Not set" },
               { label: "Unsaved Changes", value: hasChanges ? "Yes" : "No" },

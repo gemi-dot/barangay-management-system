@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useSessionAuth } from "@/components/session-context";
+import { operationalIdentityLabel } from "@/lib/operational-access.mjs";
 
 export function SessionRoleBanner() {
   const { session, loading, canWrite } = useSessionAuth();
@@ -18,7 +19,7 @@ export function SessionRoleBanner() {
   if (canWrite) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm">
-        Signed in as staff ({session?.username}). Staff-only actions are enabled.
+        Signed in as {operationalIdentityLabel(session)} ({session?.username}). Authorized actions are enabled.
       </div>
     );
   }
@@ -26,7 +27,7 @@ export function SessionRoleBanner() {
   if (session?.is_authenticated) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
-        Signed in as non-staff ({session.username}). Staff-only actions are disabled.
+        Signed in as {session.username}. This account has read-only access.
       </div>
     );
   }
@@ -37,7 +38,7 @@ export function SessionRoleBanner() {
       <Link href="/login" className="font-semibold underline">
         Sign in
       </Link>{" "}
-      for staff-only actions.
+      for authorized actions.
     </div>
   );
 }

@@ -116,7 +116,7 @@ export function FamilyRelationshipPanel({ residentId, canManage }: { residentId:
     {error ? <ErrorState message={error} /> : null}
     {success ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{success}</div> : null}
 
-    <SectionCard title="Family tree" description="Relationships are reciprocal and link existing resident records only." actions={<StatusBadge label="Staff only" tone="info" />}>
+    <SectionCard title="Family tree" description="Relationships are reciprocal and link existing resident records only." actions={<StatusBadge label="Authorized access" tone="info" />}>
       {loading ? <LoadingState label="Loading family tree..." /> : tree ? <div className="overflow-x-auto rounded-xl bg-slate-50 p-5">
         <div className="mx-auto flex min-w-[720px] max-w-5xl flex-col items-center gap-5">
           <div className="grid w-full grid-cols-2 gap-6"><TreeGroup title="Parents" nodes={tree.parents} /><TreeGroup title="Guardians" nodes={tree.guardians} /></div>
@@ -144,7 +144,7 @@ export function FamilyRelationshipPanel({ residentId, canManage }: { residentId:
       </SectionCard> : null}
 
       <SectionCard title="Active relationships" description={`${relationships.length} linked relationship${relationships.length === 1 ? "" : "s"}.`}>
-        {relationships.length ? <div className="divide-y divide-slate-100">{relationships.map((relationship) => <article key={relationship.id} className="flex items-center justify-between gap-4 py-3"><div><div className="flex flex-wrap items-center gap-2"><Link href={`/residents/${relationship.resident.id}`} className="font-semibold text-blue-700 hover:underline">{relationship.resident.full_name}</Link><StatusBadge label={relationship.relationship_display} tone="default" /></div><p className="mt-1 text-xs text-slate-500">{relationship.notes || `Recorded by ${relationship.created_by || "staff"}`}</p></div>{canManage ? <SecondaryButton onClick={() => setRemoveTarget(relationship)} disabled={busy} leftIcon={<Trash2 className="h-4 w-4" />}>Remove</SecondaryButton> : null}</article>)}</div> : <div className="py-8 text-center"><GitBranch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm text-slate-500">No structured family relationships yet.</p></div>}
+        {relationships.length ? <div className="divide-y divide-slate-100">{relationships.map((relationship) => <article key={relationship.id} className="flex items-center justify-between gap-4 py-3"><div><div className="flex flex-wrap items-center gap-2"><Link href={`/residents/${relationship.resident.id}`} className="font-semibold text-blue-700 hover:underline">{relationship.resident.full_name}</Link><StatusBadge label={relationship.relationship_display} tone="default" /></div><p className="mt-1 text-xs text-slate-500">{relationship.notes || `Recorded by ${relationship.created_by || "an authorized user"}`}</p></div>{canManage ? <SecondaryButton onClick={() => setRemoveTarget(relationship)} disabled={busy} leftIcon={<Trash2 className="h-4 w-4" />}>Remove</SecondaryButton> : null}</article>)}</div> : <div className="py-8 text-center"><GitBranch className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm text-slate-500">No structured family relationships yet.</p></div>}
       </SectionCard>
     </section>
 

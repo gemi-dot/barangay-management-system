@@ -18,13 +18,13 @@ export default function BlotterPage() {
         eyebrow="Blotter"
         title="Incident Intake and Case Tracking"
         description="This module placeholder is now available in Next.js while full blotter forms and workflow are prepared."
-        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        meta={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
       />
 
       {!canWrite ? (
         <SectionCard
           title="Restricted module"
-          description="Staff login is required to access blotter operations."
+          description="Authorized access is required to view blotter operations."
           className="border-amber-200 bg-amber-50"
         />
       ) : (

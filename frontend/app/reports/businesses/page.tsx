@@ -62,11 +62,11 @@ export default function BusinessesReportPage() {
       <PageHeader
         eyebrow="Reports"
         title="Businesses Report"
-        meta={canWrite ? <StatusBadge label="Staff access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        meta={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
       />
 
       {!canWrite ? (
-        <SectionCard title="Restricted report" description="Staff login is required to access this report." className="border-amber-200 bg-amber-50" />
+        <SectionCard title="Restricted report" description="Authorized access is required to view this report." className="border-amber-200 bg-amber-50" />
       ) : null}
       {error ? <ErrorState message={error} /> : null}
 

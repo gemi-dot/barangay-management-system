@@ -106,7 +106,7 @@ export function TopNavigation({
                   {session?.full_name || session?.username || "Guest"}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {loading ? "Checking session..." : canWrite ? "Staff role" : "Read only"}
+                  {loading ? "Checking session..." : canWrite ? "Operational access" : "Read only"}
                 </p>
               </div>
               <ChevronDown className="h-4 w-4 text-slate-400" />
@@ -116,13 +116,13 @@ export function TopNavigation({
               <div className="absolute right-0 top-full z-50 mt-3 w-80 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
                 <div className="border-b border-slate-200/80 bg-gradient-to-br from-slate-50 to-white px-4 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Logged-in Staff
+                    Active Session
                   </p>
                   <p className="mt-1 text-base font-bold text-slate-900">
                     {session?.full_name || session?.username || "Guest"}
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    {canWrite ? "Staff role enabled" : "Read-only access"}
+                    {canWrite ? "Operational access enabled" : "Read-only access"}
                   </p>
                 </div>
 

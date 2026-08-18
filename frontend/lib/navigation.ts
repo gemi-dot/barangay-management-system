@@ -20,17 +20,18 @@ export type NavigationItem = {
   icon: LucideIcon;
   matchPaths: string[];
   roles?: OfficeRole[];
+  capability?: string;
 };
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, matchPaths: ["/"] },
   { label: "Residents", href: "/residents", icon: Users, matchPaths: ["/residents"] },
-  { label: "Households", href: "/households", icon: Home, matchPaths: ["/households"], roles: ["Secretary", "Captain", "Superuser"] },
+  { label: "Households", href: "/households", icon: Home, matchPaths: ["/households"], capability: "household.view" },
   { label: "Document Requests", href: "/document-requests", icon: ClipboardList, matchPaths: ["/document-requests"], roles: ["Secretary", "BHW", "Captain", "Superuser"] },
   { label: "Inventory", href: "/inventory", icon: Boxes, matchPaths: ["/inventory"], roles: ["Secretary", "Captain", "Superuser"] },
   { label: "Blotter", href: "/blotter", icon: ShieldAlert, matchPaths: ["/blotter"], roles: ["Secretary", "Captain", "Superuser"] },
   { label: "BHW Reports", href: "/bhw-reports", icon: HeartPulse, matchPaths: ["/bhw-reports"], roles: ["BHW", "Secretary", "Captain", "Superuser"] },
   { label: "Reports", href: "/reports", icon: FileText, matchPaths: ["/reports"] },
   { label: "Assistant", href: "/assistant", icon: Bot, matchPaths: ["/assistant"] },
-  { label: "Staff Administration", href: "/settings", icon: UserCog, matchPaths: ["/settings"], roles: ["Secretary", "Captain", "Superuser"] },
+  { label: "System Administration", href: "/settings", icon: UserCog, matchPaths: ["/settings"], roles: ["Secretary", "Captain", "Superuser"] },
 ];
