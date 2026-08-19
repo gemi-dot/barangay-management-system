@@ -11,7 +11,20 @@ from datetime import timedelta
 from urllib.parse import urlencode
 from django.utils.http import url_has_allowed_host_and_scheme
 from accounts.roles import user_has_office_role
-from accounts.capabilities import RESIDENT_EDIT, RESIDENT_VIEW_BASIC, RESIDENT_VIEW_SENSITIVE, user_has_capability
+from accounts.capabilities import (
+    DIGITAL_ID_PRINT,
+    DIGITAL_ID_VERIFY,
+    DOCUMENT_APPROVE,
+    DOCUMENT_CREATE,
+    DOCUMENT_PRINT,
+    DOCUMENT_PROCESS,
+    DOCUMENT_RELEASE,
+    DOCUMENT_VIEW,
+    RESIDENT_EDIT,
+    RESIDENT_VIEW_BASIC,
+    RESIDENT_VIEW_SENSITIVE,
+    user_has_capability,
+)
 from .models import DocumentRequestStatusHistory, Resident, DocumentRequest, BarangayOfficeProfile, ResidentQrAuditEvent, ResidentQrIdentity, ResidentServiceLog
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
@@ -31,6 +44,25 @@ def _require_staff_or_respond(request):
         return None
 
     return render(request, 'residents/access_denied.html', status=403)
+
+
+def _require_capability_or_respond(request, capability):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
+    if user_has_capability(request.user, capability):
+        return None
+    return render(request, 'residents/access_denied.html', status=403)
+
+
+def _document_transition_capability(new_status):
+    return {
+        'processing': DOCUMENT_PROCESS,
+        'ready_for_pickup': DOCUMENT_APPROVE,
+        'released': DOCUMENT_RELEASE,
+        # No dedicated reject/cancel capabilities exist. These remain processing actions.
+        'rejected': DOCUMENT_PROCESS,
+        'cancelled': DOCUMENT_PROCESS,
+    }.get(new_status, DOCUMENT_PROCESS)
 
 
 def _safe_next_url(request, fallback):
@@ -253,7 +285,7 @@ def reports_home(request):
 
 
 def scan_resident_qr(request, qr_value):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_VERIFY)
     if denied_response is not None:
         return denied_response
 
@@ -288,7 +320,7 @@ def scan_resident_qr(request, qr_value):
 
 
 def qr_diagnostic(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_VERIFY)
     if denied_response is not None:
         return denied_response
 
@@ -305,7 +337,7 @@ def qr_diagnostic(request):
 
 
 def scan_qr_input(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_VERIFY)
     if denied_response is not None:
         return denied_response
 
@@ -327,7 +359,7 @@ def scan_qr_input(request):
 
 
 def scan_test_page(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_VERIFY)
     if denied_response is not None:
         return denied_response
 
@@ -539,7 +571,7 @@ def resident_service_log_action(request, resident_id):
 
 
 def quick_create_document_request(request, resident_id):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_CREATE)
     if denied_response is not None:
         return denied_response
 
@@ -706,7 +738,7 @@ def track_document_request(request):
 
 @login_required
 def document_requests_queue(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_VIEW)
     if denied_response is not None:
         return denied_response
 
@@ -725,7 +757,10 @@ def document_requests_queue(request):
 
 @login_required
 def update_document_request_status(request, request_id):
-    denied_response = _require_staff_or_respond(request)
+    new_status = request.POST.get('status', '').strip()
+    denied_response = _require_capability_or_respond(
+        request, _document_transition_capability(new_status)
+    )
     if denied_response is not None:
         return denied_response
 
@@ -733,7 +768,6 @@ def update_document_request_status(request, request_id):
         return redirect('residents:document_requests_queue')
 
     document_request = get_object_or_404(DocumentRequest, id=request_id)
-    new_status = request.POST.get('status', '')
     remarks = request.POST.get('remarks', '').strip()
     previous_status = document_request.status
     try:
@@ -760,7 +794,7 @@ def update_document_request_status(request, request_id):
 
 @login_required
 def reset_document_request_test_data(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_PROCESS)
     if denied_response is not None:
         return denied_response
 
@@ -781,7 +815,7 @@ def reset_document_request_test_data(request):
 
 @login_required
 def certificate_of_residency_sample(request, request_id=None):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_PRINT)
     if denied_response is not None:
         return denied_response
 
@@ -807,7 +841,7 @@ def certificate_of_residency_sample(request, request_id=None):
 
 @login_required
 def certificate_of_indigency_sample(request, request_id=None):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_PRINT)
     if denied_response is not None:
         return denied_response
 
@@ -833,7 +867,7 @@ def certificate_of_indigency_sample(request, request_id=None):
 
 @login_required
 def barangay_clearance_sample(request, request_id=None):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_PRINT)
     if denied_response is not None:
         return denied_response
 
@@ -859,7 +893,7 @@ def barangay_clearance_sample(request, request_id=None):
 
 @login_required
 def business_clearance_sample(request, request_id=None):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DOCUMENT_PRINT)
     if denied_response is not None:
         return denied_response
 
@@ -885,7 +919,7 @@ def business_clearance_sample(request, request_id=None):
 
 @login_required
 def barangay_id_sample(request, resident_id=None):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_PRINT)
     if denied_response is not None:
         return denied_response
 
@@ -932,7 +966,7 @@ def barangay_id_sample(request, resident_id=None):
 
 
 def barangay_id_bulk_print(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_PRINT)
     if denied_response is not None:
         return denied_response
 
@@ -976,7 +1010,7 @@ def barangay_id_bulk_print(request):
 
 @login_required
 def qr_frontdesk_sop_sheet(request):
-    denied_response = _require_staff_or_respond(request)
+    denied_response = _require_capability_or_respond(request, DIGITAL_ID_VERIFY)
     if denied_response is not None:
         return denied_response
 

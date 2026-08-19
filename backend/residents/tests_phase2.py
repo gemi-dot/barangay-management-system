@@ -14,6 +14,9 @@ class Phase2DocumentWorkflowTests(TestCase):
         group, _ = Group.objects.get_or_create(name='Secretary')
         self.staff = get_user_model().objects.create_user(username='phase2-staff', password='pass')
         self.staff.groups.add(group)
+        captain_group, _ = Group.objects.get_or_create(name='Captain')
+        self.captain = get_user_model().objects.create_user(username='phase2-captain', password='pass')
+        self.captain.groups.add(captain_group)
         self.resident = Resident.objects.create(
             first_name='Ana', last_name='Santos', date_of_birth='1990-02-03', gender='F',
             civil_status='married', contact_number='09171234567', house_number='12',
@@ -61,6 +64,7 @@ class Phase2DocumentWorkflowTests(TestCase):
         invalid = self.post_json(f'/api/document-requests/{document.id}/status/', {'status': 'released'})
         self.assertEqual(invalid.status_code, 400)
         for status in ('processing', 'ready_for_pickup', 'released'):
+            self.client.force_login(self.captain if status == 'ready_for_pickup' else self.staff)
             response = self.post_json(f'/api/document-requests/{document.id}/status/', {'status': status})
             self.assertEqual(response.status_code, 200)
         document.refresh_from_db()
@@ -101,6 +105,9 @@ class Phase2QrWorkflowTests(TestCase):
         group, _ = Group.objects.get_or_create(name='Secretary')
         self.staff = get_user_model().objects.create_user(username='qr-phase2', password='pass')
         self.staff.groups.add(group)
+        captain_group, _ = Group.objects.get_or_create(name='Captain')
+        self.captain = get_user_model().objects.create_user(username='qr-phase2-captain', password='pass')
+        self.captain.groups.add(captain_group)
         self.resident = Resident.objects.create(
             first_name='Lito', last_name='Cruz', date_of_birth='1985-01-01', gender='M',
         )
@@ -154,6 +161,7 @@ class Phase2QrWorkflowTests(TestCase):
 
     def test_reissue_supersedes_old_identifier_and_requires_reason(self):
         old_identifier = self.post_json(f'/api/residents/{self.resident.id}/qr/issue/').json()['identifier']
+        self.client.force_login(self.captain)
         missing = self.post_json(f'/api/residents/{self.resident.id}/qr/reissue/')
         self.assertEqual(missing.status_code, 400)
         replacement = self.post_json(f'/api/residents/{self.resident.id}/qr/reissue/', {'reason': 'Lost ID'})
@@ -164,6 +172,7 @@ class Phase2QrWorkflowTests(TestCase):
 
     def test_revocation_requires_reason_and_prevents_valid_verification(self):
         identifier = self.post_json(f'/api/residents/{self.resident.id}/qr/issue/').json()['identifier']
+        self.client.force_login(self.captain)
         self.assertEqual(self.post_json(f'/api/residents/{self.resident.id}/qr/revoke/').status_code, 400)
         revoked = self.post_json(f'/api/residents/{self.resident.id}/qr/revoke/', {'reason': 'Security concern'})
         self.assertEqual(revoked.status_code, 200)

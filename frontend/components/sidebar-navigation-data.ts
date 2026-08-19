@@ -22,6 +22,7 @@ export type SidebarLink = {
   href: string;
   icon: LucideIcon;
   matchPaths: string[];
+  capability?: string;
 };
 
 export type SidebarGroup = {
@@ -61,6 +62,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
         href: "/residents/scan/input",
         icon: QrCode,
         matchPaths: ["/residents/scan"],
+        capability: "digital_id.verify",
       },
       {
         label: "Quick Gender",
@@ -84,6 +86,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
         href: "/document-requests",
         icon: ClipboardList,
         matchPaths: ["/document-requests"],
+        capability: "document.view",
       },
       {
         label: "Track Request",

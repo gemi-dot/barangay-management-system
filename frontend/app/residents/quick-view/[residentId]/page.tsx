@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ContentContainer } from "@/components/layout/ContentContainer";
+import { useSessionAuth } from "@/components/session-context";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -26,6 +27,8 @@ type DocType =
   | "business_clearance";
 
 export default function ResidentQuickViewPage() {
+  const { can } = useSessionAuth();
+  const canCreateDocument = can("document.create");
   const params = useParams<{ residentId: string }>();
   const residentId = params.residentId;
 
@@ -129,10 +132,12 @@ export default function ResidentQuickViewPage() {
               >
                 {busyAction === "visit" ? "Marking..." : "Mark Visited Today"}
               </PrimaryButton>
-              <SecondaryButton onClick={() => { void createDoc("certificate_of_residency"); }} disabled={busyAction !== null}>Create Residency Request</SecondaryButton>
-              <SecondaryButton onClick={() => { void createDoc("certificate_of_indigency"); }} disabled={busyAction !== null}>Create Indigency Request</SecondaryButton>
-              <SecondaryButton onClick={() => { void createDoc("barangay_clearance"); }} disabled={busyAction !== null}>Create Barangay Clearance</SecondaryButton>
-              <SecondaryButton onClick={() => { void createDoc("business_clearance"); }} disabled={busyAction !== null}>Create Business Clearance</SecondaryButton>
+              {canCreateDocument ? <>
+                <SecondaryButton onClick={() => { void createDoc("certificate_of_residency"); }} disabled={busyAction !== null}>Create Residency Request</SecondaryButton>
+                <SecondaryButton onClick={() => { void createDoc("certificate_of_indigency"); }} disabled={busyAction !== null}>Create Indigency Request</SecondaryButton>
+                <SecondaryButton onClick={() => { void createDoc("barangay_clearance"); }} disabled={busyAction !== null}>Create Barangay Clearance</SecondaryButton>
+                <SecondaryButton onClick={() => { void createDoc("business_clearance"); }} disabled={busyAction !== null}>Create Business Clearance</SecondaryButton>
+              </> : null}
             </div>
           </SectionCard>
 

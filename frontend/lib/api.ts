@@ -766,9 +766,18 @@ export type ResidentDetailResponse = {
       manage_household: boolean;
       view_family: boolean;
       manage_family: boolean;
+      view_documents: boolean;
+      create_document: boolean;
+      process_document: boolean;
+      approve_document: boolean;
+      release_document: boolean;
+      print_document: boolean;
       view_qr: boolean;
-      manage_documents: boolean;
-      manage_qr: boolean;
+      verify_qr: boolean;
+      issue_qr: boolean;
+      reissue_qr: boolean;
+      revoke_qr: boolean;
+      print_qr: boolean;
     };
   };
   system: {

@@ -34,3 +34,16 @@ test("role-based fallback still applies to legacy navigation items", () => {
   assert.equal(hasNavigationAccess(inventoryItem, ["Secretary"], canFrom([])), true);
   assert.equal(hasNavigationAccess(inventoryItem, ["BHW"], canFrom([])), false);
 });
+
+test("document queue navigation requires document.view instead of an office role", () => {
+  const item = {
+    label: "Document Requests",
+    href: "/document-requests",
+    matchPaths: ["/document-requests"],
+    capability: "document.view",
+  };
+
+  assert.equal(hasNavigationAccess(item, ["Secretary"], canFrom(["document.view"])), true);
+  assert.equal(hasNavigationAccess(item, ["Captain"], canFrom(["document.view"])), true);
+  assert.equal(hasNavigationAccess(item, ["BHW"], canFrom([])), false);
+});

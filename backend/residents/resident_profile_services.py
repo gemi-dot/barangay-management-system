@@ -1,4 +1,16 @@
 from accounts.capabilities import (
+    DIGITAL_ID_ISSUE,
+    DIGITAL_ID_PRINT,
+    DIGITAL_ID_REISSUE,
+    DIGITAL_ID_REVOKE,
+    DIGITAL_ID_VERIFY,
+    DIGITAL_ID_VIEW,
+    DOCUMENT_APPROVE,
+    DOCUMENT_CREATE,
+    DOCUMENT_PRINT,
+    DOCUMENT_PROCESS,
+    DOCUMENT_RELEASE,
+    DOCUMENT_VIEW,
     FAMILY_MANAGE,
     FAMILY_VIEW,
     HOUSEHOLD_MANAGE,
@@ -13,16 +25,31 @@ PROFILE_TABS = ('overview', 'personal', 'household', 'family', 'documents', 'his
 def profile_permissions(user):
     capabilities = capabilities_for_user(user)
     can_manage = bool(capabilities)
+    visible_tabs = [
+        tab for tab in PROFILE_TABS
+        if can_manage
+        and (tab != 'documents' or DOCUMENT_VIEW in capabilities)
+        and (tab != 'qr' or DIGITAL_ID_VIEW in capabilities)
+    ]
     return {
-        'visible_tabs': list(PROFILE_TABS) if can_manage else [],
+        'visible_tabs': visible_tabs,
         'actions': {
             'view_household': HOUSEHOLD_VIEW in capabilities,
             'manage_household': HOUSEHOLD_MANAGE in capabilities,
             'view_family': FAMILY_VIEW in capabilities,
             'manage_family': FAMILY_MANAGE in capabilities,
-            'view_qr': can_manage,
-            'manage_documents': can_manage,
-            'manage_qr': can_manage,
+            'view_documents': DOCUMENT_VIEW in capabilities,
+            'create_document': DOCUMENT_CREATE in capabilities,
+            'process_document': DOCUMENT_PROCESS in capabilities,
+            'approve_document': DOCUMENT_APPROVE in capabilities,
+            'release_document': DOCUMENT_RELEASE in capabilities,
+            'print_document': DOCUMENT_PRINT in capabilities,
+            'view_qr': DIGITAL_ID_VIEW in capabilities,
+            'verify_qr': DIGITAL_ID_VERIFY in capabilities,
+            'issue_qr': DIGITAL_ID_ISSUE in capabilities,
+            'reissue_qr': DIGITAL_ID_REISSUE in capabilities,
+            'revoke_qr': DIGITAL_ID_REVOKE in capabilities,
+            'print_qr': DIGITAL_ID_PRINT in capabilities,
         },
     }
 

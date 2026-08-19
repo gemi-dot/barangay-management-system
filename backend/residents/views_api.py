@@ -11,6 +11,15 @@ from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from accounts.capabilities import (
+    DIGITAL_ID_ISSUE,
+    DIGITAL_ID_REISSUE,
+    DIGITAL_ID_REVOKE,
+    DIGITAL_ID_VERIFY,
+    DOCUMENT_APPROVE,
+    DOCUMENT_CREATE,
+    DOCUMENT_PROCESS,
+    DOCUMENT_RELEASE,
+    DOCUMENT_VIEW,
     FAMILY_MANAGE,
     FAMILY_VIEW,
     RESIDENT_CREATE,
@@ -59,14 +68,6 @@ class ResidentPagination(pagination.PageNumberPagination):
     max_page_size = 100
 
 
-class StaffWritePermission(BasePermission):
-    """Restrict all access to authenticated staff users."""
-
-    def has_permission(self, request, view):
-        user = request.user
-        return user_has_office_role(user)
-
-
 class ResidentViewSet(viewsets.ModelViewSet):
     queryset = Resident.objects.all()
     serializer_class = ResidentSerializer
@@ -88,13 +89,11 @@ class ResidentViewSet(viewsets.ModelViewSet):
         'service_log_action': RESIDENT_EDIT,
         'remove_family_relationship': FAMILY_MANAGE,
         'family_tree': FAMILY_VIEW,
-    }
-    deferred_actions = {
-        'quick_document_request',
-        'document_requirements',
-        'issue_qr',
-        'reissue_qr',
-        'revoke_qr',
+        'quick_document_request': DOCUMENT_CREATE,
+        'document_requirements': DOCUMENT_CREATE,
+        'issue_qr': DIGITAL_ID_ISSUE,
+        'reissue_qr': DIGITAL_ID_REISSUE,
+        'revoke_qr': DIGITAL_ID_REVOKE,
     }
     filter_backends = [
         DjangoFilterBackend,
@@ -124,11 +123,6 @@ class ResidentViewSet(viewsets.ModelViewSet):
         'updated_at',
     ]
     ordering = ['last_name', 'first_name']
-
-    def get_permissions(self):
-        if self.action in self.deferred_actions:
-            return [StaffWritePermission()]
-        return super().get_permissions()
 
     def get_required_capability(self, request):
         if self.action == 'family_relationships':
@@ -589,8 +583,23 @@ class StaffOnlyPermission(BasePermission):
 
 
 class DocumentRequestViewSet(viewsets.ViewSet):
-    permission_classes = [StaffOnlyPermission]
+    permission_classes = [CapabilityPermission]
     pagination_class = DocumentRequestPagination
+
+    def get_required_capability(self, request):
+        if self.action in {'list', 'retrieve'}:
+            return DOCUMENT_VIEW
+        if self.action == 'update_status':
+            return {
+                'processing': DOCUMENT_PROCESS,
+                'ready_for_pickup': DOCUMENT_APPROVE,
+                'released': DOCUMENT_RELEASE,
+                # Rejection and cancellation do not have dedicated capabilities.
+                # Treat both as queue-processing operations until policy adds one.
+                'rejected': DOCUMENT_PROCESS,
+                'cancelled': DOCUMENT_PROCESS,
+            }.get((request.data.get('status') or '').strip(), DOCUMENT_PROCESS)
+        return None
 
     @staticmethod
     def _serialize_doc(doc):
@@ -708,7 +717,8 @@ def _normalize_qr_value(raw_value):
 class QrResolveAPIView(APIView):
     """Resolve a QR input to a resident id and log the scan event."""
 
-    permission_classes = [StaffOnlyPermission]
+    permission_classes = [CapabilityPermission]
+    required_capability = DIGITAL_ID_VERIFY
 
     def post(self, request):
         raw_value = (request.data.get('qr_input') or '').strip()

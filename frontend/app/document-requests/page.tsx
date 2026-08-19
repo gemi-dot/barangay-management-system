@@ -44,7 +44,14 @@ const QUICK_ACTIONS = [
 ] as const;
 
 export default function DocumentRequestsPage() {
-  const { canWrite } = useSessionAuth();
+  const { can } = useSessionAuth();
+  const canView = can("document.view");
+  const canCreate = can("document.create");
+  const canProcess = can("document.process");
+  const canApprove = can("document.approve");
+  const canRelease = can("document.release");
+  const canPrint = can("document.print");
+  const canExport = can("document.export");
 
   const [rows, setRows] = useState<StaffDocumentRequest[]>([]);
   const [count, setCount] = useState(0);
@@ -64,7 +71,7 @@ export default function DocumentRequestsPage() {
     let cancelled = false;
 
     async function loadData() {
-      if (!canWrite) {
+      if (!canView) {
         setRows([]);
         setCount(0);
         return;
@@ -100,7 +107,14 @@ export default function DocumentRequestsPage() {
     return () => {
       cancelled = true;
     };
-  }, [canWrite, page, status]);
+  }, [canView, page, status]);
+
+  function canRunTransition(nextStatus: string) {
+    if (nextStatus === "processing" || nextStatus === "rejected" || nextStatus === "cancelled") return canProcess;
+    if (nextStatus === "ready_for_pickup") return canApprove;
+    if (nextStatus === "released") return canRelease;
+    return false;
+  }
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / PAGE_SIZE)), [count]);
 
@@ -134,8 +148,9 @@ export default function DocumentRequestsPage() {
         subtitle="Document Services"
         title="Document Requests Executive Workspace"
         description="Operational queue for document requests with status actions, exports, and service-level visibility."
-        badges={canWrite ? <StatusBadge label="Operational access enabled" tone="success" /> : <StatusBadge label="Read-only access" tone="warning" />}
+        badges={canView ? <StatusBadge label="Document access enabled" tone="success" /> : <StatusBadge label="Restricted access" tone="warning" />}
         actions={
+          canExport ?
           <ExportButtons
             rows={rows}
             fileName="document-requests-export.csv"
@@ -149,10 +164,11 @@ export default function DocumentRequestsPage() {
             })}
             disabled={loading}
           />
+          : undefined
         }
       />
 
-      {!canWrite ? (
+      {!canView ? (
         <SectionCard
           title="Restricted module"
           description="Authorized access is required to view document request queue data."
@@ -162,14 +178,14 @@ export default function DocumentRequestsPage() {
 
       {error ? <ErrorState message={error} /> : null}
 
-      {canWrite ? (
+      {canView ? (
         <>
           <ModuleQuickActions
             actions={[
-              { label: "Create Request", description: "Open resident portal request form", href: "/resident-portal", icon: FilePlus2, tone: "blue" },
+              ...(canCreate ? [{ label: "Create Request", description: "Open resident portal request form", href: "/resident-portal", icon: FilePlus2, tone: "blue" as const }] : []),
               { label: "Queue Dashboard", description: "Return to executive dashboard", href: "/", icon: ClipboardList, tone: "emerald" },
               { label: "Visitors", description: "Review visitors report", href: "/reports/today-visitors", icon: Users, tone: "amber" },
-              { label: "Export Queue", description: "Download request list", href: "/document-requests", icon: Download, tone: "slate" },
+              ...(canExport ? [{ label: "Export Queue", description: "Download request list", href: "/document-requests", icon: Download, tone: "slate" as const }] : []),
             ]}
           />
 
@@ -268,8 +284,8 @@ export default function DocumentRequestsPage() {
                     className: "min-w-[250px]",
                     render: (row) => (
                       <div className="flex flex-wrap gap-2">
-                        {row.print_url ? <Link href={row.print_url} target="_blank" className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-50">Print</Link> : null}
-                        {QUICK_ACTIONS.filter((action) => row.available_transitions.includes(action.value)).map((action) => (
+                        {canPrint && row.print_url ? <Link href={row.print_url} target="_blank" className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-50">Print</Link> : null}
+                        {QUICK_ACTIONS.filter((action) => row.available_transitions.includes(action.value) && canRunTransition(action.value)).map((action) => (
                           <SecondaryButton
                             key={action.value}
                             onClick={() => {

@@ -60,7 +60,7 @@ export function SidebarNavigation({
   onCloseMobile,
 }: SidebarNavigationProps) {
   const pathname = usePathname();
-  const { logout, session, canWrite } = useSessionAuth();
+  const { logout, session, canWrite, can } = useSessionAuth();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     Main: true,
     People: true,
@@ -105,6 +105,8 @@ export function SidebarNavigation({
 
           <div className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
             {SIDEBAR_GROUPS.map((group) => {
+              const visibleItems = group.items.filter((item) => !item.capability || can(item.capability));
+              if (!visibleItems.length) return null;
               const isOpen = openSections[group.title] !== false;
               const sectionClassName = isOpen
                 ? "border-slate-200/80 bg-white shadow-sm"
@@ -133,7 +135,7 @@ export function SidebarNavigation({
                         {group.title}
                       </span>
                       <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        {group.items.length}
+                        {visibleItems.length}
                       </span>
                     </div>
                     <ChevronDown
@@ -145,7 +147,7 @@ export function SidebarNavigation({
 
                   {isOpen && (
                     <div className="mt-2 space-y-1.5 px-1 pb-1">
-                      {group.items.map((link) => {
+                      {visibleItems.map((link) => {
                         const active = link.label === "Logout" ? false : isLinkActive(pathname, link);
                         const Icon: LucideIcon = link.icon;
 

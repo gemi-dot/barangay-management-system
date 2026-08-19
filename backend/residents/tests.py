@@ -85,7 +85,7 @@ class ResidentSecurityRegressionTests(TestCase):
 		response = self.client.get(reverse('residents:document_requests_queue'))
 		self.assertEqual(response.status_code, 200)
 
-	def test_group_role_can_access_queue_even_without_staff_flag(self):
+	def test_bhw_group_cannot_access_document_queue(self):
 		bhw_group, _ = Group.objects.get_or_create(name='BHW')
 		bhw_user = self.user_model.objects.create_user(
 			username='bhw-user',
@@ -96,7 +96,7 @@ class ResidentSecurityRegressionTests(TestCase):
 
 		self.client.force_login(bhw_user)
 		response = self.client.get(reverse('residents:document_requests_queue'))
-		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.status_code, 403)
 
 	def test_staff_without_role_cannot_access_queue(self):
 		ungrouped_staff = self.user_model.objects.create_user(

@@ -27,7 +27,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, matchPaths: ["/"] },
   { label: "Residents", href: "/residents", icon: Users, matchPaths: ["/residents"] },
   { label: "Households", href: "/households", icon: Home, matchPaths: ["/households"], capability: "household.view" },
-  { label: "Document Requests", href: "/document-requests", icon: ClipboardList, matchPaths: ["/document-requests"], roles: ["Secretary", "BHW", "Captain", "Superuser"] },
+  { label: "Document Requests", href: "/document-requests", icon: ClipboardList, matchPaths: ["/document-requests"], capability: "document.view" },
   { label: "Inventory", href: "/inventory", icon: Boxes, matchPaths: ["/inventory"], roles: ["Secretary", "Captain", "Superuser"] },
   { label: "Blotter", href: "/blotter", icon: ShieldAlert, matchPaths: ["/blotter"], roles: ["Secretary", "Captain", "Superuser"] },
   { label: "BHW Reports", href: "/bhw-reports", icon: HeartPulse, matchPaths: ["/bhw-reports"], roles: ["BHW", "Secretary", "Captain", "Superuser"] },

@@ -124,7 +124,7 @@ export function ResidentProfileTabs({ resident, requestedTab }: { resident: Resi
       <FamilyRelationshipPanel residentId={resident.identity.id} canManage={resident.permissions.actions.manage_family} />
     </div> : null}
 
-    {activeTab === "documents" ? <ResidentDocumentsTab residentId={resident.identity.id} documents={resident.documents} canManage={resident.permissions.actions.manage_documents} /> : null}
+    {activeTab === "documents" ? <ResidentDocumentsTab residentId={resident.identity.id} documents={resident.documents} permissions={resident.permissions.actions} /> : null}
 
     {activeTab === "history" ? <div className="space-y-4">
       <SectionCard title="Record timeline"><div className="space-y-4 border-l-2 border-slate-200 pl-5"><div><p className="font-semibold text-slate-900">Resident registered</p><LocalDateTime value={resident.system.date_registered} /></div><div><p className="font-semibold text-slate-900">Record last updated</p><LocalDateTime value={resident.system.updated_at} /></div></div></SectionCard>
