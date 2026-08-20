@@ -33,6 +33,17 @@ def resident_document_warnings(resident):
     return warnings
 
 
+def authoritative_portal_request_data(*, data, submitted_by):
+    payload = data.copy()
+    resident = Resident.objects.filter(portal_user=submitted_by, is_active=True).first()
+    if resident:
+        payload['full_name'] = resident.full_name
+        payload['contact_number'] = resident.contact_number.strip()[:15]
+        payload['email'] = (resident.email or '').strip()
+        payload['address'] = resident.complete_address[:255]
+    return payload
+
+
 @transaction.atomic
 def create_resident_document_request(*, resident, document_type, purpose, created_by, source, remarks=''):
     resident = Resident.objects.select_for_update().get(pk=resident.pk)
@@ -65,6 +76,35 @@ def create_resident_document_request(*, resident, document_type, purpose, create
         to_status=document.status,
         changed_by=created_by,
         remarks='Request created from Resident Profile.' if source == 'profile' else 'Request created.',
+    )
+    return document
+
+
+@transaction.atomic
+def save_portal_document_request(*, document, submitted_by):
+    resident = Resident.objects.filter(portal_user=submitted_by, is_active=True).first()
+    document.submitted_by = submitted_by
+    document.resident = resident
+    document.request_source = DocumentRequest.RequestSource.PORTAL
+
+    if resident:
+        document.full_name = resident.full_name
+        document.contact_number = resident.contact_number.strip()[:15]
+        document.email = (resident.email or '').strip()
+        document.address = resident.complete_address[:255]
+    else:
+        if not document.email:
+            document.email = (submitted_by.email or '').strip()
+        if not document.full_name.strip():
+            document.full_name = submitted_by.get_full_name() or submitted_by.username
+
+    document.save()
+    DocumentRequestStatusHistory.objects.create(
+        document_request=document,
+        from_status='',
+        to_status=document.status,
+        changed_by=submitted_by,
+        remarks='Request created from Resident Portal.',
     )
     return document
 

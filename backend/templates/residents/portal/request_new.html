@@ -17,6 +17,20 @@
                     {% endif %}
 
                     <div class="row g-3">
+                        {% if resident %}
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <strong>Official resident:</strong> {{ resident.full_name }}<br>
+                                <strong>Contact:</strong> {{ resident.contact_number|default:'—' }}<br>
+                                <strong>Email:</strong> {{ resident.email|default:'—' }}<br>
+                                <strong>Address:</strong> {{ resident.complete_address }}
+                            </div>
+                            {{ form.full_name.as_hidden }}
+                            {{ form.contact_number.as_hidden }}
+                            {{ form.email.as_hidden }}
+                            {{ form.address.as_hidden }}
+                        </div>
+                        {% else %}
                         <div class="col-md-8">
                             <label class="form-label">Full Name</label>
                             {{ form.full_name }}
@@ -32,15 +46,16 @@
                             {{ form.email }}
                             {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Document Type</label>
-                            {{ form.document_type }}
-                            {% if form.document_type.errors %}<div class="text-danger small">{{ form.document_type.errors }}</div>{% endif %}
-                        </div>
                         <div class="col-12">
                             <label class="form-label">Address</label>
                             {{ form.address }}
                             {% if form.address.errors %}<div class="text-danger small">{{ form.address.errors }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="col-md-6">
+                            <label class="form-label">Document Type</label>
+                            {{ form.document_type }}
+                            {% if form.document_type.errors %}<div class="text-danger small">{{ form.document_type.errors }}</div>{% endif %}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Preferred Release Date</label>

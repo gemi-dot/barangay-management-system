@@ -12,13 +12,12 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { portalIdentityControls } from "@/lib/portal-identity-resolution.mjs";
 import {
   createPortalRequest,
   getPortalDashboard,
   getPortalRequests,
-  getResidentsPaginated,
   portalRegister,
-  type ResidentListItem,
   type PortalDashboard,
   type PortalRequest,
 } from "@/lib/api";
@@ -43,23 +42,12 @@ const EMPTY_REQUEST_FORM: RequestForm = {
   preferred_release_date: "",
 };
 
-function getResidentDisplayName(resident: ResidentListItem) {
-  if (resident.full_name?.trim()) {
-    return resident.full_name.trim();
-  }
-
-  return [resident.first_name, resident.middle_name, resident.last_name]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(" ");
-}
-
 export default function ResidentPortalPage() {
   const { session, login, refreshSession } = useSessionAuth();
 
   const [dashboard, setDashboard] = useState<PortalDashboard | null>(null);
+  const [dashboardResolution, setDashboardResolution] = useState<"idle" | "loading" | "resolved" | "failed">("idle");
   const [requests, setRequests] = useState<PortalRequest[]>([]);
-  const [residentSuggestions, setResidentSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,12 +63,13 @@ export default function ResidentPortalPage() {
     async function loadPortalData() {
       if (!session?.is_authenticated) {
         setDashboard(null);
+        setDashboardResolution("idle");
         setRequests([]);
-        setResidentSuggestions([]);
         return;
       }
 
       setLoading(true);
+      setDashboardResolution("loading");
       setError(null);
       try {
         const [dash, reqs] = await Promise.all([
@@ -89,16 +78,19 @@ export default function ResidentPortalPage() {
         ]);
         if (!cancelled) {
           setDashboard(dash);
+          setDashboardResolution("resolved");
           setRequests(reqs.results);
           setRequestForm((prev) => ({
             ...prev,
-            full_name: dash.user.full_name || prev.full_name,
-            email: dash.user.email || prev.email,
+            full_name: dash.resident?.full_name || dash.user.full_name || prev.full_name,
+            email: dash.resident?.email || dash.user.email || prev.email,
             contact_number: dash.resident?.contact_number || prev.contact_number,
+            address: dash.resident?.address || prev.address,
           }));
         }
       } catch (err) {
         if (!cancelled) {
+          setDashboardResolution("failed");
           const message = err instanceof Error ? err.message : "Failed to load portal data.";
           setError(message);
         }
@@ -115,54 +107,6 @@ export default function ResidentPortalPage() {
       cancelled = true;
     };
   }, [session?.is_authenticated]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!session?.is_authenticated) {
-      return undefined;
-    }
-
-    const query = requestForm.full_name.trim();
-    if (query.length < 2) {
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const residents = await getResidentsPaginated({
-            search: query,
-            page: 1,
-            page_size: 10,
-            is_active: true,
-            ordering: "last_name",
-            fields: ["id", "first_name", "middle_name", "last_name", "full_name"],
-          });
-
-          if (!cancelled) {
-            const names = Array.from(
-              new Set(
-                residents.results
-                  .map((resident) => getResidentDisplayName(resident))
-                  .filter((name) => name.length > 0),
-              ),
-            );
-            setResidentSuggestions(names);
-          }
-        } catch {
-          if (!cancelled) {
-            setResidentSuggestions([]);
-          }
-        }
-      })();
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [session?.is_authenticated, requestForm.full_name]);
 
   async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -225,6 +169,8 @@ export default function ResidentPortalPage() {
     }
   }
 
+  const identityControls = portalIdentityControls(dashboardResolution, dashboard?.resident ?? null);
+
   return (
     <ContentContainer>
       <SessionRoleBanner />
@@ -264,48 +210,23 @@ export default function ResidentPortalPage() {
           </section>
 
           <section className="grid gap-4 lg:grid-cols-2">
-            <SectionCard title="Submit Document Request" description="Start typing a resident name to search the full resident list, or enter the name manually.">
+            {identityControls.showRequestForm ? <SectionCard title="Submit Document Request" description={identityControls.showLinkedIdentity ? "This request will use the official identity from your linked Resident Profile." : "Enter the applicant details for this unlinked request."}>
               <form onSubmit={handleCreateRequest} className="mt-3 grid gap-3">
-                <datalist id="resident-name-suggestions">
-                  {residentSuggestions.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-                <input
-                  value={requestForm.full_name}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setRequestForm((prev) => ({ ...prev, full_name: value }));
-                    if (value.trim().length < 2) {
-                      setResidentSuggestions([]);
-                    }
-                  }}
-                  placeholder="Search or encode full name"
-                  list="resident-name-suggestions"
-                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
-                  required
-                />
-                <input
-                  value={requestForm.contact_number}
-                  onChange={(event) => setRequestForm((prev) => ({ ...prev, contact_number: event.target.value }))}
-                  placeholder="Contact number"
-                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
-                  required
-                />
-                <input
-                  type="email"
-                  value={requestForm.email}
-                  onChange={(event) => setRequestForm((prev) => ({ ...prev, email: event.target.value }))}
-                  placeholder="Email"
-                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
-                />
-                <input
-                  value={requestForm.address}
-                  onChange={(event) => setRequestForm((prev) => ({ ...prev, address: event.target.value }))}
-                  placeholder="Address"
-                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
-                  required
-                />
+                {identityControls.showLinkedIdentity && dashboard?.resident ? (
+                  <dl className="grid gap-2 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm sm:grid-cols-2">
+                    <div><dt className="text-slate-500">Official resident</dt><dd className="font-medium text-slate-900">{dashboard.resident.full_name}</dd></div>
+                    <div><dt className="text-slate-500">Contact number</dt><dd className="font-medium text-slate-900">{dashboard.resident.contact_number || "—"}</dd></div>
+                    <div><dt className="text-slate-500">Email</dt><dd className="font-medium text-slate-900">{dashboard.resident.email || "—"}</dd></div>
+                    <div><dt className="text-slate-500">Address</dt><dd className="font-medium text-slate-900">{dashboard.resident.address}</dd></div>
+                  </dl>
+                ) : (
+                  <>
+                    <input value={requestForm.full_name} onChange={(event) => setRequestForm((prev) => ({ ...prev, full_name: event.target.value }))} placeholder="Full name" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" required />
+                    <input value={requestForm.contact_number} onChange={(event) => setRequestForm((prev) => ({ ...prev, contact_number: event.target.value }))} placeholder="Contact number" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" required />
+                    <input type="email" value={requestForm.email} onChange={(event) => setRequestForm((prev) => ({ ...prev, email: event.target.value }))} placeholder="Email" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" />
+                    <input value={requestForm.address} onChange={(event) => setRequestForm((prev) => ({ ...prev, address: event.target.value }))} placeholder="Address" className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" required />
+                  </>
+                )}
                 <select
                   value={requestForm.document_type}
                   onChange={(event) =>
@@ -338,7 +259,7 @@ export default function ResidentPortalPage() {
                   {submittingRequest ? "Submitting..." : "Submit request"}
                 </PrimaryButton>
               </form>
-            </SectionCard>
+            </SectionCard> : <SectionCard title="Submit Document Request" description={dashboardResolution === "failed" ? "Resident identity could not be resolved. Resolve the loading error before submitting a request." : "Loading resident identity..."} />}
 
             <SectionCard title="My Requests">
               <DataTable

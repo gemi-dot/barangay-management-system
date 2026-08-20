@@ -28,7 +28,7 @@ from accounts.capabilities import (
 from .models import DocumentRequestStatusHistory, Resident, DocumentRequest, BarangayOfficeProfile, ResidentQrAuditEvent, ResidentQrIdentity, ResidentServiceLog
 from .forms import DocumentRequestForm, ResidentRegistrationForm, ResidentProfileForm
 from .notifications import notify_status_update
-from .document_services import create_resident_document_request, transition_document_request
+from .document_services import authoritative_portal_request_data, create_resident_document_request, save_portal_document_request, transition_document_request
 from django.core.exceptions import ValidationError
 from collections import defaultdict
 from django.db import transaction
@@ -211,22 +211,23 @@ def resident_request_new(request):
     resident = _get_linked_resident(request.user)
 
     if request.method == 'POST':
-        form = DocumentRequestForm(request.POST)
+        form = DocumentRequestForm(authoritative_portal_request_data(
+            data=request.POST,
+            submitted_by=request.user,
+        ))
         if form.is_valid():
             document_request = form.save(commit=False)
-            document_request.submitted_by = request.user
-            if not document_request.email:
-                document_request.email = (request.user.email or '').strip()
-            if not document_request.full_name.strip():
-                document_request.full_name = request.user.get_full_name() or request.user.username
-            document_request.save()
+            document_request = save_portal_document_request(
+                document=document_request,
+                submitted_by=request.user,
+            )
             messages.success(request, f'Request submitted. Tracking number: {document_request.tracking_number}')
             return redirect('resident_portal:requests')
     else:
-        full_name = request.user.get_full_name().strip() or request.user.username
+        full_name = resident.full_name if resident else request.user.get_full_name().strip() or request.user.username
         initial = {
             'full_name': full_name,
-            'email': (request.user.email or '').strip(),
+            'email': (resident.email or '').strip() if resident else (request.user.email or '').strip(),
             'contact_number': resident.contact_number if resident else '',
             'address': resident.complete_address if resident else '',
         }

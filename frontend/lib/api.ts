@@ -267,6 +267,8 @@ export type PortalDashboard = {
     full_name: string;
     zone: string;
     contact_number: string;
+    email: string;
+    address: string;
   } | null;
   counts: {
     total_requests: number;

@@ -289,6 +289,59 @@ class ResidentSecurityRegressionTests(TestCase):
 		self.assertEqual(dashboard_response.json()['counts']['total_requests'], 1)
 		self.assertEqual(dashboard_response.json()['counts']['pending_requests'], 1)
 
+	def test_unlinked_portal_request_preserves_identity_without_name_inference(self):
+		self.client.force_login(self.other_user)
+		response = self.client.post(
+			'/api/portal/requests/create/',
+			data=json.dumps({
+				'full_name': self.linked_resident.full_name,
+				'contact_number': '09179999999',
+				'email': 'applicant@example.com',
+				'address': 'Manual Applicant Address',
+				'document_type': 'barangay_clearance',
+				'purpose': 'Employment',
+			}),
+			content_type='application/json',
+		)
+
+		self.assertEqual(response.status_code, 201)
+		document = DocumentRequest.objects.get(tracking_number=response.json()['tracking_number'])
+		self.assertIsNone(document.resident_id)
+		self.assertEqual(document.full_name, self.linked_resident.full_name)
+		self.assertEqual(document.contact_number, '09179999999')
+		self.assertEqual(document.email, 'applicant@example.com')
+		self.assertEqual(document.address, 'Manual Applicant Address')
+		self.assertEqual(document.submitted_by, self.other_user)
+		self.assertEqual(document.request_source, DocumentRequest.RequestSource.PORTAL)
+		self.assertEqual(document.status_history.count(), 1)
+
+	def test_server_rendered_portal_creation_uses_official_linked_identity(self):
+		self.linked_resident.contact_number = '09175550000'
+		self.linked_resident.house_number = '42'
+		self.linked_resident.street = 'Official Street'
+		self.linked_resident.email = 'official-resident@example.com'
+		self.linked_resident.save(update_fields=['contact_number', 'house_number', 'street', 'email'])
+		self.client.force_login(self.regular_user)
+
+		response = self.client.post(reverse('resident_portal:request_new'), {
+			'full_name': 'Different Applicant',
+			'contact_number': '09999999999',
+			'email': 'different@example.com',
+			'address': 'Different Address',
+			'document_type': 'certificate_of_residency',
+			'purpose': 'Employment',
+		})
+
+		self.assertRedirects(response, reverse('resident_portal:requests'))
+		document = DocumentRequest.objects.get(submitted_by=self.regular_user)
+		self.assertEqual(document.resident, self.linked_resident)
+		self.assertEqual(document.full_name, self.linked_resident.full_name)
+		self.assertEqual(document.contact_number, self.linked_resident.contact_number)
+		self.assertEqual(document.email, self.linked_resident.email)
+		self.assertEqual(document.address, self.linked_resident.complete_address)
+		self.assertEqual(document.request_source, DocumentRequest.RequestSource.PORTAL)
+		self.assertEqual(document.status_history.count(), 1)
+
 	def test_portal_request_create_without_trailing_slash_returns_json(self):
 		self.client.force_login(self.regular_user)
 		response = self.client.post(

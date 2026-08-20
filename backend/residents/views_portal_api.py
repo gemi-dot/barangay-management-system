@@ -5,7 +5,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import DocumentRequestForm, ResidentRegistrationForm
-from .models import DocumentRequest, DocumentRequestStatusHistory, Resident
+from .models import DocumentRequest, Resident
+from .document_services import authoritative_portal_request_data, save_portal_document_request
 
 
 def _linked_resident(user):
@@ -63,6 +64,8 @@ def portal_dashboard_api(request):
                 "full_name": resident.full_name,
                 "zone": resident.zone,
                 "contact_number": resident.contact_number,
+                "email": resident.email,
+                "address": resident.complete_address,
             }
             if resident
             else None,
@@ -106,25 +109,17 @@ def portal_request_create_api(request):
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
 
-    form = DocumentRequestForm(payload)
+    form = DocumentRequestForm(authoritative_portal_request_data(
+        data=payload,
+        submitted_by=request.user,
+    ))
     if not form.is_valid():
         return JsonResponse({"errors": form.errors}, status=400)
 
     document_request = form.save(commit=False)
-    document_request.submitted_by = request.user
-    document_request.resident = _linked_resident(request.user)
-    document_request.request_source = DocumentRequest.RequestSource.PORTAL
-    if not document_request.email:
-        document_request.email = (request.user.email or "").strip()
-    if not document_request.full_name.strip():
-        document_request.full_name = request.user.get_full_name() or request.user.username
-    document_request.save()
-    DocumentRequestStatusHistory.objects.create(
-        document_request=document_request,
-        from_status='',
-        to_status=document_request.status,
-        changed_by=request.user,
-        remarks='Request created from Resident Portal.',
+    document_request = save_portal_document_request(
+        document=document_request,
+        submitted_by=request.user,
     )
 
     return JsonResponse(

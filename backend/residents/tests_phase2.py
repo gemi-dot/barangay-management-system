@@ -86,18 +86,31 @@ class Phase2DocumentWorkflowTests(TestCase):
 
     def test_portal_request_links_explicit_resident_and_shared_model(self):
         portal_user = get_user_model().objects.create_user(username='portal-phase2', password='pass')
+        self.resident.email = 'official@example.com'
         self.resident.portal_user = portal_user
-        self.resident.save(update_fields=['portal_user'])
+        self.resident.save(update_fields=['email', 'portal_user'])
         self.client.force_login(portal_user)
         response = self.post_json('/api/portal/requests/create/', {
-            'full_name': self.resident.full_name, 'contact_number': self.resident.contact_number,
-            'email': '', 'address': self.resident.complete_address,
+            'full_name': '', 'contact_number': '09999999999',
+            'email': 'not-an-email', 'address': '',
             'document_type': 'certificate_of_indigency', 'purpose': 'Assistance',
+            'preferred_release_date': '2026-09-01',
         })
         self.assertEqual(response.status_code, 201)
         document = DocumentRequest.objects.get(tracking_number=response.json()['tracking_number'])
         self.assertEqual(document.resident, self.resident)
+        self.assertEqual(document.full_name, self.resident.full_name)
+        self.assertEqual(document.contact_number, self.resident.contact_number)
+        self.assertEqual(document.email, self.resident.email)
+        self.assertEqual(document.address, self.resident.complete_address)
+        self.assertEqual(document.preferred_release_date.isoformat(), '2026-09-01')
+        self.assertEqual(document.submitted_by, portal_user)
         self.assertEqual(document.request_source, DocumentRequest.RequestSource.PORTAL)
+        history = document.status_history.get()
+        self.assertEqual(history.from_status, '')
+        self.assertEqual(history.to_status, 'pending')
+        self.assertEqual(history.changed_by, portal_user)
+        self.assertEqual(history.remarks, 'Request created from Resident Portal.')
 
 
 class Phase2QrWorkflowTests(TestCase):
