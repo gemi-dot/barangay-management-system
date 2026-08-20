@@ -133,6 +133,7 @@ class ResidentSecurityRegressionTests(TestCase):
 			complete_address='Purok Kulo, Abgao',
 		)
 		document = DocumentRequest.objects.create(
+			resident=self.linked_resident,
 			full_name=self.linked_resident.full_name,
 			contact_number='09171234567',
 			email=self.linked_resident.email,
@@ -166,6 +167,43 @@ class ResidentSecurityRegressionTests(TestCase):
 		self.assertEqual(payload['household']['head_resident_id'], self.linked_resident.id)
 		self.assertEqual(payload['household']['members'][0]['resident_id'], self.linked_resident.id)
 		self.assertEqual(payload['household_history'][0]['household_number'], 'PROFILE-HH-001')
+
+	def test_resident_profile_documents_include_only_direct_resident_links(self):
+		linked_requests = [
+			DocumentRequest.objects.create(
+				resident=self.linked_resident,
+				full_name=self.linked_resident.full_name,
+				contact_number='09171234567',
+				address='Purok Kulo, Abgao',
+				document_type='barangay_clearance',
+				purpose=f'Linked request {index}',
+			)
+			for index in range(2)
+		]
+		DocumentRequest.objects.create(
+			full_name=self.linked_resident.full_name,
+			contact_number='09171234567',
+			address='Purok Kulo, Abgao',
+			document_type='certificate_of_residency',
+			purpose='Unlinked same-name request',
+		)
+		DocumentRequest.objects.create(
+			full_name='Portal-submitted snapshot',
+			contact_number='09171234567',
+			submitted_by=self.linked_resident.portal_user,
+			address='Purok Kulo, Abgao',
+			document_type='certificate_of_indigency',
+			purpose='Unlinked portal-user request',
+		)
+		self.client.force_login(self.staff_user)
+
+		response = self.client.get(f'/api/residents/{self.linked_resident.id}/detail/')
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(
+			{document['tracking_number'] for document in response.json()['documents']},
+			{document.tracking_number for document in linked_requests},
+		)
 
 	def test_resident_profile_summary_reports_incomplete_data_without_new_schema(self):
 		self.linked_resident.contact_number = ''

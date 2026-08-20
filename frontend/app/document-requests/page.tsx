@@ -225,7 +225,7 @@ export default function DocumentRequestsPage() {
             </FilterBar>
           </SectionCard>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px] xl:items-start">
+          <section className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_250px] 2xl:items-start">
             <div className="min-w-0 space-y-4">
               <div className="min-w-0 w-full overflow-x-auto">
                 <DataTable
@@ -332,7 +332,7 @@ export default function DocumentRequestsPage() {
               </SectionCard>
             </div>
 
-            <div className="min-w-0 xl:w-[250px] xl:max-w-[250px] xl:justify-self-end xl:sticky xl:top-24">
+            <div className="min-w-0 2xl:w-[250px] 2xl:max-w-[250px] 2xl:justify-self-end 2xl:sticky 2xl:top-24">
               <StatisticsSidebar
                 title="Statistics Sidebar"
                 stats={[
@@ -341,7 +341,7 @@ export default function DocumentRequestsPage() {
                   { label: "Total Queue", value: String(count) },
                   { label: "Pending Actions", value: String(rows.filter((row) => row.status === "pending").length) },
                 ]}
-                statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 xl:grid-cols-1"
+                statsContainerClassName="grid grid-cols-2 gap-3 space-y-0 2xl:grid-cols-1"
                 statCardClassName="min-w-0"
               />
             </div>

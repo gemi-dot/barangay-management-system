@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.db.models import Q
 
 from .models import DocumentRequest, HouseholdMembership, Resident, ResidentQrIdentity
 from .document_services import available_document_transitions, document_print_path
@@ -144,10 +143,7 @@ class ResidentDetailEndpointSerializer(serializers.Serializer):
                 ],
             }
 
-        document_filter = Q(resident=instance) | Q(resident__isnull=True, full_name__iexact=instance.full_name)
-        if instance.portal_user_id:
-            document_filter |= Q(submitted_by_id=instance.portal_user_id)
-        documents = DocumentRequest.objects.filter(document_filter).distinct().order_by('-created_at')[:50]
+        documents = DocumentRequest.objects.filter(resident=instance).order_by('-created_at')[:50]
         service_logs = instance.service_logs.select_related('logged_by').order_by('-created_at')[:50]
 
         return {
